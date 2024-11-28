@@ -16,7 +16,7 @@ class CronController extends Controller
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
-            ->limit(100)
+            ->limit(20)
             ->get();
 
         // Verificar se algum contrato foi encontrado
@@ -86,7 +86,6 @@ class CronController extends Controller
                     // Retorna o corpo da resposta
                     $responseBody = $response->getBody();
                     $responseData = json_decode($responseBody, true);
-
                     // Verificar se o "parcelamento" é null e se a mensagem de erro está presente
                     if ($responseData[0]['messagem'] != "") {
                         // Se a mensagem de erro for encontrada, atualize o contrato com erro
@@ -115,18 +114,45 @@ class CronController extends Controller
                     $penultimoParcela = null;
                     $encontrouParcelaMenor170 = false;  // Flag para verificar se encontramos parcela menor que 170
 
+                    // foreach ($ultimoArray['parcelamento'] as $index => $item) {
+                    //     // Verifica se o valor da parcela é menor que 170
+                    //     if ($item['valorParcela'] < 170) {
+                    //         $encontrouParcelaMenor170 = true;
+                    //         $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+                    //         $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                    //         $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                    //         $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                    //         $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                    //         break;
+                    //     }
+                    // }
+
+
                     foreach ($ultimoArray['parcelamento'] as $index => $item) {
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
+                    
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                            $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
-                            $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
-                            $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
-                            $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                    
+                            // Verifica se existe uma parcela anterior
+                            if ($indiceParcela > 0) {
+                                $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                    
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            } else {
+                                // Caso não exista parcela anterior, trate o cenário conforme a necessidade
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $ultimoArray['parcelamento'][0]['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $ultimoArray['parcelamento'][0]['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            }
+                    
                             break;
                         }
                     }
+                   
 
                     // Caso não tenha encontrado nenhuma parcela abaixo de 170, seleciona o penúltimo item
                     if (!$encontrouParcelaMenor170 && count($ultimoArray['parcelamento']) > 1) {
@@ -136,7 +162,7 @@ class CronController extends Controller
                         $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
                     }
 
-                
+
 
                     // Atualizar o contrato após o processamento
                     $contrato->request = 1;
@@ -148,7 +174,7 @@ class CronController extends Controller
                     // Adicionar o sucesso ao array de resultados
                     $resultados[] = [
                         'contrato_id' => $contrato->id,
-                        'parcelamento' => $responseData
+                        'parcelamento' => 'sucess'
                     ];
                 } catch (RequestException $e) {
                     // Caso haja erro, adicionar à lista de erros
