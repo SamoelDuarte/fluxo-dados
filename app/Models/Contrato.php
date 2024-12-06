@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Contrato extends Model
 {
     use HasFactory;
-    protected $fillable = ['carteira_id', 'contrato', 'nome','documento', 'lote_id'];
+    protected $fillable = ['carteira_id', 'contrato', 'nome','documento', 'lote_id','erro', 'mensagem_erro'];
 
     // Definindo o relacionamento com o lote
     public function lote()
