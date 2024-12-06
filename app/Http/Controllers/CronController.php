@@ -489,15 +489,26 @@ class CronController extends Controller
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
+                    
+                            // Localizar o índice da parcela atual
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                            $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
-                            $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
-                            $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
-                            $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                    
+                            // Garantir que o índice seja válido e acessar o penúltimo elemento
+                            if ($indiceParcela !== false && $indiceParcela > 0) {
+                                $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            } else {
+                                // Se não houver "penúltima parcela", pegue o próprio item atual como fallback
+                                $penultimoParcela = $item;
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $item['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $item['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            }
                             break;
                         }
                     }
-
                     // Caso nenhuma parcela menor que 170 seja encontrada
                     if (!$encontrouParcelaMenor170) {
                         if (count($parcelamentos) > 1) {
@@ -634,11 +645,23 @@ class CronController extends Controller
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
+                    
+                            // Localizar o índice da parcela atual
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                            $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
-                            $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
-                            $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
-                            $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                    
+                            // Garantir que o índice seja válido e acessar o penúltimo elemento
+                            if ($indiceParcela !== false && $indiceParcela > 0) {
+                                $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            } else {
+                                // Se não houver "penúltima parcela", pegue o próprio item atual como fallback
+                                $penultimoParcela = $item;
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $item['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $item['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            }
                             break;
                         }
                     }
