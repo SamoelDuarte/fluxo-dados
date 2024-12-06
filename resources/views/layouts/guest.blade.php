@@ -13,8 +13,8 @@
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
 
-    <link rel="stylesheet" href="{{ asset('/public/build/assets/app-MMXf89Ah.css') }}">
-    <script src="{{ asset('/public/build/assets/app-BjCBnTiP.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ asset('/build/assets/app-MMXf89Ah.css') }}">
+    <script src="{{ asset('/build/assets/app-BjCBnTiP.js') }}" defer></script>
 </head>
 
 <body class="font-sans text-gray-900 antialiased">
