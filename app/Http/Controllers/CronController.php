@@ -418,7 +418,7 @@ class CronController extends Controller
                 $query->where('request', 1)
                     ->where('erro', 0);
             })
-            ->limit(50) // Limitar para 20 registros
+            ->limit(80) // Limitar para 20 registros
             ->get();
 
         $resultados = [];
