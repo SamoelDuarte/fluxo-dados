@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/parcelamento', [CronController::class, 'obterOpcoesParcelamento']); // Processamento do upload
+Route::get('/dados', [CronController::class, 'obterDadosEAtualizarContratos']); // Processamento do upload
 
 Route::get('/teste', function () {
 

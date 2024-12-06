@@ -12,7 +12,7 @@ use GuzzleHttp\Psr7\Request;
 class CronController extends Controller
 {
 
-    public function obterOpcoesParcelamento()
+    public function obterOpcoesParcelamento_()
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
@@ -132,13 +132,13 @@ class CronController extends Controller
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
-                    
+
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                    
+
                             // Verifica se existe uma parcela anterior
                             if ($indiceParcela > 0) {
                                 $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
-                    
+
                                 $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
                                 $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
                                 $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
@@ -148,11 +148,11 @@ class CronController extends Controller
                                 $planilhaData['valor_proposta_2'] = $ultimoArray['parcelamento'][0]['valorParcela'];
                                 $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
                             }
-                    
+
                             break;
                         }
                     }
-                   
+
 
                     // Caso não tenha encontrado nenhuma parcela abaixo de 170, seleciona o penúltimo item
                     if (!$encontrouParcelaMenor170 && count($ultimoArray['parcelamento']) > 1) {
@@ -349,4 +349,196 @@ class CronController extends Controller
             ], 500);
         }
     }
+
+    public function obterDadosEAtualizarContratos()
+    {
+        // Buscar até 100 contratos que tenham 'request' igual a 0
+        $contratos = Contrato::where('request', 0)
+            ->limit(100)
+            ->get();
+
+        if ($contratos->isEmpty()) {
+            return response()->json(['error' => 'Nenhum contrato encontrado com request igual a 0'], 404);
+        }
+
+        $erros = [];
+        foreach ($contratos as $contrato) {
+            // Receber os dados do cliente
+            $dadosCliente = $this->obterDadosCliente($contrato->documento);
+
+            // Procurar pelo índice do array com "IdGrupo" igual a 1582
+            $indice = null;
+            foreach ($dadosCliente as $index => $item) {
+                if (isset($item['IdGrupo']) && $item['IdGrupo'] === 1582) {
+                    $indice = $index;
+                    break;
+                }
+            }
+
+            if (!is_null($indice)) {
+                $cliente = $dadosCliente[$indice];
+                // Salvar os dados relevantes no banco
+                $planilhaData = [
+                    'contrato_id' => $contrato->id,
+                    'empresa' => 'Neocob',
+                ];
+
+                // Limitar para 10 telefones (caso existam mais)
+                $telefones = array_slice($cliente['Telefones'], 0, 10);
+                foreach ($telefones as $index => $telefone) {
+                    $planilhaData["dddtelefone_" . ($index + 1)] = trim($telefone['Ddd']) . trim($telefone['Fone']);
+                }
+
+                Planilha::create($planilhaData);
+
+                // Atualizar o contrato para indicar que os dados foram salvos
+                $contrato->request = 1;
+                $contrato->save();
+            } else {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'error' => 'Nenhum dado encontrado com IdGrupo 1582'
+                ];
+            }
+        }
+
+        return response()->json([
+            'message' => 'Dados dos clientes processados.',
+            'erros' => $erros
+        ], 200);
+    }
+
+    public function obterOpcoesParcelamento()
+    {
+        // Buscar até 20 planilhas que tenham 'valor_proposta_1' como null
+        $planilhas = Planilha::whereNull('valor_proposta_1')
+            ->limit(100)
+            ->get();
+        
+        $resultados = [];
+        $erros = [];
+    
+        foreach ($planilhas as $planilha) {
+            // Buscar o contrato associado à planilha
+            $contrato = Contrato::find($planilha->contrato_id);
+            if (!$contrato) {
+                $erros[] = [
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Contrato não encontrado para a planilha.',
+                ];
+                continue;
+            }
+    
+            // Dados da requisição POST
+            $data = [
+                "codigoUsuarioCarteiraCobranca" => $contrato->carteira->codigo_usuario_cobranca,
+                "codigoCarteiraCobranca" => $contrato->carteira_id,
+                "pessoaCodigo" => $contrato->contrato,
+                "dataPrimeiraParcela" => Carbon::today()->toDateString(),
+                "valorEntrada" => 0,
+                "chave" => "3cr1O35JfhQ8vBO",
+                "renegociaSomenteDocumentosEmAtraso" => false,
+            ];
+    
+            // Cabeçalhos da requisição
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->gerarToken(),
+            ];
+    
+            $client = new Client();
+    
+            try {
+                // Enviar a requisição
+                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                    'json' => $data,
+                    'headers' => $headers,
+                ]);
+    
+                $responseBody = json_decode($response->getBody(), true);
+    
+                // Verificar erros na resposta
+                if (!empty($responseBody[0]['messagem'])) {
+                    $contrato->update([
+                        'erro' => 1,
+                        'mensagem_erro' => $responseBody[0]['messagem'],
+                    ]);
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'error' => $responseBody[0]['messagem'],
+                    ];
+                    continue;
+                }
+    
+                $ultimoArray = end($responseBody);
+                $parcelamentos = $ultimoArray['parcelamento'] ?? [];
+                $encontrouParcelaMenor170 = false;
+                $penultimoParcela = null;
+    
+                // Garantir que o array de parcelamento não esteja vazio
+                if (!empty($parcelamentos)) {
+                    foreach ($parcelamentos as $index => $item) {
+                        // Verifica se o valor da parcela é menor que 170
+                        if ($item['valorParcela'] < 170) {
+                            $encontrouParcelaMenor170 = true;
+    
+                            // Identificar índice atual e buscar parcela anterior
+                            $indiceParcela = array_search($item['parcelas'], array_column($parcelamentos, 'parcelas'));
+                            if ($indiceParcela > 0) {
+                                $penultimoParcela = $parcelamentos[$indiceParcela - 1];
+                            } else {
+                                $penultimoParcela = $parcelamentos[0];
+                            }
+    
+                            break;
+                        }
+                    }
+    
+                    // Caso nenhuma parcela menor que 170 seja encontrada
+                    if (!$encontrouParcelaMenor170) {
+                        if (count($parcelamentos) > 1) {
+                            $penultimoParcela = $parcelamentos[count($parcelamentos) - 2];
+                        } else {
+                            $penultimoParcela = $parcelamentos[0];
+                        }
+                    }
+    
+                    // Atualizar os dados da planilha
+                    $planilha->update([
+                        'valor_atualizado' => $ultimoArray['valorDivida'],
+                        'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                        'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                        'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                        'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                        'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    ]);
+    
+                    $resultados[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'parcelamento' => 'sucesso',
+                    ];
+                } else {
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'error' => 'Array de parcelamento vazio ou inválido.',
+                    ];
+                }
+            } catch (RequestException $e) {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Erro na requisição: ' . $e->getMessage(),
+                ];
+            }
+        }
+    
+        // Retornar os resultados
+        return response()->json([
+            'resultados' => $resultados,
+            'erros' => $erros,
+        ], 200);
+    }
+    
 }
