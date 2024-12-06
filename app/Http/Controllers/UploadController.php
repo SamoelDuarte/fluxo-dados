@@ -51,25 +51,31 @@ class UploadController extends Controller
 
     public function getLotes()
     {
-        $lotes = Lote::with(['contratos' => function ($query) {
-            $query->select('id', 'lote_id', 'erro', 'request');
+        $lotes = Lote::with(['contratos.planilhas' => function ($query) {
+            // Carregar as planilhas que têm valor_proposta_1 diferente de null
+            $query->whereNotNull('valor_proposta_1');
         }])
             ->get()
             ->map(function ($lote) {
                 $quantidadeErro = $lote->contratos->where('erro', true)->count();
-                $quantidadeSucesso = $lote->contratos->where('request', true)->count();
+
+                // Contar contratos que têm planilhas com valor_proposta_1 diferente de null
+                $quantidadeSucesso = $lote->contratos->filter(function ($contrato) {
+                    return $contrato->planilhas->isNotEmpty();
+                })->count();
 
                 return [
                     'id' => $lote->id,
                     'data' => $lote->created_at->format('d/m/Y'), // Formatar a data
-                    'quantidade' => $lote->contratos->count(), // Contagem de carteiras
+                    'quantidade' => $lote->contratos->count(), // Contagem de contratos
                     'quantidade_erro' => $quantidadeErro, // Contagem de erros
-                    'quantidade_sucesso' => $quantidadeSucesso // Contagem de requisições bem-sucedidas
+                    'quantidade_sucesso' => $quantidadeSucesso // Contagem de sucessos
                 ];
             });
 
         return response()->json($lotes);
     }
+
 
     public function getContratosComErro($loteId)
     {
@@ -94,12 +100,12 @@ class UploadController extends Controller
     {
         // Carregar o lote e seus contratos e planilhas associadas
         $lote = Lote::with('contratos.planilhas')->findOrFail($loteId);
-    
+
         // Filtrando as planilhas associadas ao lote
         $planilhas = $lote->contratos->flatMap(function ($contrato) {
             return $contrato->planilhas;  // Para cada contrato, pegar as planilhas associadas
         });
-    
+
         // Preparar os dados para exportação
         $carteiras = [];
         foreach ($planilhas as $planilha) {
@@ -128,7 +134,7 @@ class UploadController extends Controller
                 'ddd_telefone_10' => $planilha->dddtelefone_10,
             ];
         }
-    
+
         // Agora você cria a instância da classe LoteExport passando as carteiras
         return Excel::download(new LoteExport($carteiras), "lote_{$loteId}.xlsx");
     }
