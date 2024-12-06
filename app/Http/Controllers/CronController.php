@@ -413,7 +413,7 @@ class CronController extends Controller
         // Buscar até 20 planilhas que tenham 'valor_proposta_1' como null
         // e onde os contratos relacionados tenham request == 1 e erro == 0
         $planilhas = Planilha::with('contrato')
-            ->whereNotNull('valor_proposta_1')
+            ->whereNull('valor_proposta_1')
             ->whereHas('contrato', function ($query) {
                 $query->where('request', 1)
                     ->where('erro', 0);
