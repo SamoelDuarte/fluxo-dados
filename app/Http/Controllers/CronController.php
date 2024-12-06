@@ -354,7 +354,7 @@ class CronController extends Controller
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
-            ->limit(100)
+            ->limit(600)
             ->get();
 
         if ($contratos->isEmpty()) {
@@ -411,13 +411,18 @@ class CronController extends Controller
     public function obterOpcoesParcelamento()
     {
         // Buscar até 20 planilhas que tenham 'valor_proposta_1' como null
-        $planilhas = Planilha::whereNull('valor_proposta_1')
-            ->limit(100)
+        // e onde os contratos relacionados tenham request == 1 e erro == 0
+        $planilhas = Planilha::with('contrato')
+            ->whereHas('contrato', function ($query) {
+                $query->where('request', 1)
+                    ->where('erro', 0);
+            })
+            ->limit(1) // Limitar para 20 registros
             ->get();
-        
+
         $resultados = [];
         $erros = [];
-    
+
         foreach ($planilhas as $planilha) {
             // Buscar o contrato associado à planilha
             $contrato = Contrato::find($planilha->contrato_id);
@@ -428,7 +433,7 @@ class CronController extends Controller
                 ];
                 continue;
             }
-    
+
             // Dados da requisição POST
             $data = [
                 "codigoUsuarioCarteiraCobranca" => $contrato->carteira->codigo_usuario_cobranca,
@@ -439,24 +444,24 @@ class CronController extends Controller
                 "chave" => "3cr1O35JfhQ8vBO",
                 "renegociaSomenteDocumentosEmAtraso" => false,
             ];
-    
+
             // Cabeçalhos da requisição
             $headers = [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->gerarToken(),
             ];
-    
+
             $client = new Client();
-    
+
             try {
                 // Enviar a requisição
                 $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
                     'json' => $data,
                     'headers' => $headers,
                 ]);
-    
+
                 $responseBody = json_decode($response->getBody(), true);
-    
+
                 // Verificar erros na resposta
                 if (!empty($responseBody[0]['messagem'])) {
                     $contrato->update([
@@ -469,40 +474,45 @@ class CronController extends Controller
                     ];
                     continue;
                 }
-    
+
                 $ultimoArray = end($responseBody);
                 $parcelamentos = $ultimoArray['parcelamento'] ?? [];
                 $encontrouParcelaMenor170 = false;
                 $penultimoParcela = null;
-    
+             
                 // Garantir que o array de parcelamento não esteja vazio
                 if (!empty($parcelamentos)) {
+                    $parcelamentos = array_slice($parcelamentos, 0, 12);
                     foreach ($parcelamentos as $index => $item) {
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
-    
-                            // Identificar índice atual e buscar parcela anterior
-                            $indiceParcela = array_search($item['parcelas'], array_column($parcelamentos, 'parcelas'));
-                            if ($indiceParcela > 0) {
-                                $penultimoParcela = $parcelamentos[$indiceParcela - 1];
-                            } else {
-                                $penultimoParcela = $parcelamentos[0];
-                            }
-    
+                            $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+                            $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                            $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                            $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                            $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
                             break;
                         }
                     }
-    
+
                     // Caso nenhuma parcela menor que 170 seja encontrada
                     if (!$encontrouParcelaMenor170) {
                         if (count($parcelamentos) > 1) {
-                            $penultimoParcela = $parcelamentos[count($parcelamentos) - 2];
+                            $penultimoParcela = $parcelamentos[count($parcelamentos) - 1];
                         } else {
                             $penultimoParcela = $parcelamentos[0];
                         }
                     }
-    
+                    // $teste = [
+                    //     'valor_atualizado' => $ultimoArray['valorDivida'],
+                    //     'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                    //     'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                    //     'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                    //     'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                    //     'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    // ];
+                    // dd($parcelamentos);
                     // Atualizar os dados da planilha
                     $planilha->update([
                         'valor_atualizado' => $ultimoArray['valorDivida'],
@@ -512,7 +522,7 @@ class CronController extends Controller
                         'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
                         'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
                     ]);
-    
+
                     $resultados[] = [
                         'contrato_id' => $contrato->id,
                         'planilha_id' => $planilha->id,
@@ -533,12 +543,11 @@ class CronController extends Controller
                 ];
             }
         }
-    
+
         // Retornar os resultados
         return response()->json([
             'resultados' => $resultados,
             'erros' => $erros,
         ], 200);
     }
-    
 }
