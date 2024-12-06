@@ -354,7 +354,7 @@ class CronController extends Controller
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
-            ->limit(600)
+            ->limit(500)
             ->get();
 
         if ($contratos->isEmpty()) {
