@@ -413,6 +413,7 @@ class CronController extends Controller
         // Buscar até 20 planilhas que tenham 'valor_proposta_1' como null
         // e onde os contratos relacionados tenham request == 1 e erro == 0
         $planilhas = Planilha::with('contrato')
+            ->whereNotNull('valor_proposta_1')
             ->whereHas('contrato', function ($query) {
                 $query->where('request', 1)
                     ->where('erro', 0);
@@ -479,7 +480,7 @@ class CronController extends Controller
                 $parcelamentos = $ultimoArray['parcelamento'] ?? [];
                 $encontrouParcelaMenor170 = false;
                 $penultimoParcela = null;
-             
+
                 // Garantir que o array de parcelamento não esteja vazio
                 if (!empty($parcelamentos)) {
                     $parcelamentos = array_slice($parcelamentos, 0, 12);
