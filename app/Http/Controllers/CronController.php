@@ -483,7 +483,6 @@ class CronController extends Controller
 
                 // Garantir que o array de parcelamento não esteja vazio
                 if (!empty($parcelamentos)) {
-                    dd($ultimoArray['parcelamento']);
                     $parcelamentos = array_slice($parcelamentos, 0, 12);
                     foreach ($parcelamentos as $index => $item) {
                         // Verifica se o valor da parcela é menor que 170
