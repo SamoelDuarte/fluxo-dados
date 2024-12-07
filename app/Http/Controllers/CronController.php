@@ -488,10 +488,10 @@ class CronController extends Controller
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
-                    
+
                             // Localizar o índice da parcela atual
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                    
+
                             // Garantir que o índice seja válido e acessar o penúltimo elemento
                             if ($indiceParcela !== false && $indiceParcela > 0) {
                                 $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
@@ -644,10 +644,359 @@ class CronController extends Controller
                         // Verifica se o valor da parcela é menor que 170
                         if ($item['valorParcela'] < 170) {
                             $encontrouParcelaMenor170 = true;
-                    
+
                             // Localizar o índice da parcela atual
                             $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
-                    
+
+                            // Garantir que o índice seja válido e acessar o penúltimo elemento
+                            if ($indiceParcela !== false && $indiceParcela > 0) {
+                                $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            } else {
+                                // Se não houver "penúltima parcela", pegue o próprio item atual como fallback
+                                $penultimoParcela = $item;
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $item['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $item['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            }
+                            break;
+                        }
+                    }
+
+                    // Caso nenhuma parcela menor que 170 seja encontrada
+                    if (!$encontrouParcelaMenor170) {
+                        if (count($parcelamentos) > 1) {
+                            $penultimoParcela = $parcelamentos[count($parcelamentos) - 1];
+                        } else {
+                            $penultimoParcela = $parcelamentos[0];
+                        }
+                    }
+                    // $teste = [
+                    //     'valor_atualizado' => $ultimoArray['valorDivida'],
+                    //     'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                    //     'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                    //     'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                    //     'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                    //     'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    // ];
+                    // dd($parcelamentos);
+                    // Atualizar os dados da planilha
+                    $planilha->update([
+                        'valor_atualizado' => $ultimoArray['valorDivida'],
+                        'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                        'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                        'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                        'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                        'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    ]);
+
+                    $resultados[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'parcelamento' => 'sucesso',
+                    ];
+                } else {
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'error' => 'Array de parcelamento vazio ou inválido.',
+                    ];
+                }
+            } catch (RequestException $e) {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Erro na requisição: ' . $e->getMessage(),
+                ];
+            }
+        }
+
+        // Retornar os resultados
+        return response()->json([
+            'resultados' => $resultados,
+            'erros' => $erros,
+        ], 200);
+    }
+
+    public function obterOpcoesParcelamento3()
+    {
+
+        $planilhas = Planilha::with('contrato')
+            ->whereNull('valor_proposta_1')
+            ->whereHas('contrato', function ($query) {
+                $query->where('request', 1)
+                    ->where('erro', 0);
+            })
+            ->orderBy('id', 'desc') // Ordenar pela coluna 'id' em ordem decrescente
+            ->get(); // Sem limite para pegar todos os IDs
+
+        // Obtendo o maior e o menor ID
+        $maiorId = $planilhas->max('id');
+        $menorId = $planilhas->min('id');
+
+        // Calculando a metade
+        $metadeId = intval(($maiorId + $menorId) / 2);
+
+
+        $planilhasAcima = Planilha::with('contrato')
+            ->whereNull('valor_proposta_1')
+            ->where('id', '>', $metadeId) // IDs acima da metade
+            ->whereHas('contrato', function ($query) {
+                $query->where('request', 1)
+                    ->where('erro', 0);
+            })
+            ->orderBy('id', 'asc') // Ordem crescente
+            ->limit(80) // Limitar para 80 registros
+            ->get();
+
+        $resultados = [];
+        $erros = [];
+
+        foreach ($planilhasAcima as $planilha) {
+            // Buscar o contrato associado à planilha
+            $contrato = Contrato::find($planilha->contrato_id);
+            if (!$contrato) {
+                $erros[] = [
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Contrato não encontrado para a planilha.',
+                ];
+                continue;
+            }
+
+            // Dados da requisição POST
+            $data = [
+                "codigoUsuarioCarteiraCobranca" => $contrato->carteira->codigo_usuario_cobranca,
+                "codigoCarteiraCobranca" => $contrato->carteira_id,
+                "pessoaCodigo" => $contrato->contrato,
+                "dataPrimeiraParcela" => Carbon::today()->toDateString(),
+                "valorEntrada" => 0,
+                "chave" => "3cr1O35JfhQ8vBO",
+                "renegociaSomenteDocumentosEmAtraso" => false,
+            ];
+
+            // Cabeçalhos da requisição
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->gerarToken(),
+            ];
+
+            $client = new Client();
+
+            try {
+                // Enviar a requisição
+                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                    'json' => $data,
+                    'headers' => $headers,
+                ]);
+
+                $responseBody = json_decode($response->getBody(), true);
+
+                // Verificar erros na resposta
+                if (!empty($responseBody[0]['messagem'])) {
+                    $contrato->update([
+                        'erro' => 1,
+                        'mensagem_erro' => $responseBody[0]['messagem'],
+                    ]);
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'error' => $responseBody[0]['messagem'],
+                    ];
+                    continue;
+                }
+
+                $ultimoArray = end($responseBody);
+                $parcelamentos = $ultimoArray['parcelamento'] ?? [];
+                $encontrouParcelaMenor170 = false;
+                $penultimoParcela = null;
+
+                // Garantir que o array de parcelamento não esteja vazio
+                if (!empty($parcelamentos)) {
+                    $parcelamentos = array_slice($parcelamentos, 0, 12);
+                    foreach ($parcelamentos as $index => $item) {
+                        // Verifica se o valor da parcela é menor que 170
+                        if ($item['valorParcela'] < 170) {
+                            $encontrouParcelaMenor170 = true;
+
+                            // Localizar o índice da parcela atual
+                            $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+
+                            // Garantir que o índice seja válido e acessar o penúltimo elemento
+                            if ($indiceParcela !== false && $indiceParcela > 0) {
+                                $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            } else {
+                                // Se não houver "penúltima parcela", pegue o próprio item atual como fallback
+                                $penultimoParcela = $item;
+                                $planilhaData['quantidade_parcelas_proposta_2'] = $item['parcelas'];
+                                $planilhaData['valor_proposta_2'] = $item['valorParcela'];
+                                $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                            }
+                            break;
+                        }
+                    }
+
+                    // Caso nenhuma parcela menor que 170 seja encontrada
+                    if (!$encontrouParcelaMenor170) {
+                        if (count($parcelamentos) > 1) {
+                            $penultimoParcela = $parcelamentos[count($parcelamentos) - 1];
+                        } else {
+                            $penultimoParcela = $parcelamentos[0];
+                        }
+                    }
+                    // $teste = [
+                    //     'valor_atualizado' => $ultimoArray['valorDivida'],
+                    //     'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                    //     'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                    //     'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                    //     'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                    //     'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    // ];
+                    // dd($parcelamentos);
+                    // Atualizar os dados da planilha
+                    $planilha->update([
+                        'valor_atualizado' => $ultimoArray['valorDivida'],
+                        'valor_proposta_1' => $parcelamentos[0]['valorTotal'] ?? null,
+                        'data_vencimento_proposta_1' => Carbon::now()->addDay()->format('d/m/Y'),
+                        'quantidade_parcelas_proposta_2' => $penultimoParcela['parcelas'] ?? null,
+                        'valor_proposta_2' => $penultimoParcela['valorParcela'] ?? null,
+                        'data_vencimento_proposta_2' => Carbon::now()->addDay()->format('d/m/Y'),
+                    ]);
+
+                    $resultados[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'parcelamento' => 'sucesso',
+                    ];
+                } else {
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'planilha_id' => $planilha->id,
+                        'error' => 'Array de parcelamento vazio ou inválido.',
+                    ];
+                }
+            } catch (RequestException $e) {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Erro na requisição: ' . $e->getMessage(),
+                ];
+            }
+        }
+
+        // Retornar os resultados
+        return response()->json([
+            'resultados' => $resultados,
+            'erros' => $erros,
+        ], 200);
+    }
+
+    public function obterOpcoesParcelamento4()
+    {
+
+        $planilhas = Planilha::with('contrato')
+            ->whereNull('valor_proposta_1')
+            ->whereHas('contrato', function ($query) {
+                $query->where('request', 1)
+                    ->where('erro', 0);
+            })
+            ->orderBy('id', 'desc') // Ordenar pela coluna 'id' em ordem decrescente
+            ->get(); // Sem limite para pegar todos os IDs
+
+        // Obtendo o maior e o menor ID
+        $maiorId = $planilhas->max('id');
+        $menorId = $planilhas->min('id');
+
+        // Calculando a metade
+        $metadeId = intval(($maiorId + $menorId) / 2);
+
+
+        $planilhasAbaixo = Planilha::with('contrato')
+            ->whereNull('valor_proposta_1')
+            ->where('id', '<', $metadeId) // IDs abaixo da metade
+            ->whereHas('contrato', function ($query) {
+                $query->where('request', 1)
+                    ->where('erro', 0);
+            })
+            ->orderBy('id', 'desc') // Ordem decrescente
+            ->limit(80) // Limitar para 80 registros
+            ->get();
+
+
+        $resultados = [];
+        $erros = [];
+
+        foreach ($planilhasAbaixo as $planilha) {
+            // Buscar o contrato associado à planilha
+            $contrato = Contrato::find($planilha->contrato_id);
+            if (!$contrato) {
+                $erros[] = [
+                    'planilha_id' => $planilha->id,
+                    'error' => 'Contrato não encontrado para a planilha.',
+                ];
+                continue;
+            }
+
+            // Dados da requisição POST
+            $data = [
+                "codigoUsuarioCarteiraCobranca" => $contrato->carteira->codigo_usuario_cobranca,
+                "codigoCarteiraCobranca" => $contrato->carteira_id,
+                "pessoaCodigo" => $contrato->contrato,
+                "dataPrimeiraParcela" => Carbon::today()->toDateString(),
+                "valorEntrada" => 0,
+                "chave" => "3cr1O35JfhQ8vBO",
+                "renegociaSomenteDocumentosEmAtraso" => false,
+            ];
+
+            // Cabeçalhos da requisição
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->gerarToken(),
+            ];
+
+            $client = new Client();
+
+            try {
+                // Enviar a requisição
+                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                    'json' => $data,
+                    'headers' => $headers,
+                ]);
+
+                $responseBody = json_decode($response->getBody(), true);
+
+                // Verificar erros na resposta
+                if (!empty($responseBody[0]['messagem'])) {
+                    $contrato->update([
+                        'erro' => 1,
+                        'mensagem_erro' => $responseBody[0]['messagem'],
+                    ]);
+                    $erros[] = [
+                        'contrato_id' => $contrato->id,
+                        'error' => $responseBody[0]['messagem'],
+                    ];
+                    continue;
+                }
+
+                $ultimoArray = end($responseBody);
+                $parcelamentos = $ultimoArray['parcelamento'] ?? [];
+                $encontrouParcelaMenor170 = false;
+                $penultimoParcela = null;
+
+                // Garantir que o array de parcelamento não esteja vazio
+                if (!empty($parcelamentos)) {
+                    $parcelamentos = array_slice($parcelamentos, 0, 12);
+                    foreach ($parcelamentos as $index => $item) {
+                        // Verifica se o valor da parcela é menor que 170
+                        if ($item['valorParcela'] < 170) {
+                            $encontrouParcelaMenor170 = true;
+
+                            // Localizar o índice da parcela atual
+                            $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+
                             // Garantir que o índice seja válido e acessar o penúltimo elemento
                             if ($indiceParcela !== false && $indiceParcela > 0) {
                                 $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
