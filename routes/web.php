@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/parcelamento', [CronController::class, 'obterOpcoesParcelamento']); // Processamento do upload
+Route::middleware(['cors'])->post('/obterparcelamento', [CronController::class, 'obterParcelamento']);
+
 Route::get('/parcelamento2', [CronController::class, 'obterOpcoesParcelamento2']); // Processamento do upload
 Route::get('/parcelamento3', [CronController::class, 'obterOpcoesParcelamento3']); // Processamento do upload
 Route::get('/parcelamento4', [CronController::class, 'obterOpcoesParcelamento4']); // Processamento do upload

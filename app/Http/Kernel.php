@@ -13,10 +13,15 @@ class Kernel extends HttpKernel
      *
      * @var array<int, class-string|string>
      */
+
+     protected $routeMiddleware = [
+        'cors' => \App\Http\Middleware\CustomCors::class,
+    ];
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,
         \App\Http\Middleware\TrustProxies::class,
         \Illuminate\Http\Middleware\HandleCors::class,
+        \App\Http\Middleware\CustomCors::class,  // Adicione aqui
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
         \App\Http\Middleware\TrimStrings::class,
