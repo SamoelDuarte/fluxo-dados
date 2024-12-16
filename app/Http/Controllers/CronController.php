@@ -160,7 +160,7 @@ class CronController extends Controller
         $dadosParcelamento['opcoesPagamento'] = [];
         // dd($responseData[0]);
         // Itera sobre os dados de resposta
-        foreach ($responseData[0]['parcelamento'] as $opcao) {
+        foreach ($ultimoArray['parcelamento'] as $opcao) {
             // Verifica se a quantidade de parcelas é menor ou igual a 12 e o valor da parcela é menor que 170
             if ($opcao['parcelas'] < 12 && $opcao['valorParcela'] > 170) {
                 $dadosParcelamento['opcoesPagamento'][] = [
