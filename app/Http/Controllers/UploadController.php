@@ -51,36 +51,36 @@ class UploadController extends Controller
 
 
     public function getLotes()
-{
-    // Definir a data limite de 2 dias atrás
-    $dataLimite = Carbon::now()->subDays(2)->startOfDay();
+    {
+        // Definir a data limite de 2 dias atrás
+        $dataLimite = Carbon::now()->subDays(5)->startOfDay();
 
-    $lotes = Lote::with(['contratos.planilhas' => function ($query) {
-        // Carregar as planilhas que têm valor_proposta_1 diferente de null
-        $query->whereNotNull('valor_proposta_1');
-    }])
-    // Filtrar lotes criados nos últimos 2 dias
-    ->where('created_at', '>=', $dataLimite)
-    ->get()
-    ->map(function ($lote) {
-        $quantidadeErro = $lote->contratos->where('erro', true)->count();
+        $lotes = Lote::with(['contratos.planilhas' => function ($query) {
+            // Carregar as planilhas que têm valor_proposta_1 diferente de null
+            $query->whereNotNull('valor_proposta_1');
+        }])
+            // Filtrar lotes criados nos últimos 2 dias
+            ->where('created_at', '>=', $dataLimite)
+            ->get()
+            ->map(function ($lote) {
+                $quantidadeErro = $lote->contratos->where('erro', true)->count();
 
-        // Contar contratos que têm planilhas com valor_proposta_1 diferente de null
-        $quantidadeSucesso = $lote->contratos->filter(function ($contrato) {
-            return $contrato->planilhas->isNotEmpty();
-        })->count();
+                // Contar contratos que têm planilhas com valor_proposta_1 diferente de null
+                $quantidadeSucesso = $lote->contratos->filter(function ($contrato) {
+                    return $contrato->planilhas->isNotEmpty();
+                })->count();
 
-        return [
-            'id' => $lote->id,
-            'data' => $lote->created_at->format('d/m/Y'), // Formatar a data
-            'quantidade' => $lote->contratos->count(), // Contagem de contratos
-            'quantidade_erro' => $quantidadeErro, // Contagem de erros
-            'quantidade_sucesso' => $quantidadeSucesso // Contagem de sucessos
-        ];
-    });
+                return [
+                    'id' => $lote->id,
+                    'data' => $lote->created_at->format('d/m/Y'), // Formatar a data
+                    'quantidade' => $lote->contratos->count(), // Contagem de contratos
+                    'quantidade_erro' => $quantidadeErro, // Contagem de erros
+                    'quantidade_sucesso' => $quantidadeSucesso // Contagem de sucessos
+                ];
+            });
 
-    return response()->json($lotes);
-}
+        return response()->json($lotes);
+    }
 
 
     public function getContratosComErro($loteId)

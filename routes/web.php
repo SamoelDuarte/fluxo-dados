@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CronController;
+use App\Http\Controllers\ExcelController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,11 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/planilha', [ExcelController::class, 'index']);
+Route::post('/excel/upload', [ExcelController::class, 'upload'])->name('excel.upload');
+Route::post('/insert-upload', [ExcelController::class, 'insertUpload'])->name('insert.upload');
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
