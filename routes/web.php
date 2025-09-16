@@ -54,10 +54,9 @@ Route::get('/parcelamento2', [CronController::class, 'obterOpcoesParcelamento2']
 Route::get('/parcelamento3', [CronController::class, 'obterOpcoesParcelamento3']); // Processamento do upload
 Route::get('/parcelamento4', [CronController::class, 'obterOpcoesParcelamento4']); // Processamento do upload
 Route::get('/dados', [CronController::class, 'obterDadosEAtualizarContratos']); // Processamento do upload
+Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processamento do upload
 
-Route::get('/teste', function () {
 
-});
 
 
 require __DIR__ . '/auth.php';

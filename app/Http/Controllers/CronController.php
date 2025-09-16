@@ -18,7 +18,7 @@ class CronController extends Controller
     public function obterParcelamento(HttpRequest $request)
     {
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
-        $pessoaCodigo = $request->input('pessoaCodigo');
+        $pessoaCodigo = '19456924';
 
         $carteiras = Carteira::all();
 
@@ -409,12 +409,12 @@ class CronController extends Controller
 
         // Converte a resposta JSON para um array PHP
         $responseData = json_decode($response, true);
-
+       dd($response);
         // Verifica se a resposta contém o token
         if (isset($responseData['access_token'])) {
             return $responseData['access_token'];
         } else {
-            echo 'Erro ao obter o token: ' . $response;
+            echo 'Erro ao obter o token: ' . $responseData;
             return null;
         }
     }
