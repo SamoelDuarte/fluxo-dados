@@ -409,7 +409,6 @@ class CronController extends Controller
 
         // Converte a resposta JSON para um array PHP
         $responseData = json_decode($response, true);
-       dd($response);
         // Verifica se a resposta contém o token
         if (isset($responseData['access_token'])) {
             return $responseData['access_token'];
