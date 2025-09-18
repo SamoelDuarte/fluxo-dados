@@ -19,133 +19,109 @@ class ExcelController extends Controller
     }
 
     public function upload(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx',
-        ]);
+{
+    $request->validate([
+        'file' => 'required|file|mimes:xlsx',
+    ]);
 
-        // Caminho do arquivo carregado
-        $filePath = $request->file('file')->getPathname();
+    // Caminho do arquivo carregado
+    $filePath = $request->file('file')->getPathname();
 
-        // Ler todas as linhas da planilha (ignorando a primeira linha, que é o cabeçalho)
-        $rows = Excel::toArray([], $filePath)[0]; // Pega a primeira aba da planilha
-        $filteredRows = array_slice($rows, 1); // Ignorar o cabeçalho e pegar todas as outras linhas
+    // Ler todas as linhas da planilha (ignorando a primeira linha, que é o cabeçalho)
+    $rows = Excel::toArray([], $filePath)[0]; 
+    $filteredRows = array_slice($rows, 1); // Ignora cabeçalho
 
-        // Criar a nova planilha
-        $newSpreadsheet = new Spreadsheet();
-        $sheet = $newSpreadsheet->getActiveSheet();
+    // Criar a nova planilha
+    $newSpreadsheet = new Spreadsheet();
+    $sheet = $newSpreadsheet->getActiveSheet();
 
-        // Adicionar os cabeçalhos
-        $sheet->setCellValue('A1', 'regiao');
-        $sheet->setCellValue('B1', 'cep_inicial');
-        $sheet->setCellValue('C1', 'cep_final');
-        $sheet->setCellValue('D1', 'peso_inicial');
-        $sheet->setCellValue('E1', 'peso_final');
-        $sheet->setCellValue('F1', 'valor_frete');
-        $sheet->setCellValue('G1', 'valor_extra_por_peso');
-        $sheet->setCellValue('H1', 'dias_para_entrega');
-        $sheet->setCellValue('I1', 'porcentagem_adicional');
+    // Adicionar os cabeçalhos
+    $sheet->setCellValue('A1', 'regiao');
+    $sheet->setCellValue('B1', 'cep_inicial');
+    $sheet->setCellValue('C1', 'cep_final');
+    $sheet->setCellValue('D1', 'peso_inicial');
+    $sheet->setCellValue('E1', 'peso_final');
+    $sheet->setCellValue('F1', 'valor_frete');
+    $sheet->setCellValue('G1', 'valor_extra_por_peso');
+    $sheet->setCellValue('H1', 'dias_para_entrega');
+    $sheet->setCellValue('I1', 'porcentagem_adicional');
 
-        // Aplicar estilos ao cabeçalho
-        $sheet->getStyle('A1:G1')->applyFromArray([
-            'font' => [
-                'bold' => true,
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-            ],
-            'borders' => [
-                'bottom' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                ],
-            ],
-        ]);
+    // Estilo do cabeçalho
+    $sheet->getStyle('A1:I1')->applyFromArray([
+        'font' => ['bold' => true],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        'borders' => [
+            'bottom' => ['borderStyle' => Border::BORDER_THIN],
+        ],
+    ]);
 
-        // Inicializar o contador para o peso inicial e final
-        $pesoInicialCount = 0; // Para pesoInicial (mil em mil)
-        $pesoFinalCount = 0;   // Para pesoFinal (de 0,5 a 30)
+    $pesoInicialCount = 0; 
+    $pesoFinalCount = 0;   
 
-        // Processar os dados: Criar as colunas
-        $rowIndex = 2; // Começa na segunda linha para adicionar os valores
+    $rowIndex = 2; 
+    $pesoFinal = 0;
+    $pesoInicial = 0;
 
-        $pesoFinal = 0;
-        $pesoInicial = 0;
-        foreach ($filteredRows as $row) {
-            // dd($row);
-            // Concatenar E e J para a coluna "regiao"
-            $regiao = ($row[4] ?? '') . '-' . ($row[9] ?? ''); // Concatenar E e J
-            $cepInicial = $row[0] ?? ''; // Coluna A original
-            $cepFinal = $row[1] ?? '';  // Coluna B original
+    foreach ($filteredRows as $row) {
+        // Agora a região é simplesmente o nome completo (coluna 3)
+        $regiao = $row[3] ?? '';  
 
-            // Calcular pesoInicial e pesoFinal
-            if ($pesoInicialCount == 0) {
-                $pesoInicial = 0;
-                $pesoFinal = 0.5;
-            } else if ($pesoInicialCount == 1) {
-                $pesoInicial = 0.501;
-                $pesoFinal = 1;
-            } else if ($pesoInicialCount == 2) {
-                $pesoInicial = 1.001;
-            } else if ($pesoInicialCount == 3) {
-                $pesoInicial = 2.001;
-            } else if ($pesoInicialCount > 3) {
-                $pesoInicial = $pesoInicial + 1;
-            }
+        $cepInicial = $row[0] ?? ''; // pode ajustar se o CEP vier em outra coluna
+        $cepFinal   = $row[1] ?? ''; 
 
-            $InicialConvert = 0;
-            if ($pesoInicialCount != 0) {
-                $InicialConvert = $pesoInicial;
-            }
-
-            // dd(strval($pesoFinal));
-            // Buscar o valor do frete na tabela `valoresfrete`
-            $valorFrete = ValoresFrete::where('peso', strval($pesoFinal)) // Onde a coluna K da planilha e o pesoFinal se correspondem
-                ->first(); // Busca o primeiro resultado correspondente
-
-         
-            if($row[10] == "SPRC"){
-                $row[10] = "SPG" ;
-            }
-            // Verifica se encontrou algum valor de frete
-            $valorFreteValue = $valorFrete ? $valorFrete->{$row[10]} : 0; // Se encontrar, usa o valor, caso contrário usa 0
-            $prazo = $row[7]; // Se encontrar, usa o valor, caso contrário usa 0
-
-            // Preencher as colunas
-            $sheet->setCellValue("A{$rowIndex}", $regiao);
-            $sheet->setCellValue("B{$rowIndex}", $cepInicial);
-            $sheet->setCellValue("C{$rowIndex}", $cepFinal);
-            $sheet->setCellValue("D{$rowIndex}", $InicialConvert);
-            $sheet->setCellValue("E{$rowIndex}", $pesoFinal);
-            $sheet->setCellValue("F{$rowIndex}", $valorFreteValue); // Coluna Valor Frete
-            $sheet->setCellValue("G{$rowIndex}", 0); // Coluna Valor Frete
-            $sheet->setCellValue("H{$rowIndex}", $prazo); // Coluna Valor Frete
-            $sheet->setCellValue("I{$rowIndex}", 0); // Coluna Valor Frete
-
-            // Incrementar os contadores
-            $pesoInicialCount++;
-            $pesoFinalCount++;
-            $pesoFinal++;
-
-            // Resetar os valores se necessário
-            if ($pesoInicialCount > 29) {
-                $pesoInicialCount = 0; // Reinicia para o padrão do pesoInicial
-            }
-
-            if ($pesoFinalCount > 29) {
-                $pesoFinalCount = 0; // Reinicia para o padrão do pesoFinal
-            }
-
-            $rowIndex++;
+        // Lógica de peso
+        if ($pesoInicialCount == 0) {
+            $pesoInicial = 0;
+            $pesoFinal = 0.5;
+        } else if ($pesoInicialCount == 1) {
+            $pesoInicial = 0.501;
+            $pesoFinal = 1;
+        } else if ($pesoInicialCount == 2) {
+            $pesoInicial = 1.001;
+        } else if ($pesoInicialCount == 3) {
+            $pesoInicial = 2.001;
+        } else if ($pesoInicialCount > 3) {
+            $pesoInicial = $pesoInicial + 1;
         }
 
+        $InicialConvert = $pesoInicialCount != 0 ? $pesoInicial : 0;
 
-        // Salvar o arquivo e disponibilizar para download
-        $newFilePath = storage_path('app/public/resultado.xlsx');
-        $writer = new Xlsx($newSpreadsheet);
-        $writer->save($newFilePath);
+        // Buscar valor do frete
+        $valorFrete = ValoresFrete::where('peso', strval($pesoFinal))->first();
+        $valorFreteValue = $valorFrete ? $valorFrete->{$row[10] ?? ''} : 0; 
 
-        return response()->download($newFilePath)->deleteFileAfterSend();
+        $prazo = $row[7] ?? 0;
+
+        // Preencher linhas
+        $sheet->setCellValue("A{$rowIndex}", $regiao);
+        $sheet->setCellValue("B{$rowIndex}", $cepInicial);
+        $sheet->setCellValue("C{$rowIndex}", $cepFinal);
+        $sheet->setCellValue("D{$rowIndex}", $InicialConvert);
+        $sheet->setCellValue("E{$rowIndex}", $pesoFinal);
+        $sheet->setCellValue("F{$rowIndex}", $valorFreteValue);
+        $sheet->setCellValue("G{$rowIndex}", 0);
+        $sheet->setCellValue("H{$rowIndex}", $prazo);
+        $sheet->setCellValue("I{$rowIndex}", 0);
+
+        // Incrementar
+        $pesoInicialCount++;
+        $pesoFinalCount++;
+        $pesoFinal++;
+
+        if ($pesoInicialCount > 29) $pesoInicialCount = 0;
+        if ($pesoFinalCount > 29) $pesoFinalCount = 0;
+
+        $rowIndex++;
     }
+
+    // Salvar e retornar
+    $newFilePath = storage_path('app/public/resultado.xlsx');
+    $writer = new Xlsx($newSpreadsheet);
+    $writer->save($newFilePath);
+
+    return response()->download($newFilePath)->deleteFileAfterSend();
+}
+
 
 
     public function insertUpload(Request $request)
