@@ -59,6 +59,7 @@ Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processam
 
 // Rotas da API Havan - Intermediárias
 Route::prefix('api/havan')->middleware(['cors'])->group(function () {
+    Route::get('/teste', [HavanController::class, 'testeConectividade']);
     Route::post('/obterparcelamento', [HavanController::class, 'obterParcelamento']);
     Route::post('/contratarenegociacao', [HavanController::class, 'contratarRenegociacao']);
     Route::post('/gravarocorrencia', [HavanController::class, 'gravarOcorrencia']);
