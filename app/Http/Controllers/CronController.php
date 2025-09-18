@@ -18,7 +18,7 @@ class CronController extends Controller
     public function obterParcelamento(HttpRequest $request)
     {
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
-        $pessoaCodigo = '19456924';
+        $pessoaCodigo = '12790584';
 
         $carteiras = Carteira::all();
 
