@@ -57,13 +57,4 @@ Route::get('/parcelamento4', [CronController::class, 'obterOpcoesParcelamento4']
 Route::get('/dados', [CronController::class, 'obterDadosEAtualizarContratos']); // Processamento do upload
 Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processamento do upload
 
-// Rotas da API Havan - Intermediárias
-Route::prefix('api/havan')->middleware(['cors'])->group(function () {
-    Route::get('/teste', [HavanController::class, 'testeConectividade']);
-    Route::post('/obterparcelamento', [HavanController::class, 'obterParcelamento']);
-    Route::post('/contratarenegociacao', [HavanController::class, 'contratarRenegociacao']);
-    Route::post('/gravarocorrencia', [HavanController::class, 'gravarOcorrencia']);
-    Route::post('/obterboletos', [HavanController::class, 'obterBoletos']);
-});
-
 require __DIR__ . '/auth.php';
