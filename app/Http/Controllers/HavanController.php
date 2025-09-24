@@ -13,11 +13,7 @@ class HavanController extends Controller
      */
     public function testeConectividade(Request $request)
     {
-        Log::info('[FLUXO-DADOS] Teste de conectividade solicitado', [
-            'timestamp' => now(),
-            'user_agent' => $request->header('User-Agent'),
-            'ip' => $request->ip()
-        ]);
+     
 
         try {
             $token = $this->obterTokenHavan();
@@ -50,10 +46,7 @@ class HavanController extends Controller
     }
     private function obterTokenHavan()
     {
-        Log::info('[FLUXO-DADOS] Iniciando obtenção de token Havan', [
-            'client_id' => env('HAVAN_CLIENT_ID'),
-            'username' => env('HAVAN_USERNAME')
-        ]);
+       
         
         try {
             $response = Http::asForm()
@@ -67,10 +60,7 @@ class HavanController extends Controller
 
             if ($response->successful()) {
                 $data = $response->json();
-                Log::info('[FLUXO-DADOS] Token Havan obtido com sucesso', [
-                    'token_length' => strlen($data['access_token'] ?? ''),
-                    'response_keys' => array_keys($data)
-                ]);
+               
                 return $data['access_token'] ?? null;
             }
 
@@ -98,11 +88,7 @@ class HavanController extends Controller
      */
     public function obterParcelamento(Request $request)
     {
-        Log::info('[FLUXO-DADOS] Iniciando obterParcelamento', [
-            'request_data' => $request->all(),
-            'user_agent' => $request->header('User-Agent'),
-            'ip' => $request->ip()
-        ]);
+      
         
         try {
             $token = $this->obterTokenHavan();
@@ -119,14 +105,8 @@ class HavanController extends Controller
             $requestData = $request->all();
             if (!isset($requestData['chave'])) {
                 $requestData['chave'] = env('HAVAN_PASSWORD', '3cr1O35JfhQ8vBO');
-                Log::info('[FLUXO-DADOS] Chave adicionada automaticamente aos dados da requisição');
             }
 
-            Log::info('[FLUXO-DADOS] Enviando requisição para API Havan ObterOpcoesParcelamento', [
-                'url' => 'https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento',
-                'data' => $requestData,
-                'token_length' => strlen($token)
-            ]);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $token,
@@ -151,14 +131,7 @@ class HavanController extends Controller
                 ]);
             }
 
-            Log::error('[FLUXO-DADOS] Erro na API Havan ObterOpcoesParcelamento', [
-                'status' => $response->status(),
-                'status_text' => $response->reason(),
-                'body' => $response->body(),
-                'headers' => $response->headers(),
-                'request_data' => $requestData
-            ]);
-
+    
             return response()->json([
                 'success' => false,
                 'message' => 'Erro na API da Havan',
