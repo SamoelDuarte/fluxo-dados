@@ -117,12 +117,16 @@ class HavanController extends Controller
 
             if ($response->successful()) {
                 $responseData = $response->json();
+                
+                // Log detalhado do conteúdo da resposta para debug
                 Log::info('[FLUXO-DADOS] Resposta bem-sucedida da API Havan ObterOpcoesParcelamento', [
                     'status' => $response->status(),
                     'response_size' => strlen($response->body()),
                     'response_type' => gettype($responseData),
                     'is_array' => is_array($responseData),
-                    'array_count' => is_array($responseData) ? count($responseData) : 'N/A'
+                    'array_count' => is_array($responseData) ? count($responseData) : 'N/A',
+                    'request_data' => $requestData,
+                    'response_data' => $responseData // Log completo dos dados da resposta
                 ]);
                 
                 return response()->json([
