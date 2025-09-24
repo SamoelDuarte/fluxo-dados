@@ -118,15 +118,25 @@ class HavanController extends Controller
             if ($response->successful()) {
                 $responseData = $response->json();
                 
-                // Log detalhado do conteúdo da resposta para debug
+                // Se há múltiplas alçadas, pegar sempre a última (maior índice)
+                if (is_array($responseData) && count($responseData) > 1) {
+                    $ultimaAlcada = end($responseData); // Pega o último elemento do array
+                    $responseData = [$ultimaAlcada]; // Retorna apenas a última alçada
+                    
+                    Log::info('[FLUXO-DADOS] Múltiplas alçadas encontradas - selecionando a última', [
+                        'total_alcadas' => count($response->json()),
+                        'alcada_selecionada' => $ultimaAlcada['descricao'] ?? 'N/A',
+                        'total_parcelamentos' => is_array($ultimaAlcada['parcelamento']) ? count($ultimaAlcada['parcelamento']) : 0
+                    ]);
+                }
+                
                 Log::info('[FLUXO-DADOS] Resposta bem-sucedida da API Havan ObterOpcoesParcelamento', [
                     'status' => $response->status(),
                     'response_size' => strlen($response->body()),
                     'response_type' => gettype($responseData),
                     'is_array' => is_array($responseData),
                     'array_count' => is_array($responseData) ? count($responseData) : 'N/A',
-                    'request_data' => $requestData,
-                    'response_data' => $responseData // Log completo dos dados da resposta
+                    'request_data' => $requestData
                 ]);
                 
                 return response()->json([
