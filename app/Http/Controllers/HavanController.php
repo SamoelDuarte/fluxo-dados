@@ -136,7 +136,8 @@ class HavanController extends Controller
                     'response_type' => gettype($responseData),
                     'is_array' => is_array($responseData),
                     'array_count' => is_array($responseData) ? count($responseData) : 'N/A',
-                    'request_data' => $requestData
+                    'request_data' => $requestData,
+                    'response_data' => $responseData // Log completo dos dados da resposta
                 ]);
                 
                 return response()->json([
