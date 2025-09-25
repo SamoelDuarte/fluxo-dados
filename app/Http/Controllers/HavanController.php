@@ -118,17 +118,33 @@ class HavanController extends Controller
             if ($response->successful()) {
                 $responseData = $response->json();
                 
-                // Se há múltiplas alçadas, pegar sempre a última (maior índice)
+                // Se há múltiplas alçadas, pegar sempre a mais barata (menor valor à vista)
                 if (is_array($responseData) && count($responseData) > 1) {
-                    $ultimaAlcada = end($responseData); // Pega o último elemento do array
-                    $responseData = [$ultimaAlcada]; // Retorna apenas a última alçada
+                    $alcadaMaisBarata = null;
+                    $menorValor = PHP_FLOAT_MAX;
                     
-                    Log::info('[FLUXO-DADOS] Múltiplas alçadas encontradas - selecionando a última', [
+                    // Encontrar a alçada com menor valor à vista (1 parcela)
+                    foreach ($responseData as $alcada) {
+                        if (isset($alcada['parcelamento'][0]['valorTotal'])) {
+                            $valorAvista = $alcada['parcelamento'][0]['valorTotal'];
+                            if ($valorAvista < $menorValor) {
+                                $menorValor = $valorAvista;
+                                $alcadaMaisBarata = $alcada;
+                            }
+                        }
+                    }
+                    
+                    // Se encontrou a mais barata, usar ela; senão usar a última
+                    $alcadaSelecionada = $alcadaMaisBarata ?? end($responseData);
+                    $responseData = [$alcadaSelecionada];
+                    
+                    Log::info('[FLUXO-DADOS] Múltiplas alçadas encontradas - selecionando a mais barata', [
                         'total_alcadas' => count($response->json()),
-                        'alcada_selecionada' => $ultimaAlcada['descricao'] ?? 'N/A',
-                        'total_parcelamentos' => is_array($ultimaAlcada['parcelamento']) ? count($ultimaAlcada['parcelamento']) : 0,
-                        'todas_alcadas' => $response->json(), // Log completo de todas as alçadas retornadas
-                        'alcada_final_selecionada' => $ultimaAlcada // Log da alçada que foi selecionada
+                        'alcada_selecionada' => $alcadaSelecionada['descricao'] ?? 'N/A',
+                        'valor_avista_selecionado' => number_format($menorValor, 2, ',', '.'),
+                        'total_parcelamentos' => is_array($alcadaSelecionada['parcelamento']) ? count($alcadaSelecionada['parcelamento']) : 0,
+                        'todas_alcadas' => $response->json(),
+                        'alcada_final_selecionada' => $alcadaSelecionada
                     ]);
                 }
                 
