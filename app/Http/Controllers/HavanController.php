@@ -126,7 +126,9 @@ class HavanController extends Controller
                     Log::info('[FLUXO-DADOS] Múltiplas alçadas encontradas - selecionando a última', [
                         'total_alcadas' => count($response->json()),
                         'alcada_selecionada' => $ultimaAlcada['descricao'] ?? 'N/A',
-                        'total_parcelamentos' => is_array($ultimaAlcada['parcelamento']) ? count($ultimaAlcada['parcelamento']) : 0
+                        'total_parcelamentos' => is_array($ultimaAlcada['parcelamento']) ? count($ultimaAlcada['parcelamento']) : 0,
+                        'todas_alcadas' => $response->json(), // Log completo de todas as alçadas retornadas
+                        'alcada_final_selecionada' => $ultimaAlcada // Log da alçada que foi selecionada
                     ]);
                 }
                 
