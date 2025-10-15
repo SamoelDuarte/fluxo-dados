@@ -73,30 +73,30 @@
 
 
 
-            {{-- <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#message"
-                    aria-expanded="true" aria-controls="message">
-                    <i class="fas fa-truck"></i>
-                    <span>Tranportadoras</span>
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#integracao"
+                    aria-expanded="true" aria-controls="integracao">
+                    <span>integração</span>
                 </a>
 
-                <div id="message" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                <div id="integracao" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="">Lista</a>
-                        <a class="collapse-item" href="">Embarcadores</a>
+                        <a class="collapse-item" href="{{ route('whatsapp.connect') }}"> <i class="fab fa-whatsapp"
+                                style="color: #25D366;"></i> Whatsapp</a>
+                       
                     </div>
                 </div>
 
-            </li> --}}
+            </li>
 
-            
+
             <li class="nav-item">
                 <a href="{{ route('upload.index') }}" class="nav-link">
                     <i class="fas fa-upload"></i>
                     <span>uploads</span>
                 </a>
-            </li> 
-        
+            </li>
+
 
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
@@ -253,10 +253,10 @@
     <script src="{{ asset('/assets/admin/js/scripts.min.js') }}"></script>
     <script src="{{ asset('/assets/admin/js/main.js') }}"></script>
     <script src="{{ asset('/assets/utils.js') }}"></script>
-   
+
 
     @yield('scripts')
-    
+
     @if (session('success'))
         <script>
             const Toast = Swal.mixin({

@@ -5,6 +5,8 @@ use App\Http\Controllers\ExcelController;
 use App\Http\Controllers\HavanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\FacebookController;
+use App\Http\Controllers\WhatsappController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -43,8 +45,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/lotes/{loteId}/carteiras', [UploadController::class, 'getCarteirasByLote'])->name('lotes.carteiras');
     Route::get('/download-lotes/{loteId}', [UploadController::class, 'downloadExcel'])->name('download.lote');
 
+    Route::get('/whatsapp/connect', [WhatsappController::class, 'showForm'])->name('whatsapp.connect');
+    Route::post('/whatsapp/connect', [WhatsappController::class, 'save'])->name('whatsapp.save');
 
-
+       
 
 });
 
@@ -56,5 +60,6 @@ Route::get('/parcelamento3', [CronController::class, 'obterOpcoesParcelamento3']
 Route::get('/parcelamento4', [CronController::class, 'obterOpcoesParcelamento4']); // Processamento do upload
 Route::get('/dados', [CronController::class, 'obterDadosEAtualizarContratos']); // Processamento do upload
 Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processamento do upload
+    Route::get('/whatsapp/auth-facebook', [WhatsappController::class, 'authFacebook'])->name('whatsapp.authFacebook');
+    Route::get('/whatsapp/callback', [WhatsappController::class, 'callback'])->name('whatsapp.callback');
 
-require __DIR__ . '/auth.php';
