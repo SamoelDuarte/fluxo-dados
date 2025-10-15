@@ -18,10 +18,10 @@ class WhatsappController extends Controller
         if (empty($data->app_id) || empty($data->redirect_uri)) {
             return redirect()->back()->with('error', 'App ID ou Redirect URI não configurados.');
         }
-        $fbAuthUrl = 'https://www.facebook.com/v18.0/dialog/oauth?client_id=' . urlencode($data->app_id)
+        $fbAuthUrl = 'https://www.facebook.com/v21.0/dialog/oauth?client_id=' . urlencode($data->app_id)
             . '&redirect_uri=' . urlencode($data->redirect_uri)
             . '&response_type=code'
-            . '&scope=public_profile,email';
+            . '&scope=pages_show_list,instagram_basic,instagram_manage_comments,pages_read_engagement';
         return redirect()->away($fbAuthUrl);
     }
 
@@ -64,6 +64,8 @@ class WhatsappController extends Controller
         try {
             $response = $client->get($tokenUrl, ['query' => $params]);
             $body = json_decode($response->getBody(), true);
+
+            dd($body);
             $accessToken = $body['access_token'] ?? null;
             $expiresAt = isset($body['expires_in']) ? now()->addSeconds($body['expires_in']) : null;
             if ($accessToken) {
