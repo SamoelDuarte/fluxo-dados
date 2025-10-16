@@ -83,6 +83,52 @@ class WhatsappController extends Controller
                 ['flow_id' => null, 'current_step_id' => null, 'context' => [], 'phone_number_id' => $metadata['phone_number_id'] ?? null]
             );
 
+            // === Nova lógica: se já existe um fluxo e um passo atual, trata a resposta do usuário ===
+            if ($session->flow_id && $session->current_step_id) {
+                $currentStep = WhatsappFlowStep::find($session->current_step_id);
+                if ($currentStep && $currentStep->step_number == 1) {
+                    $text = $messageData['text']['body'] ?? '';
+                    $digits = preg_replace('/\D/', '', $text);
+
+                    if (!$this->isValidCpfCnpj($digits)) {
+                        SendWhatsappMessage::dispatch($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $session->phone_number_id ?? null);
+                        return response('EVENT_RECEIVED', 200);
+                    }
+
+                    // salva documento no contexto da sessão
+                    $ctx = $session->context ?? [];
+                    $ctx['document'] = $digits;
+                    $session->update(['context' => $ctx]);
+
+                    // avisa que está buscando
+                    SendWhatsappMessage::dispatch($wa_id, 'Estou buscando as informações necessárias para seguirmos por aqui, só um instante.', $session->phone_number_id ?? null);
+
+                    // busca dívidas (implementação abaixo). Retorna null ou array de resultados.
+                    $debts = $this->findDebtsByDocument($digits);
+
+                    if (!empty($debts)) {
+                        SendWhatsappMessage::dispatch($wa_id, 'Encontrei você!', $session->phone_number_id ?? null);
+                        // Envia resumo (ajuste conforme formato real dos dados)
+                        foreach ($debts as $d) {
+                            $line = "Contrato: {$d['contract']}\nValor: {$d['amount']}\nVencimento: {$d['due_date']}";
+                            SendWhatsappMessage::dispatch($wa_id, $line, $session->phone_number_id ?? null);
+                        }
+                        // aqui você pode avançar o fluxo para etapa de negociação/consulta detalhada
+                    } else {
+                        $firstName = explode(' ', trim($name))[0] ?? 'Cliente';
+                        $menu = "Solicita Ação - Cliente Não Encontrado\n\n";
+                        $menu .= "@{$firstName}, não localizei cadastro com o seu documento.\n\n";
+                        $menu .= "Selecione uma opção abaixo:\n";
+                        $menu .= "1) Digitar novamente\n2) Atendimento\n3) Encerrar conversa";
+                        SendWhatsappMessage::dispatch($wa_id, $menu, $session->phone_number_id ?? null);
+
+                        // opcional: atualizar current_step_id para um passo "não encontrado" se quiser tratar opções depois
+                    }
+
+                    return response('EVENT_RECEIVED', 200);
+                }
+            }
+
             // 4️⃣ Se não tiver fluxo iniciado, inicia o fluxo "Solicitar CPF"
             if (!$session->flow_id) {
                 $flow = WhatsappFlow::firstOrCreate(['name' => 'Solicita CPF']);
@@ -112,6 +158,85 @@ class WhatsappController extends Controller
         }
 
         return response('Método não suportado', 405);
+    }
+
+    private function isValidCpfCnpj(string $digits): bool
+    {
+        $len = strlen($digits);
+        if ($len === 11)
+            return $this->isValidCpf($digits);
+        if ($len === 14)
+            return $this->isValidCnpj($digits);
+        return false;
+    }
+
+    private function isValidCpf(string $cpf): bool
+    {
+        if (strlen($cpf) != 11)
+            return false;
+        if (preg_match('/^(?:0{11}|1{11}|2{11}|3{11}|4{11}|5{11}|6{11}|7{11}|8{11}|9{11})$/', $cpf))
+            return false;
+        $sum = 0;
+        for ($i = 0, $j = 10; $i < 9; $i++, $j--)
+            $sum += (int) $cpf[$i] * $j;
+        $rest = $sum % 11;
+        $digit1 = ($rest < 2) ? 0 : 11 - $rest;
+        if ((int) $cpf[9] !== $digit1)
+            return false;
+        $sum = 0;
+        for ($i = 0, $j = 11; $i < 10; $i++, $j--)
+            $sum += (int) $cpf[$i] * $j;
+        $rest = $sum % 11;
+        $digit2 = ($rest < 2) ? 0 : 11 - $rest;
+        return (int) $cpf[10] === $digit2;
+    }
+
+    private function isValidCnpj(string $cnpj): bool
+    {
+        if (strlen($cnpj) != 14)
+            return false;
+        if (preg_match('/^(?:0{14}|1{14}|2{14}|3{14}|4{14}|5{14}|6{14}|7{14}|8{14}|9{14})$/', $cnpj))
+            return false;
+        $t = substr($cnpj, 0, 12);
+        $calculardigito = function ($t) {
+            $c = 0;
+            $j = 5;
+            for ($i = 0; $i < strlen($t); $i++) {
+                $c += (int) $t[$i] * $j;
+                $j = ($j == 2) ? 9 : $j - 1;
+            }
+            $r = $c % 11;
+            return ($r < 2) ? 0 : 11 - $r;
+        };
+        $d1 = $calculardigito($t);
+        $t .= $d1;
+        $d2 = $calculardigito($t);
+        return ($cnpj[12] == $d1 && $cnpj[13] == $d2);
+    }
+
+    private function findDebtsByDocument(string $document): ?array
+    {
+        // Se existir uma API configurada, consulta; senão retorna null (não encontrado)
+        $apiUrl = env('DEBT_API_URL');
+        if (empty($apiUrl)) {
+            Log::info('findDebtsByDocument: DEBT_API_URL não configurada, retornando null', ['doc' => $document]);
+            return null;
+        }
+
+        try {
+            $res = Http::get($apiUrl, ['document' => $document]);
+            if ($res->successful()) {
+                $body = $res->json();
+                // espera array de débitos. ajuste conforme API real
+                return $body['debts'] ?? $body;
+            } else {
+                Log::warning('findDebtsByDocument: resposta não OK', ['status' => $res->status(), 'body' => $res->body()]);
+            }
+        } catch (\Exception $e) {
+            Log::error('findDebtsByDocument erro: ' . $e->getMessage());
+        }
+
+        return null;
     }
 
     // Função para enviar mensagem via WhatsApp Cloud API
