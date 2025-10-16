@@ -66,10 +66,21 @@ class WhatsappController extends Controller
             $body = json_decode($response->getBody(), true);
 
             $accessToken = $body['access_token'] ?? null;
-            $expiresAt = isset($body['expires_in']) ? now()->addSeconds($body['expires_in']) : null;
             if ($accessToken) {
+                // Troca imediatamente por token de longa duração
+                $exchangeUrl = 'https://graph.facebook.com/v18.0/oauth/access_token';
+                $exchangeParams = [
+                    'grant_type' => 'fb_exchange_token',
+                    'client_id' => $data->app_id,
+                    'client_secret' => $data->app_secret,
+                    'fb_exchange_token' => $accessToken,
+                ];
+                $exchangeResponse = $client->get($exchangeUrl, ['query' => $exchangeParams]);
+                $exchangeBody = json_decode($exchangeResponse->getBody(), true);
+                $longAccessToken = $exchangeBody['access_token'] ?? $accessToken;
+                $expiresAt = isset($exchangeBody['expires_in']) ? now()->addSeconds($exchangeBody['expires_in']) : null;
                 DB::table('whatsapp')->updateOrInsert(['id' => 1], [
-                    'access_token' => $accessToken,
+                    'access_token' => $longAccessToken,
                     'token_expires_at' => $expiresAt,
                     'is_connected' => true,
                 ]);
@@ -81,6 +92,39 @@ class WhatsappController extends Controller
             return redirect()->route('whatsapp.connect')->with('error', 'Erro ao conectar: ' . $e->getMessage());
         }
     }
+    public function exchangeToken()
+    {
+        $data = DB::table('whatsapp')->first();
+        if (empty($data->access_token) || empty($data->app_id) || empty($data->app_secret)) {
+            return redirect()->route('whatsapp.connect')->with('error', 'Token ou credenciais não configurados.');
+        }
+        $tokenUrl = 'https://graph.facebook.com/v18.0/oauth/access_token';
+        $params = [
+            'grant_type' => 'fb_exchange_token',
+            'client_id' => $data->app_id,
+            'client_secret' => $data->app_secret,
+            'fb_exchange_token' => $data->access_token,
+        ];
+        $client = new \GuzzleHttp\Client();
+        try {
+            $response = $client->get($tokenUrl, ['query' => $params]);
+            $body = json_decode($response->getBody(), true);
+            $accessToken = $body['access_token'] ?? null;
+            $expiresAt = isset($body['expires_in']) ? now()->addSeconds($body['expires_in']) : null;
+            if ($accessToken) {
+                DB::table('whatsapp')->updateOrInsert(['id' => 1], [
+                    'access_token' => $accessToken,
+                    'token_expires_at' => $expiresAt,
+                    'is_connected' => true,
+                ]);
+                return redirect()->route('whatsapp.connect')->with('success', 'Token renovado com sucesso!');
+            } else {
+                return redirect()->route('whatsapp.connect')->with('error', 'Não foi possível renovar o token.');
+            }
+        } catch (\Exception $e) {
+            return redirect()->route('whatsapp.connect')->with('error', 'Erro ao renovar token: ' . $e->getMessage());
+        }
+    }
 
-        // ...existing code...
+    // ...existing code...
 }
