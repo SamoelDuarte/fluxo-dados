@@ -24,6 +24,11 @@
                     <input type="text" class="form-control" id="redirect_uri" name="redirect_uri" value="{{ old('redirect_uri', $data->redirect_uri ?? '') }}">
                 </div>
 
+                <div class="form-group">
+                    <label for="phone_number_id">Phone Number ID</label>
+                    <input type="text" class="form-control" id="phone_number_id" name="phone_number_id" value="{{ old('phone_number_id', $data->phone_number_id ?? '') }}">
+                </div>
+
                 @if(!empty($data->access_token))
                 <hr>
                 <div class="alert alert-success">
@@ -50,7 +55,6 @@
                     <button type="submit" class="btn btn-primary">Conectar com Facebook</button>
                 </form>
             @endif
-            </form>
         </div>
     </div>
 </div>
