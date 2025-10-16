@@ -98,9 +98,12 @@ class WhatsappController extends Controller
 
                 // Envia mensagem de boas-vindas (imediata)
                 $sessionPhone = $session->phone_number_id ?? null;
-                SendWhatsappMessage::dispatch($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
-                // segunda mensagem com atraso para simular "digitando"
-                SendWhatsappMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone)->delay(now()->addSeconds(value: 7));
+
+                // simula "digitando": envia um placeholder rápido
+                SendWhatsappMessage::dispatch($wa_id, '...', $sessionPhone)->delay(now()->addSeconds(1));
+
+                // envia a mensagem real com delay maior
+                SendWhatsappMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone)->delay(now()->addSeconds(4));
             }
 
             return response('EVENT_RECEIVED', 200);
