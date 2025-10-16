@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\CronController;
@@ -24,6 +25,7 @@ require __DIR__.'/auth.php';
 Route::get('/', function () {
     return view('welcome');
 });
+Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsappController::class, 'webhook']);
 
 Route::get('/planilha', [ExcelController::class, 'index']);
 Route::post('/excel/upload', [ExcelController::class, 'upload'])->name('excel.upload');

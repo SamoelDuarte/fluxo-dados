@@ -33,14 +33,14 @@
                     <label for="access_token">Access Token</label>
                     <textarea class="form-control" id="access_token" name="access_token" readonly>{{ $data->access_token }}</textarea>
                 </div>
-                <div class="form-group">
+                {{-- <div class="form-group">
                     <label for="refresh_token">Refresh Token</label>
                     <textarea class="form-control" id="refresh_token" name="refresh_token" readonly>{{ $data->refresh_token }}</textarea>
                 </div>
                 <div class="form-group">
                     <label for="token_expires_at">Token Expires At</label>
                     <input type="text" class="form-control" id="token_expires_at" name="token_expires_at" value="{{ isset($data->token_expires_at) ? $data->token_expires_at : '' }}" readonly>
-                </div>
+                </div> --}}
                 @endif
                 <button type="submit" class="btn btn-success">Salvar</button>
             </form>

@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\DB;
 
 class WhatsappController extends Controller
 {
+    public function webhook(Request $request)
+    {
+        \Log::info('Webhook WhatsApp recebido:', [
+            'payload' => $request->all()
+        ]);
+        return response()->json(['status' => 'ok']);
+    }
     public function showForm()
     {
         $data = DB::table('whatsapp')->first();
@@ -32,8 +39,8 @@ class WhatsappController extends Controller
             'app_secret' => 'nullable|string',
             'redirect_uri' => 'nullable|string',
             'access_token' => 'nullable|string',
-            'refresh_token' => 'nullable|string',
-            'token_expires_at' => 'nullable|date',
+            // 'refresh_token' => 'nullable|string',
+            // 'token_expires_at' => 'nullable|date',
             'is_connected' => 'boolean',
         ]);
         DB::table('whatsapp')->updateOrInsert(['id' => 1], $validated);
