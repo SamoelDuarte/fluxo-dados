@@ -99,7 +99,10 @@ class WhatsappController extends Controller
 
                 // Envia mensagem de boas-vindas (imediata)
                 $sessionPhone = $session->phone_number_id ?? null;
-                SendWhatsappMessage::dispatch($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
+                $welcome = "Seja bem-vindo(a) ao nosso canal digital!\n\n";
+                $welcome .= "Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.\n\n";
+                $welcome .= "Para começar, por favor informe seu CPF/CNPJ ou diga como posso ajudar.";
+                SendWhatsappMessage::dispatch($wa_id, $welcome, $sessionPhone);
 
                 // substitui os dois dispatches por um job que faz typing_on -> espera -> envia mensagem
                 SendWhatsappTypingThenMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone, 3);
