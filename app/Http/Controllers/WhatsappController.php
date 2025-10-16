@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Jobs\SendWhatsappMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Log;
@@ -95,13 +96,11 @@ class WhatsappController extends Controller
                     'context' => [],
                 ]);
 
-                // Envia mensagem de boas-vindas
-                // Usa phone_number_id salvo na sessão, se disponível
+                // Envia mensagem de boas-vindas (imediata)
                 $sessionPhone = $session->phone_number_id ?? null;
-                $this->sendMessage($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
-
-                // Envia prompt do primeiro passo do fluxo
-                $this->sendMessage($wa_id, $firstStep->prompt, $sessionPhone);
+                SendWhatsappMessage::dispatch($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
+                // segunda mensagem com atraso para simular "digitando"
+                SendWhatsappMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone)->delay(now()->addSeconds(3));
             }
 
             return response('EVENT_RECEIVED', 200);
@@ -257,6 +256,4 @@ class WhatsappController extends Controller
             return redirect()->route('whatsapp.connect')->with('error', 'Erro ao renovar token: ' . $e->getMessage());
         }
     }
-
-    // ...existing code...
 }
