@@ -10,10 +10,10 @@ class WhatsappController extends Controller
     {
         // === Verificação inicial do Webhook (GET) ===
         if ($request->isMethod('get')) {
-            $verify_token = '23423dfsdfsdff'; // mesmo token que você colocou no painel do Meta
+            $verify_token = 'qwdqw123234'; // mesmo token que você colocou no painel do Meta
 
             $mode = $request->query('hub_mode');
-            $token = $request->query('hub_verify_token');
+            $token = $request->query(key: 'hub_verify_token');
             $challenge = $request->query('hub_challenge');
 
             if ($mode === 'subscribe' && $token === $verify_token) {
