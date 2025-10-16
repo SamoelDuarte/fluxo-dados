@@ -65,7 +65,6 @@ class WhatsappController extends Controller
             $response = $client->get($tokenUrl, ['query' => $params]);
             $body = json_decode($response->getBody(), true);
 
-            dd($body);
             $accessToken = $body['access_token'] ?? null;
             $expiresAt = isset($body['expires_in']) ? now()->addSeconds($body['expires_in']) : null;
             if ($accessToken) {
