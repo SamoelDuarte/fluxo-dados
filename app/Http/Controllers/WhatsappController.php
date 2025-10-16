@@ -8,10 +8,30 @@ class WhatsappController extends Controller
 {
     public function webhook(Request $request)
     {
-        \Log::info('Webhook WhatsApp recebido:', [
-            'payload' => $request->all()
-        ]);
-        return response()->json(['status' => 'ok']);
+        // === Verificação inicial do Webhook (GET) ===
+        if ($request->isMethod('get')) {
+            $verify_token = '23423dfsdfsdff'; // mesmo token que você colocou no painel do Meta
+
+            $mode = $request->query('hub_mode');
+            $token = $request->query('hub_verify_token');
+            $challenge = $request->query('hub_challenge');
+
+            if ($mode === 'subscribe' && $token === $verify_token) {
+                return response($challenge, 200);
+            } else {
+                return response('Token inválido', 403);
+            }
+        }
+
+        // === Recebimento de mensagens (POST) ===
+        if ($request->isMethod('post')) {
+            // Loga o conteúdo recebido pra testar
+            Log::info('Webhook recebido:', $request->all());
+
+            return response('EVENT_RECEIVED', 200);
+        }
+
+        return response('Método não suportado', 405);
     }
     public function showForm()
     {
