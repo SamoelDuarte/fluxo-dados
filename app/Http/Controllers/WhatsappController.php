@@ -27,7 +27,8 @@ class WhatsappController extends Controller
         // === Recebimento de mensagens (POST) ===
         if ($request->isMethod('post')) {
             // Loga o conteúdo recebido pra testar
-            Log::info('Webhook recebido:', $request->all());
+           Log::info('Webhook recebido: ' . json_encode($request->all(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
 
             return response('EVENT_RECEIVED', 200);
         }
