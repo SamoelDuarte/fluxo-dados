@@ -34,6 +34,19 @@ class WhatsappController extends Controller
             $data = $request->all();
             Log::info('Webhook recebido: ' . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
+            // Se vier metadata com phone_number_id, salvar na configuração para usar no envio
+            $metadata = $data['entry'][0]['changes'][0]['value']['metadata'] ?? null;
+            if (!empty($metadata['phone_number_id'])) {
+                try {
+                    DB::table('whatsapp')->updateOrInsert(['id' => 1], [
+                        'phone_number_id' => $metadata['phone_number_id']
+                    ]);
+                    Log::info('phone_number_id salvo a partir do webhook: ' . $metadata['phone_number_id']);
+                } catch (\Exception $e) {
+                    Log::error('Erro ao salvar phone_number_id: ' . $e->getMessage());
+                }
+            }
+
             // Verifica se veio uma mensagem
             $messageData = $data['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
             $contactData = $data['entry'][0]['changes'][0]['value']['contacts'][0] ?? null;
@@ -65,7 +78,7 @@ class WhatsappController extends Controller
             // 3️⃣ Verifica sessão do usuário
             $session = WhatsappSession::firstOrCreate(
                 ['contact_id' => $contact->id],
-                ['flow_id' => null, 'current_step_id' => null, 'context' => []]
+                ['flow_id' => null, 'current_step_id' => null, 'context' => [], 'phone_number_id' => $metadata['phone_number_id'] ?? null]
             );
 
             // 4️⃣ Se não tiver fluxo iniciado, inicia o fluxo "Solicitar CPF"
@@ -83,10 +96,12 @@ class WhatsappController extends Controller
                 ]);
 
                 // Envia mensagem de boas-vindas
-                $this->sendMessage($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.");
+                // Usa phone_number_id salvo na sessão, se disponível
+                $sessionPhone = $session->phone_number_id ?? null;
+                $this->sendMessage($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
 
                 // Envia prompt do primeiro passo do fluxo
-                $this->sendMessage($wa_id, $firstStep->prompt);
+                $this->sendMessage($wa_id, $firstStep->prompt, $sessionPhone);
             }
 
             return response('EVENT_RECEIVED', 200);
@@ -96,13 +111,13 @@ class WhatsappController extends Controller
     }
 
     // Função para enviar mensagem via WhatsApp Cloud API
-    private function sendMessage($to, $body)
+    private function sendMessage($to, $body, $overridePhoneNumberId = null)
     {
         // Tenta obter token e phoneNumberId salvos no banco (configurados pelo fluxo de auth)
         $config = DB::table('whatsapp')->first();
         $token = $config->access_token ?? env('WHATSAPP_TOKEN');
-        // Se houver um campo phone_number_id no registro, use-o. Caso contrário, fallback para env
-        $phoneNumberId = $config->phone_number_id ?? env('WHATSAPP_PHONE_ID');
+        // Prioriza override (session phone_number_id), depois banco, depois env
+        $phoneNumberId = $overridePhoneNumberId ?? ($config->phone_number_id ?? env('WHATSAPP_PHONE_ID'));
 
         if (empty($token) || empty($phoneNumberId)) {
             Log::error('sendMessage: token ou phoneNumberId não configurado.');
