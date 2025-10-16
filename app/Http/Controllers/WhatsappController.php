@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Jobs\SendWhatsappMessage;
+use App\Jobs\SendWhatsappTypingThenMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Log;
@@ -98,12 +99,10 @@ class WhatsappController extends Controller
 
                 // Envia mensagem de boas-vindas (imediata)
                 $sessionPhone = $session->phone_number_id ?? null;
+                SendWhatsappMessage::dispatch($wa_id, "Seja bem-vindo(a) ao nosso canal digital! Eu sou a assistente digital da Neocob em nome das {{NomeBanco}}.", $sessionPhone);
 
-                // simula "digitando": envia um placeholder rápido
-                SendWhatsappMessage::dispatch($wa_id, '...', $sessionPhone)->delay(now()->addSeconds(1));
-
-                // envia a mensagem real com delay maior
-                SendWhatsappMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone)->delay(now()->addSeconds(4));
+                // substitui os dois dispatches por um job que faz typing_on -> espera -> envia mensagem
+                SendWhatsappTypingThenMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone, 3);
             }
 
             return response('EVENT_RECEIVED', 200);
