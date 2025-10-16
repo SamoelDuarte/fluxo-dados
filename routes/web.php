@@ -8,6 +8,7 @@ use App\Http\Controllers\UploadController;
 use App\Http\Controllers\FacebookController;
 use App\Http\Controllers\WhatsappController;
 use Illuminate\Support\Facades\Route;
+require __DIR__.'/auth.php';
 
 /*
 |--------------------------------------------------------------------------
