@@ -88,7 +88,7 @@ class WhatsappController extends Controller
                 $flow = WhatsappFlow::firstOrCreate(['name' => 'Solicita CPF']);
                 $firstStep = WhatsappFlowStep::firstOrCreate(
                     ['flow_id' => $flow->id, 'step_number' => 1],
-                    ['prompt' => "Para localizar suas informações, por favor informe seu *CPF/CNPJ*:\nDigite apenas os números conforme o exemplo abaixo.\n01091209120"]
+                    ['prompt' => "Solicita CPF\nPara localizar suas informações, por favor informe seu *CPF/CNPJ*:\nDigite apenas os números conforme o exemplo abaixo.\n01091209120"]
                 );
 
                 $session->update([
