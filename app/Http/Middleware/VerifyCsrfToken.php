@@ -14,6 +14,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         '/obterparcelamento',
         'api/havan/*',
-        '/api/havan/*'
+        '/api/havan/*',
+        '/whatsapp/webhook'
     ];
 }
