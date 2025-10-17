@@ -102,22 +102,23 @@ class WhatsappController extends Controller
                 Log::error('Fluxo Inicial não encontrado');
                 return;
             }
-            $step = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
-            if (!$step) {
-                Log::error('Passo 1 do Fluxo Inicial não encontrado');
+            $step1 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+            $step2 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 2)->first();
+            if (!$step1 || !$step2) {
+                Log::error('Passos do Fluxo Inicial não encontrados');
                 return;
             }
             $session->update([
                 'flow_id' => $flow->id,
-                'current_step_id' => $step->id,
+                'current_step_id' => $step2->id, // Começa no passo 2 (pedir CPF)
                 'context' => [],
             ]);
-            // Envia welcome
-            $welcome = $this->replacePlaceholders("Seja bem-vindo(a) ao nosso canal digital! Sou a assistente da Neocob em nome da {{NomeBanco}}.", [], $name);
-            SendWhatsappMessage::dispatch($wa_id, $welcome, $phoneNumberId);
-            // Then the prompt
-            $prompt = $this->replacePlaceholders($step->prompt, $session->context, $name);
-            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt, $phoneNumberId, 4);
+            // Envia prompt do passo 1 (welcome)
+            $prompt1 = $this->replacePlaceholders($step1->prompt, $session->context, $name);
+            SendWhatsappMessage::dispatch($wa_id, $prompt1, $phoneNumberId);
+            // Então o prompt do passo 2
+            $prompt2 = $this->replacePlaceholders($step2->prompt, $session->context, $name);
+            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 4);
             return;
         }
 
