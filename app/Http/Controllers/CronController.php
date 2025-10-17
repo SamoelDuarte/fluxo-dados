@@ -29,6 +29,8 @@ class CronController extends Controller
         $carteiras = Carteira::all();
         $planilhaData = [];
 
+
+
        
 
         foreach ($carteiras as $key => $carteira) {
@@ -37,8 +39,8 @@ class CronController extends Controller
 
             // Dados da requisição POST com as informações do contrato
             $data = [
-                "codigoUsuarioCarteiraCobranca" => (string)$carteira->codigo_usuario_cobranca, // Utilizando o relacionamento com a carteira
-                "codigoCarteiraCobranca" => (string)$carteira->id, // Obtendo o id da carteira associada ao contrato
+                "codigoUsuarioCarteiraCobranca" => "24", // Utilizando o relacionamento com a carteira
+                "codigoCarteiraCobranca" => "869", // Obtendo o id da carteira associada ao contrato
                 "pessoaCodigo" => (string)$pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
                 "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
                 "valorEntrada" => 0, // Defina o valor conforme necessário
@@ -65,7 +67,7 @@ class CronController extends Controller
                 $responseBody = $response->getBody();
                 $responseData = json_decode($responseBody, true);
 
-                // dd($responseData);
+                dd($responseData);
                 // Verifica se o "parcelamento" é válido
                 if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
                     // Se "parcelamento" for null ou vazio, continua para a próxima carteira
