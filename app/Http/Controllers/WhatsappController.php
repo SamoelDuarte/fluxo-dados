@@ -2,8 +2,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Jobs\SendWhatsappMessage;
-use App\Jobs\SendWhatsappTypingThenMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Log;
@@ -113,12 +111,12 @@ class WhatsappController extends Controller
                 'current_step_id' => $step2->id, // Começa no passo 2 (pedir CPF)
                 'context' => [],
             ]);
-            // Envia prompt do passo 1 (welcome) com typing curto
+            // Envia prompt do passo 1 (welcome) diretamente (sem typing/delay para evitar bloqueio)
             $prompt1 = $this->replacePlaceholders($step1->prompt, $session->context, $name);
-            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt1, $phoneNumberId, 2);
-            // Aguarda e envia prompt do passo 2
+            $this->sendMessage($wa_id, $prompt1, $phoneNumberId);
+            // Envia prompt do passo 2 (CPF) diretamente
             $prompt2 = $this->replacePlaceholders($step2->prompt, $session->context, $name);
-            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 6);
+            $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
             return;
         }
 
@@ -131,17 +129,17 @@ class WhatsappController extends Controller
 
         // Valida input
         if (!$this->validateInput($messageText, $currentStep->expected_input)) {
-            // Envia erro específico para CPF
+            // Envia erro específico para CPF diretamente
             if ($currentStep->expected_input === 'cpf') {
-                SendWhatsappMessage::dispatch($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $phoneNumberId);
+                $this->sendMessage($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $phoneNumberId);
             } else {
-                // Envia erro genérico
+                // Envia erro genérico diretamente
                 $errorFlow = WhatsappFlow::where('name', 'Fluxo Erros')->first();
                 if ($errorFlow) {
                     $errorStep = WhatsappFlowStep::where('flow_id', $errorFlow->id)->where('step_number', 1)->first();
                     if ($errorStep) {
                         $prompt = $this->replacePlaceholders($errorStep->prompt, $session->context, $name);
-                        SendWhatsappMessage::dispatch($wa_id, $prompt, $phoneNumberId);
+                        $this->sendMessage($wa_id, $prompt, $phoneNumberId);
                     }
                 }
             }
@@ -164,8 +162,8 @@ class WhatsappController extends Controller
                 'context' => $context,
             ]);
             $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
-            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt, $phoneNumberId, 2);
-            // If expected botao, send menu
+            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
+            // If expected botao, send menu diretamente
             if ($nextStep->expected_input === 'botao') {
                 $options = [
                     ['id' => 'sim', 'title' => 'Sim'],
@@ -179,7 +177,7 @@ class WhatsappController extends Controller
                 if ($nextNextStep) {
                     $session->update(['current_step_id' => $nextNextStep->id]);
                     $prompt2 = $this->replacePlaceholders($nextNextStep->prompt, $session->context, $name);
-                    SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 2);
+                    $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
                     if ($nextNextStep->expected_input === 'botao') {
                         $this->sendMenuOptions($wa_id, $phoneNumberId, [
                             ['id' => 'sim', 'title' => 'Sim'],
