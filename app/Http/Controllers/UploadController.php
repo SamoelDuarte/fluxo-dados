@@ -8,6 +8,7 @@ use App\Models\Contrato;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class UploadController extends Controller
 {
@@ -18,35 +19,92 @@ class UploadController extends Controller
 
     public function upload(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls|max:10240', // Limite de 10MB
-        ]);
-
-        $file = $request->file('file');
-        $path = $file->storeAs('uploads', time() . '_' . $file->getClientOriginalName(), 'public');
-
-        $lote = Lote::create(['created_at' => now()]);
-
-        $importedData = Excel::toArray([], storage_path('app/public/' . $path));
-        $rows = $importedData[0]; // Primeira planilha
-
-        foreach ($rows as $index => $row) {
-            if ($index === 0) continue; // Ignora cabeçalho
-
-            Contrato::create([
-                'carteira_id' => $row[7] ?? null,  // Carteira ID pode ser null se não presente
-                'contrato' => $row[5] ?? null,     // Contrato pode ser null se não presente
-                'documento' => $row[4] ?? null,    // Documento pode ser null se não presente
-                'nome' => $row[3] ?? null,         // Nome pode ser null se não presente
-                'lote_id' => $lote->id,            // Lote ID, certifique-se que $lote existe e tem o ID
+        ini_set('memory_limit', '512M'); // Aumenta limite de memória para arquivos grandes
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // agora aceita CSV também
             ]);
-        }
 
-        return response()->json([
-            'success' => 'Arquivo enviado e processado com sucesso!',
-            'lote' => $lote,
-            'carteiras' => $lote->carteiras,
-        ]);
+            // Salvar arquivo no storage
+            $file = $request->file('file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('uploads', $filename, 'public');
+
+            // Criar o lote
+            $lote = Lote::create(['created_at' => now()]);
+
+            // Lê o arquivo com o PhpSpreadsheet
+            $filePath = storage_path('app/public/' . $path);
+            $inputFileType = IOFactory::identify($filePath);
+            \Log::info('Input file type', ['type' => $inputFileType]);
+
+            if ($inputFileType === 'Csv') {
+                // Use fgetcsv for CSV
+                $rows = [];
+                if (($handle = fopen($filePath, 'r')) !== false) {
+                    while (($data = fgetcsv($handle, 0, ';', '"')) !== false) {
+                        $rows[] = $data;
+                    }
+                    fclose($handle);
+                }
+            } else {
+                // For Excel
+                $reader = IOFactory::createReader($inputFileType);
+                $spreadsheet = $reader->load($filePath);
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
+            }
+
+            if (empty($rows)) {
+                return response()->json(['error' => 'Planilha vazia ou inválida.'], 422);
+            }
+
+            // Detecta se a primeira linha é cabeçalho
+            $headers = array_map('strtolower', array_shift($rows));
+
+            \Log::info('Headers detectados', $headers);
+
+            // Processa as linhas
+            foreach ($rows as $row) {
+
+                \Log::info('Processing row', $row);
+
+                if (count($headers) !== count($row)) {
+                    \Log::warning('Row length mismatch', ['headers_count' => count($headers), 'row_count' => count($row), 'row' => $row]);
+                    continue;
+                }
+
+                // Mapeia automaticamente pelos nomes das colunas
+                $data = array_combine($headers, $row);
+
+                if (empty(array_filter($data))) {
+                    continue; // pula linhas totalmente vazias
+                }
+
+                try {
+                    Contrato::create([
+                        'carteira_id' => $data['carteira_id'] ?? $data['carteira'] ?? null,
+                        'contrato'    => $data['contrato'] ?? null,
+                        'documento'   => $data['documento'] ?? $data['cpf'] ?? null,
+                        'nome'        => $data['nome'] ?? $data['cliente'] ?? null,
+                        'lote_id'     => $lote->id,
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error('Erro ao criar contrato no upload: ' . $e->getMessage(), ['data' => $data, 'row' => $row]);
+                    // Continue para o próximo, ou retorne erro
+                    continue;
+                }
+            }
+
+            return response()->json([
+                'success' => 'Arquivo enviado e processado com sucesso!',
+                'lote' => $lote,
+                'contratos_importados' => Contrato::where('lote_id', $lote->id)->count(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erro geral no upload: ' . $e->getMessage());
+            return response()->json(['error' => 'Erro interno no servidor: ' . $e->getMessage()], 500);
+        }
     }
 
 
@@ -102,46 +160,120 @@ class UploadController extends Controller
         return response()->json($contratos);
     }
 
-    public function downloadExcel($loteId)
+    public function uploadChunk(Request $request)
     {
-        // Carregar o lote e seus contratos e planilhas associadas
-        $lote = Lote::with('contratos.planilhas')->findOrFail($loteId);
+        ini_set('memory_limit', '512M');
 
-        // Filtrando as planilhas associadas ao lote
-        $planilhas = $lote->contratos->flatMap(function ($contrato) {
-            return $contrato->planilhas;  // Para cada contrato, pegar as planilhas associadas
-        });
+        $chunk = $request->file('file');
+        $chunkNumber = $request->input('chunkNumber');
+        $totalChunks = $request->input('totalChunks');
+        $fileName = $request->input('fileName');
+        $uploadId = $request->input('uploadId'); // Para identificar o upload
 
-        // Preparar os dados para exportação
-        $carteiras = [];
-        foreach ($planilhas as $planilha) {
-            $carteiras[] = [
-                'cpf' => $planilha->contrato->documento,
-                'nome' => $planilha->contrato->nome,
-                'empresa' => $planilha->empresa,
-                'carteira' => 'Havan',  // Ajuste conforme a lógica do seu sistema
-                'valor_atualizado' => $planilha->valor_atualizado,
-                'valor_proposta_1' => $planilha->valor_proposta_1,
-                'data_vencimento_proposta_1' => $planilha->data_vencimento_proposta_1,
-                'quantidade_parcelas_proposta_2' => $planilha->quantidade_parcelas_proposta_2,
-                'valor_proposta_2' => $planilha->valor_proposta_2,
-                'data_vencimento_proposta_2' => $planilha->data_vencimento_proposta_2,
-                'telefone_recado' => $planilha->telefone_recado,
-                'linha_digitavel' => $planilha->linha_digitavel,
-                'ddd_telefone_1' => $planilha->dddtelefone_1,
-                'ddd_telefone_2' => $planilha->dddtelefone_2,
-                'ddd_telefone_3' => $planilha->dddtelefone_3,
-                'ddd_telefone_4' => $planilha->dddtelefone_4,
-                'ddd_telefone_5' => $planilha->dddtelefone_5,
-                'ddd_telefone_6' => $planilha->dddtelefone_6,
-                'ddd_telefone_7' => $planilha->dddtelefone_7,
-                'ddd_telefone_8' => $planilha->dddtelefone_8,
-                'ddd_telefone_9' => $planilha->dddtelefone_9,
-                'ddd_telefone_10' => $planilha->dddtelefone_10,
-            ];
+        if (!$chunk || !is_numeric($chunkNumber) || !is_numeric($totalChunks) || !$fileName) {
+            return response()->json(['error' => 'Parâmetros inválidos para chunk.'], 400);
         }
 
-        // Agora você cria a instância da classe LoteExport passando as carteiras
-        return Excel::download(new LoteExport($carteiras), "lote_{$loteId}.xlsx");
+        // Cria diretório temp se não existir
+        $tempDir = storage_path('app/temp');
+        if (!is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $tempPath = $tempDir . '/' . $uploadId . '_' . $fileName . '_chunk_' . $chunkNumber;
+        $chunk->move($tempDir, basename($tempPath));
+
+        // Verifica se todos os chunks foram recebidos
+        $chunksReceived = 0;
+        for ($i = 0; $i < $totalChunks; $i++) {
+            if (file_exists($tempDir . '/' . $uploadId . '_' . $fileName . '_chunk_' . $i)) {
+                $chunksReceived++;
+            }
+        }
+
+        if ($chunksReceived == $totalChunks) {
+            // Assembla o arquivo
+            $finalPath = storage_path('app/public/uploads/' . $fileName);
+            $out = fopen($finalPath, 'wb');
+            for ($i = 0; $i < $totalChunks; $i++) {
+                $chunkPath = $tempDir . '/' . $uploadId . '_' . $fileName . '_chunk_' . $i;
+                if (file_exists($chunkPath)) {
+                    $in = fopen($chunkPath, 'rb');
+                    stream_copy_to_stream($in, $out);
+                    fclose($in);
+                    unlink($chunkPath);
+                }
+            }
+            fclose($out);
+
+            // Agora processa o arquivo como no upload normal
+            try {
+                // Criar o lote
+                $lote = Lote::create(['created_at' => now()]);
+
+                // Lê o arquivo
+                $inputFileType = IOFactory::identify($finalPath);
+                \Log::info('Input file type chunk', ['type' => $inputFileType]);
+
+                if ($inputFileType === 'Csv') {
+                    // Use fgetcsv for CSV
+                    $rows = [];
+                    if (($handle = fopen($finalPath, 'r')) !== false) {
+                        while (($data = fgetcsv($handle, 0, ';', '"')) !== false) {
+                            $rows[] = $data;
+                        }
+                        fclose($handle);
+                    }
+                } else {
+                    // For Excel
+                    $reader = IOFactory::createReader($inputFileType);
+                    $spreadsheet = $reader->load($finalPath);
+                    $worksheet = $spreadsheet->getActiveSheet();
+                    $rows = $worksheet->toArray();
+                }
+
+                if (empty($rows)) {
+                    return response()->json(['error' => 'Planilha vazia.'], 422);
+                }
+
+                $headers = array_map('strtolower', array_shift($rows));
+
+                foreach ($rows as $row) {
+                    if (empty(array_filter($row))) continue;
+
+                    \Log::info('Processing row', $row);
+
+                    if (count($headers) !== count($row)) {
+                        \Log::warning('Row length mismatch', ['headers_count' => count($headers), 'row_count' => count($row), 'row' => $row]);
+                        continue;
+                    }
+
+                    $data = array_combine($headers, $row);
+                    try {
+                        Contrato::create([
+                            'carteira_id' => $data['carteira_id'] ?? $data['carteira'] ?? null,
+                            'contrato'    => $data['contrato'] ?? null,
+                            'documento'   => $data['documento'] ?? $data['cpf'] ?? null,
+                            'nome'        => $data['nome'] ?? $data['cliente'] ?? null,
+                            'lote_id'     => $lote->id,
+                        ]);
+                    } catch (\Exception $e) {
+                        \Log::error('Erro ao criar contrato: ' . $e->getMessage(), ['data' => $data]);
+                        continue;
+                    }
+                }
+
+                return response()->json([
+                    'success' => 'Upload concluído!',
+                    'lote' => $lote,
+                    'contratos_importados' => Contrato::where('lote_id', $lote->id)->count(),
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Erro no processamento do arquivo: ' . $e->getMessage());
+                return response()->json(['error' => 'Erro interno: ' . $e->getMessage()], 500);
+            }
+        }
+
+        return response()->json(['message' => 'Chunk recebido.']);
     }
 }

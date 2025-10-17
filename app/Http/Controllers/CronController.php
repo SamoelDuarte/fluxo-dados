@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Carteira;
+use App\Models\Contato;
+use App\Models\ContatoDados;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Carbon\Carbon;
@@ -17,20 +19,50 @@ class CronController extends Controller
 
     public function getDadoHavan(HttpRequest $request)
     {
+
+       $contato = ContatoDados::where('telefone', '5548988601650')->first();
+
+      
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
-        $pessoaCodigo = '39511003';
+        $pessoaCodigo = $contato->numero_contrato;
+        $codigoUsuario = null;
+                $codigoCarteira = null;
 
-        $carteiras = Carteira::all();
-        $planilhaData = [];
+        switch ($contato->carteira) {
+            case '875':
+                $codigoUsuario = 30;
+                $codigoCarteira = 875;
+                break;
+            case '874':
+                $codigoUsuario = 24;
+                $codigoCarteira = 874;
+                break;
+            case '873':
+                $codigoUsuario = 24;
+                $codigoCarteira = 873;
+                break;
+            case '872':
+                $codigoUsuario = 24;
+                $codigoCarteira = 872;
+                break;
+            case '871':
+                $codigoUsuario = 24;
+                $codigoCarteira = 871;
+                break;
+            case '870':
+                $codigoUsuario = 24;
+                $codigoCarteira = 870;
+                break;
+        }
 
-        foreach ($carteiras as $key => $carteira) {
+        
             // Cria uma instância do cliente Guzzle
             $client = new Client();
 
             // Dados da requisição POST com as informações do contrato
             $data = [
-                "codigoUsuarioCarteiraCobranca" => "24", // Utilizando o relacionamento com a carteira
-                "codigoCarteiraCobranca" => "870", // Obtendo o id da carteira associada ao contrato
+                "codigoUsuarioCarteiraCobranca" => $codigoUsuario, // Utilizando o relacionamento com a carteira
+                "codigoCarteiraCobranca" => $codigoCarteira, // Obtendo o id da carteira associada ao contrato
                 "pessoaCodigo" => $pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
                 "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
                 "valorEntrada" => 0, // Defina o valor conforme necessário
@@ -57,28 +89,34 @@ class CronController extends Controller
                 $responseBody = $response->getBody();
                 $responseData = json_decode($responseBody, true);
                 // Verifica se o "parcelamento" é null
-                if ($responseData[0]['parcelamento'] === null) {
-                    // dd($carteira);
-                    // Se "parcelamento" for null, continua para a próxima carteira
-                    continue;
+                if (empty($responseData[0]['parcelamento'])) {
+                    // Sem opções de parcelamento: retorna resposta vazia para o chamador
+                    return response()->json([
+                        'data' => [],
+                        'message' => 'Nenhuma opção de parcelamento disponível para este contrato.'
+                    ], 204);
                 }
 
-                // Caso tenha um valor válido para "parcelamento", você pode parar o loop
-                // ou processar a resposta
-                $planilhaData['carteira'] = $carteira->id;
-                break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
+                // Caso tenha um valor válido para "parcelamento", processa a resposta
+                // Não existe $carteira neste contexto; use o código da carteira já determinado
+                $planilhaData['carteira'] = $codigoCarteira;
 
             } catch (\Exception $e) {
+                // Lida com possíveis exceções de forma segura e registra o erro
+                Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+
                 if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
                     $response = $e->getResponse();
-                    dd('Erro na requisição: ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
+                    return response()->json([
+                        'error' => 'Erro na requisição: ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents()
+                    ], 500);
                 } else {
-                    dd('Erro geral: ' . $e->getMessage());
+                    return response()->json([
+                        'error' => 'Erro geral: ' . $e->getMessage()
+                    ], 500);
                 }
-                // Lida com possíveis exceções
-                Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
             }
-        }
+        
 
       
         // Processar os dados de parcelamento

@@ -71,7 +71,7 @@ class ContatoController extends Controller
             $h = fopen($path, 'r');
             $total = 0;
             $first = true;
-            while (($row = fgetcsv($h, 0, ',')) !== false) {
+            while (($row = fgetcsv($h, 0, ';')) !== false) {
                 if ($first) { $first = false; continue; }
                 $total++;
             }
@@ -94,7 +94,7 @@ class ContatoController extends Controller
         // Skip header
         $rowNum = 0;
         $headers = [];
-        while (($row = fgetcsv($handle, 0, ',')) !== false) {
+        while (($row = fgetcsv($handle, 0, ';')) !== false) {
             $rowNum++;
             if ($rowNum === 1) {
                 $headers = array_map(function ($h) { return Str::lower(Str::slug($h, '_')); }, $row);
@@ -120,22 +120,44 @@ class ContatoController extends Controller
                 ];
             }
 
-            $data_venc = $mapped['data_vencimento'] ?? null;
+            // Map to standard fields based on headers
+            $tipo = $mapped['tipo_de_registro'] ?? null;
+            $telefone = ($tipo === 'TELEFONE') ? ($mapped['valor_do_registro'] ?? null) : null;
+            $nome = $mapped['nome_cliente'] ?? null;
+            $document = $mapped['cpfcnpj'] ?? null;
+            $numero_contrato = $mapped['codcliente'] ?? null;
+            $valor_str = $mapped['coringa2'] ?? null;
+            $dias_atraso_str = $mapped['coringa3'] ?? null;
+            $data_venc_str = $mapped['coringa4'] ?? null;
+            $carteira = $mapped['coringa1'] ?? null;
+
+            // Process date
+            $data_venc = $data_venc_str;
             if (preg_match('/\d{2}\/\d{2}\/\d{4}/', $data_venc)) {
                 $parts = explode('/', $data_venc);
                 $data_venc = $parts[2].'-'.$parts[1].'-'.$parts[0];
             }
 
+            // Process valor (replace comma with dot)
+            $valor = null;
+            if ($valor_str) {
+                $valor_clean = str_replace(',', '.', $valor_str);
+                $valor = is_numeric($valor_clean) ? floatval($valor_clean) : null;
+            }
+
+            // Process dias_atraso
+            $dias_atraso = is_numeric($dias_atraso_str) ? intval($dias_atraso_str) : null;
+
             ContatoDados::create([
                 'contato_id' => $import->contato_id,
-                'telefone' => $mapped['telefone'] ?? null,
-                'nome' => $mapped['nome'] ?? null,
-                'document' => $mapped['document'] ?? null,
-                'numero_contrato' => $mapped['numero_contrato'] ?? null,
+                'telefone' => $telefone,
+                'nome' => $nome,
+                'document' => $document,
+                'numero_contrato' => $numero_contrato,
                 'data_vencimento' => $data_venc,
-                'dias_atraso' => is_numeric($mapped['dias_atraso'] ?? null) ? intval($mapped['dias_atraso']) : null,
-                'valor' => is_numeric($mapped['valor'] ?? null) ? floatval($mapped['valor']) : null,
-                'carteira' => $mapped['carteira'] ?? null,
+                'dias_atraso' => $dias_atraso,
+                'valor' => $valor,
+                'carteira' => $carteira,
             ]);
 
             $import->increment('processed_rows');

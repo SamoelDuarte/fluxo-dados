@@ -14,8 +14,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Arquivo (CSV)</label>
-                    <input type="file" name="file" id="file" accept=".csv" class="form-control" required>
+                    <label>Arquivo (CSV)(Excel)</label>
+                    <input type="file" name="file" id="file" accept=".csv,.xls,.xlsx" class="form-control" required>
                 </div>
 
                 <div class="form-group">
