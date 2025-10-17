@@ -131,13 +131,18 @@ class WhatsappController extends Controller
 
         // Valida input
         if (!$this->validateInput($messageText, $currentStep->expected_input)) {
-            // Envia erro
-            $errorFlow = WhatsappFlow::where('name', 'Fluxo Erros')->first();
-            if ($errorFlow) {
-                $errorStep = WhatsappFlowStep::where('flow_id', $errorFlow->id)->where('step_number', 1)->first();
-                if ($errorStep) {
-                    $prompt = $this->replacePlaceholders($errorStep->prompt, $session->context, $name);
-                    SendWhatsappMessage::dispatch($wa_id, $prompt, $phoneNumberId);
+            // Envia erro específico para CPF
+            if ($currentStep->expected_input === 'cpf') {
+                SendWhatsappMessage::dispatch($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $phoneNumberId);
+            } else {
+                // Envia erro genérico
+                $errorFlow = WhatsappFlow::where('name', 'Fluxo Erros')->first();
+                if ($errorFlow) {
+                    $errorStep = WhatsappFlowStep::where('flow_id', $errorFlow->id)->where('step_number', 1)->first();
+                    if ($errorStep) {
+                        $prompt = $this->replacePlaceholders($errorStep->prompt, $session->context, $name);
+                        SendWhatsappMessage::dispatch($wa_id, $prompt, $phoneNumberId);
+                    }
                 }
             }
             return;
