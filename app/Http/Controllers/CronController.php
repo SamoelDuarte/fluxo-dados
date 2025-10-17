@@ -66,34 +66,31 @@ class CronController extends Controller
                 $responseData = json_decode($responseBody, true);
 
                 // dd($responseData);
-                // Verifica se o "parcelamento" é null
-                if ($responseData[0]['parcelamento'] === null) {
-                    // dd($carteira);
-                    // Se "parcelamento" for null, continua para a próxima carteira
+                // Verifica se o "parcelamento" é válido
+                if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
+                    // Se "parcelamento" for null ou vazio, continua para a próxima carteira
                     continue;
                 }
 
-                // Caso tenha um valor válido para "parcelamento", você pode parar o loop
-                // ou processar a resposta
+                // Caso tenha um valor válido para "parcelamento", pare o loop
                 $planilhaData['carteira'] = $carteira->id;
                 break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
-                if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
-                    $response = $e->getResponse();
-                    dd('Erro na requisição: ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
-                } else {
-                    dd('Erro geral: ' . $e->getMessage());
-                }
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+                continue; // Continua para a próxima carteira
             }
         }
 
       
+        // Verificar se encontrou uma carteira válida
+        if (empty($planilhaData)) {
+            return response()->json(['error' => 'Nenhuma carteira válida encontrada para este contrato.'], 404);
+        }
+
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
-        dd($ultimoArray);
         if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
             return response()->json([
                 'error' => 'Nenhuma opção de parcelamento disponível para este contrato.'
