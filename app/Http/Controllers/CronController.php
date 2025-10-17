@@ -63,7 +63,7 @@ class CronController extends Controller
 
         // Cria uma instância do cliente Guzzle
         $client = new Client();
-
+      
         // Dados da requisição POST com as informações do contrato
         $data = [
             "codigoUsuarioCarteiraCobranca" => (int)$codigoUsuario, // Utilizando o relacionamento com a carteira
@@ -74,6 +74,8 @@ class CronController extends Controller
             "chave" => "3cr1O35JfhQ8vBO", // Deixe a chave conforme necessária
             "renegociaSomenteDocumentosEmAtraso" => false // Deixe como false ou conforme necessário
         ];
+
+        dd($data);
 
 
 
