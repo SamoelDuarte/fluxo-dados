@@ -92,6 +92,11 @@ class CronController extends Controller
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
 
+        if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
+            return response()->json([
+                'error' => 'Nenhuma opção de parcelamento disponível para este contrato.'
+            ], 204);
+        }
 
         $planilhaData['valor_atualizado'] = $ultimoArray['valorDivida'];
         $planilhaData['valorTotalOriginal'] = $ultimoArray['valorTotalOriginal'];
