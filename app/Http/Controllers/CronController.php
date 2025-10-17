@@ -19,7 +19,6 @@ class CronController extends Controller
 
     public function getDadoHavan(HttpRequest $request)
     {
-        dd('aki');
 
        $contato = ContatoDados::where('telefone', '5548988601650')->first();
 
