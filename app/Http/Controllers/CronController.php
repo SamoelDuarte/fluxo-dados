@@ -63,6 +63,7 @@ class CronController extends Controller
 
                 // Retorna o corpo da resposta
                 $responseBody = $response->getBody();
+                    dd($responseBody );
                 $responseData = json_decode($responseBody, true);
                 // Verifica se o "parcelamento" é null
                 if ($responseData[0]['parcelamento'] === null) {
@@ -92,7 +93,7 @@ class CronController extends Controller
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
 
-        dd($ultimoArray );
+    
         $planilhaData['valor_atualizado'] = $ultimoArray['valorDivida'];
         $planilhaData['valorTotalOriginal'] = $ultimoArray['valorTotalOriginal'];
         $planilhaData['valor_proposta_1'] = $ultimoArray['parcelamento'][0]['valorTotal'];
