@@ -26,29 +26,37 @@ class CronController extends Controller
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
         $pessoaCodigo = $contato->numero_contrato;
         $codigoUsuario = null;
+        $codigoCarteira = null;
         // dd($contato->carteira);
 
         switch ($contato->carteira) {
             case '875':
-                $codigoUsuario = 30;
+                $codigoUsuario = "30";
+                $codigoCarteira = "875";
                 break;
             case '874':
-                $codigoUsuario = 24;
+                $codigoUsuario = "24";
+                $codigoCarteira = "874";
                 break;
             case '873':
-                $codigoUsuario = 24;
+                $codigoUsuario = "24";
+                $codigoCarteira = "873";
                 break;
             case '872':
-                $codigoUsuario = 24;
+                $codigoUsuario = "24";
+                $codigoCarteira = "872";
                 break;
             case '871':
-                $codigoUsuario = 24;
+                $codigoUsuario = "24";
+                $codigoCarteira = "871";
                 break;
             case '870':
-                $codigoUsuario = 24;
+                $codigoUsuario = "24";
+                $codigoCarteira = "870";
                 break;
             case '869':
-                $codigoUsuario = 30;
+                $codigoUsuario = "24";
+                $codigoCarteira = "869";
                 break;
         }
 
@@ -59,7 +67,7 @@ class CronController extends Controller
         // Dados da requisição POST com as informações do contrato
         $data = [
             "codigoUsuarioCarteiraCobranca" => $codigoUsuario, // Utilizando o relacionamento com a carteira
-            "codigoCarteiraCobranca" => $contato->carteira, // Obtendo o id da carteira associada ao contrato
+            "codigoCarteiraCobranca" => $codigoCarteira, // Obtendo o id da carteira associada ao contrato
             "pessoaCodigo" => $pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
             "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
             "valorEntrada" => 0, // Defina o valor conforme necessário
