@@ -51,6 +51,22 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/whatsapp/connect', [WhatsappController::class, 'showForm'])->name('whatsapp.connect');
     Route::post('/whatsapp/connect', [WhatsappController::class, 'save'])->name('whatsapp.save');
+    
+    // Telefones CRUD
+    Route::resource('telefones', \App\Http\Controllers\TelefoneController::class)->except(['show'])->middleware('auth');
+
+    // Campanhas menu routes (placeholders)
+    Route::get('/campanhas', [\App\Http\Controllers\CampanhaController::class, 'campanhas'])->name('campanhas.index');
+    Route::get('/campanhas/contatos', [\App\Http\Controllers\CampanhaController::class, 'contatos'])->name('campanhas.contatos');
+    Route::get('/campanhas/relatorio', [\App\Http\Controllers\CampanhaController::class, 'relatorio'])->name('campanhas.relatorio');
+
+    // Contatos upload CRUD
+    Route::get('/contatos', [\App\Http\Controllers\ContatoController::class, 'index'])->name('contatos.index');
+    Route::get('/contatos/create', [\App\Http\Controllers\ContatoController::class, 'create'])->name('contatos.create');
+    Route::post('/contatos', [\App\Http\Controllers\ContatoController::class, 'store'])->name('contatos.store');
+    Route::delete('/contatos/{contato}', [\App\Http\Controllers\ContatoController::class, 'destroy'])->name('contatos.destroy');
+    Route::get('/contatos/imports/{import}', [\App\Http\Controllers\ContatoController::class, 'importStatus'])->name('contatos.import.status');
+    Route::post('/contatos/imports/{import}/process', [\App\Http\Controllers\ContatoController::class, 'processChunk'])->name('contatos.import.process');
 
        
 

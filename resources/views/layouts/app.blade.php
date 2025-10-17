@@ -83,7 +83,8 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <a class="collapse-item" href="{{ route('whatsapp.connect') }}"> <i class="fab fa-whatsapp"
                                 style="color: #25D366;"></i> Whatsapp</a>
-                       
+                        <a class="collapse-item" href="{{ route('telefones.index') }}"> <i class="fas fa-phone"
+                                style="color: #4e73df;"></i> Telefones</a>
                     </div>
                 </div>
 
@@ -91,10 +92,21 @@
 
 
             <li class="nav-item">
-                <a href="{{ route('upload.index') }}" class="nav-link">
-                    <i class="fas fa-upload"></i>
-                    <span>uploads</span>
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#campanhasMenu"
+                    aria-expanded="true" aria-controls="campanhasMenu">
+                    <span>Campanhas</span>
                 </a>
+
+                <div id="campanhasMenu" class="collapse" aria-labelledby="headingCampanhas" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+            <a class="collapse-item" href="{{ route('contatos.index') }}"><i class="fas fa-address-book"
+                style="color: #1cc88a;"></i> Contatos</a>
+                        <a class="collapse-item" href="{{ route('campanhas.index') }}"><i class="fas fa-bullhorn"
+                                style="color: #f6c23e;"></i> Campanhas</a>
+                        <a class="collapse-item" href="{{ route('campanhas.relatorio') }}"><i class="fas fa-file-alt"
+                                style="color: #858796;"></i> Relatório de envio</a>
+                    </div>
+                </div>
             </li>
 
 

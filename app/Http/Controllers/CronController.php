@@ -535,7 +535,7 @@ class CronController extends Controller
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
-            ->limit(5)
+            ->limit(50)
             ->get();
 
         if ($contratos->isEmpty()) {
@@ -548,7 +548,7 @@ class CronController extends Controller
             $dadosCliente = $this->obterDadosCliente($contrato->documento);
 
             // If API returned an error structure or null, mark contrato and continue
-            if (is_null($dadosCliente) || (is_array($dadosCliente) && isset($dadosCliente['error']))) {
+            if (is_null($dadosCliente)  && isset($dadosCliente['error'])) {
                 $erroMensagem = is_array($dadosCliente) ? ($dadosCliente['error'] ?? 'Erro ao obter dados') : 'Erro ao obter dados (null)';
                 $contrato->erro = 1;
                 $contrato->request = 1;
