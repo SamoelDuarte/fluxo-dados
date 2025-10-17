@@ -22,7 +22,7 @@ class CronController extends Controller
 
        $contato = ContatoDados::where('telefone', '5548988601650')->first();
 
-        dd($contato->numero_contrato);
+      
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
         $pessoaCodigo = $contato->numero_contrato;
 
@@ -63,7 +63,7 @@ class CronController extends Controller
 
                 // Retorna o corpo da resposta
                 $responseBody = $response->getBody();
-                    dd(vars: $responseBody );
+                    dd( $responseBody );
                 $responseData = json_decode($responseBody, true);
                 // Verifica se o "parcelamento" é null
                 // if ($responseData[0]['parcelamento'] === null) {
