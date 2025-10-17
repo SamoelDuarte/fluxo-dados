@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\HavanController;
+use App\Http\Controllers\CronController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -27,3 +28,5 @@ Route::prefix('havan')->group(function () {
     Route::post('/gravarocorrencia', [HavanController::class, 'gravarOcorrencia']);
     Route::post('/obterboletos', [HavanController::class, 'obterBoletos']);
 });
+
+Route::get('/gethavan', [CronController::class, 'getDadoHavan']);
