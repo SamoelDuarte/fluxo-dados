@@ -108,11 +108,24 @@ class WhatsappController extends Controller
 
                     if (!empty($debts)) {
                         SendWhatsappMessage::dispatch($wa_id, 'Encontrei você!', $session->phone_number_id ?? null);
+
                         // Envia resumo (ajuste conforme formato real dos dados)
                         foreach ($debts as $d) {
                             $line = "Contrato: {$d['contract']}\nValor: {$d['amount']}\nVencimento: {$d['due_date']}";
                             SendWhatsappMessage::dispatch($wa_id, $line, $session->phone_number_id ?? null);
                         }
+
+                        // opções dinâmicas vindas de fora (quem chama monta o array)
+                        $options = [
+                            ['id' => 'negociar', 'title' => 'Negociar'],
+                            ['id' => 'segunda_via', 'title' => '2ª Via de Boleto'],
+                            ['id' => 'comprovante', 'title' => 'Enviar Comprovante'],
+                            ['id' => 'atendimento', 'title' => 'Atendimento'],
+                            ['id' => 'encerrar', 'title' => 'Encerrar conversa'],
+                        ];
+
+                        // chama a função que monta e envia o menu (decide formato automaticamente)
+                        $this->sendMenuOptions($wa_id, $session->phone_number_id ?? null, $options, 'Selecione uma opção:');
                         // aqui você pode avançar o fluxo para etapa de negociação/consulta detalhada
                     } else {
                         $firstName = explode(' ', trim($name))[0] ?? 'Cliente';
@@ -266,6 +279,99 @@ class WhatsappController extends Controller
         Log::info('Mensagem enviada: ' . $body . ' | Response: ' . $response->body());
         return true;
     }
+    public function sendMenuOptions(string $wa_id, ?string $phone_number_id, array $options, string $title = null)
+    {
+        // token / phoneNumberId (mesma lógica do sendMessage)
+        $config = DB::table('whatsapp')->first();
+        $token = $config->access_token ?? env('WHATSAPP_TOKEN');
+        $phoneNumberId = $phone_number_id ?? ($config->phone_number_id ?? env('WHATSAPP_PHONE_ID'));
+
+        if (empty($token) || empty($phoneNumberId)) {
+            Log::error('sendMenuOptions: token ou phoneNumberId não configurado.');
+            return false;
+        }
+
+        // Normaliza options: array de ['id'=>'x','title'=>'Y']
+        $normalized = array_map(function ($o) {
+            if (is_array($o))
+                return $o;
+            return ['id' => (string) $o, 'title' => (string) $o];
+        }, $options);
+
+        // Se tiver até 3 opções, usa interactive type=button (quick replies)
+        if (count($normalized) <= 3) {
+            $buttons = array_map(function ($opt) {
+                return [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => $opt['id'],
+                        'title' => $opt['title']
+                    ]
+                ];
+            }, $normalized);
+
+            $body = [
+                'messaging_product' => 'whatsapp',
+                'to' => $wa_id,
+                'type' => 'interactive',
+                'interactive' => [
+                    'type' => 'button',
+                    'body' => [
+                        'text' => $title ?? 'Escolha uma opção:'
+                    ],
+                    'action' => [
+                        'buttons' => $buttons
+                    ]
+                ]
+            ];
+
+            $url = "https://graph.facebook.com/v21.0/{$phoneNumberId}/messages";
+            $res = Http::withToken($token)->post($url, $body);
+            Log::info('sendMenuOptions (buttons) response', ['status' => $res->status(), 'body' => $res->body()]);
+            return true;
+        }
+
+        // Se tiver mais de 3 opções, usa interactive type=list (mais flexível)
+        $rows = [];
+        foreach ($normalized as $idx => $opt) {
+            $rows[] = [
+                'id' => $opt['id'],
+                'title' => $opt['title'],
+                'description' => $opt['title']
+            ];
+        }
+
+        $section = [
+            'title' => $title ?? 'Opções',
+            'rows' => $rows
+        ];
+
+        $body = [
+            'messaging_product' => 'whatsapp',
+            'to' => $wa_id,
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'list',
+                'header' => [
+                    'type' => 'text',
+                    'text' => $title ?? 'Selecione:'
+                ],
+                'body' => [
+                    'text' => $title ?? 'Escolha uma opção abaixo:'
+                ],
+                'action' => [
+                    'button' => 'Ver opções',
+                    'sections' => [$section]
+                ]
+            ]
+        ];
+
+        $url = "https://graph.facebook.com/v21.0/{$phoneNumberId}/messages";
+        $res = Http::withToken(token: $token)->post($url, $body);
+        Log::info('sendMenuOptions (list) response', ['status' => $res->status(), 'body' => $res->body()]);
+        return true;
+    }
+
     public function showForm()
     {
         $data = DB::table('whatsapp')->first();

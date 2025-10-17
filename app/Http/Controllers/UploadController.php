@@ -34,9 +34,9 @@ class UploadController extends Controller
             if ($index === 0) continue; // Ignora cabeçalho
 
             Contrato::create([
-                'carteira_id' => $row[0] ?? null,  // Carteira ID pode ser null se não presente
-                'contrato' => $row[1] ?? null,     // Contrato pode ser null se não presente
-                'documento' => $row[2] ?? null,    // Documento pode ser null se não presente
+                'carteira_id' => $row[7] ?? null,  // Carteira ID pode ser null se não presente
+                'contrato' => $row[5] ?? null,     // Contrato pode ser null se não presente
+                'documento' => $row[4] ?? null,    // Documento pode ser null se não presente
                 'nome' => $row[3] ?? null,         // Nome pode ser null se não presente
                 'lote_id' => $lote->id,            // Lote ID, certifique-se que $lote existe e tem o ID
             ]);
