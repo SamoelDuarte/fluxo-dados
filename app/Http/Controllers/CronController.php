@@ -22,14 +22,12 @@ class CronController extends Controller
 
        $contato = ContatoDados::where('telefone', '5548988601650')->first();
 
-        // dd($contato->numero_contrato);
+        dd($contato->numero_contrato);
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
         $pessoaCodigo = $contato->numero_contrato;
 
         $carteiras = Carteira::all();
         $planilhaData = [];
-
-
 
        
 
@@ -41,7 +39,7 @@ class CronController extends Controller
             $data = [
                 "codigoUsuarioCarteiraCobranca" => "24", // Utilizando o relacionamento com a carteira
                 "codigoCarteiraCobranca" => "869", // Obtendo o id da carteira associada ao contrato
-                "pessoaCodigo" => (string)$pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
+                "pessoaCodigo" => "29403", // Documento do contrato (ajuste conforme necessário)
                 "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
                 "valorEntrada" => 0, // Defina o valor conforme necessário
                 "chave" => "3cr1O35JfhQ8vBO", // Deixe a chave conforme necessária
@@ -66,38 +64,34 @@ class CronController extends Controller
                 // Retorna o corpo da resposta
                 $responseBody = $response->getBody();
                 $responseData = json_decode($responseBody, true);
-
-                dd($responseData);
-                // Verifica se o "parcelamento" é válido
-                if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
-                    // Se "parcelamento" for null ou vazio, continua para a próxima carteira
+                // Verifica se o "parcelamento" é null
+                if ($responseData[0]['parcelamento'] === null) {
+                    // dd($carteira);
+                    // Se "parcelamento" for null, continua para a próxima carteira
                     continue;
                 }
 
-                // Caso tenha um valor válido para "parcelamento", pare o loop
+                // Caso tenha um valor válido para "parcelamento", você pode parar o loop
+                // ou processar a resposta
                 $planilhaData['carteira'] = $carteira->id;
                 break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
+                if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
+                    $response = $e->getResponse();
+                    dd('Erro na requisição: ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
+                } else {
+                    dd('Erro geral: ' . $e->getMessage());
+                }
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
-                continue; // Continua para a próxima carteira
             }
         }
 
       
-        // Verificar se encontrou uma carteira válida
-        if (empty($planilhaData)) {
-            return response()->json(['error' => 'Nenhuma carteira válida encontrada para este contrato.'], 404);
-        }
-
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
-        if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
-            return response()->json([
-                'error' => 'Nenhuma opção de parcelamento disponível para este contrato.'
-            ], 204);
-        }
+
 
         $planilhaData['valor_atualizado'] = $ultimoArray['valorDivida'];
         $planilhaData['valorTotalOriginal'] = $ultimoArray['valorTotalOriginal'];
