@@ -15,24 +15,22 @@ use Illuminate\Support\Facades\Log;
 class CronController extends Controller
 {
 
-    public function obterParcelamento(HttpRequest $request)
+    public function getDadoHavan(HttpRequest $request)
     {
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
-        $pessoaCodigo = '12790584';
+        $pessoaCodigo = '39511003';
 
         $carteiras = Carteira::all();
-
+        $planilhaData = [];
 
         foreach ($carteiras as $key => $carteira) {
             // Cria uma instância do cliente Guzzle
-
-
             $client = new Client();
 
             // Dados da requisição POST com as informações do contrato
             $data = [
-                "codigoUsuarioCarteiraCobranca" => $carteira->codigo_usuario_cobranca, // Utilizando o relacionamento com a carteira
-                "codigoCarteiraCobranca" => $carteira->id, // Obtendo o id da carteira associada ao contrato
+                "codigoUsuarioCarteiraCobranca" => '39511003', // Utilizando o relacionamento com a carteira
+                "codigoCarteiraCobranca" => '870', // Obtendo o id da carteira associada ao contrato
                 "pessoaCodigo" => $pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
                 "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
                 "valorEntrada" => 0, // Defina o valor conforme necessário
@@ -69,13 +67,13 @@ class CronController extends Controller
                 break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
+                dd('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
             }
         }
 
-
-        dd($responseData);
+      
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
 
@@ -432,12 +430,185 @@ class CronController extends Controller
         }
     }
 
+    public function obterParcelamento(HttpRequest $request)
+    {
+        // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
+        $pessoaCodigo = '12790584';
+
+        $carteiras = Carteira::all();
+
+
+        foreach ($carteiras as $key => $carteira) {
+            // Cria uma instância do cliente Guzzle
+
+
+            $client = new Client();
+
+            // Dados da requisição POST com as informações do contrato
+            $data = [
+                "codigoUsuarioCarteiraCobranca" => $carteira->codigo_usuario_cobranca, // Utilizando o relacionamento com a carteira
+                "codigoCarteiraCobranca" => $carteira->id, // Obtendo o id da carteira associada ao contrato
+                "pessoaCodigo" => $pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
+                "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
+                "valorEntrada" => 0, // Defina o valor conforme necessário
+                "chave" => "3cr1O35JfhQ8vBO", // Deixe a chave conforme necessária
+                "renegociaSomenteDocumentosEmAtraso" => false // Deixe como false ou conforme necessário
+            ];
+
+            // Cabeçalhos da requisição
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->gerarToken()
+            ];
+
+            try {
+                // Envia a requisição POST com Guzzle
+                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                    'json' => $data,
+                    'headers' => $headers,
+                ]);
+
+                // Retorna o corpo da resposta
+                $responseBody = $response->getBody();
+                $responseData = json_decode($responseBody, true);
+                // Verifica se o "parcelamento" é null
+                if ($responseData[0]['parcelamento'] === null) {
+                    // dd($carteira);
+                    // Se "parcelamento" for null, continua para a próxima carteira
+                    continue;
+                }
+
+                // Caso tenha um valor válido para "parcelamento", você pode parar o loop
+                // ou processar a resposta
+                $planilhaData['carteira'] = $carteira->id;
+                break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
+
+            } catch (\Exception $e) {
+                // Lida com possíveis exceções
+                  dd('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+                Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+            }
+        }
+
+
+        
+        // Processar os dados de parcelamento
+        $ultimoArray = end($responseData);
+
+
+        $planilhaData['valor_atualizado'] = $ultimoArray['valorDivida'];
+        $planilhaData['valorTotalOriginal'] = $ultimoArray['valorTotalOriginal'];
+        $planilhaData['valor_proposta_1'] = $ultimoArray['parcelamento'][0]['valorTotal'];
+        $planilhaData['data_vencimento_proposta_1'] = Carbon::now()->addDay()->format('d/m/Y');
+
+        // Inicializa as variáveis para armazenar o penúltimo índice
+        $penultimoParcela = null;
+        $encontrouParcelaMenor170 = false;  // Flag para verificar se encontramos parcela menor que 170
+
+        // foreach ($ultimoArray['parcelamento'] as $index => $item) {
+        //     // Verifica se o valor da parcela é menor que 170
+        //     if ($item['valorParcela'] < 170) {
+        //         $encontrouParcelaMenor170 = true;
+        //         $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+        //         $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+        //         $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+        //         $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+        //         $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+        //         break;
+        //     }
+        // }
+
+
+        foreach ($ultimoArray['parcelamento'] as $index => $item) {
+            // Verifica se o valor da parcela é menor que 170
+            if ($item['valorParcela'] < 170) {
+                $encontrouParcelaMenor170 = true;
+
+                $indiceParcela = array_search($item['parcelas'], array_column($ultimoArray['parcelamento'], 'parcelas'));
+
+                // Verifica se existe uma parcela anterior
+                if ($indiceParcela > 0) {
+                    $penultimoParcela = $ultimoArray['parcelamento'][$indiceParcela - 1];
+
+                    $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+                    $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+                    $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                } else {
+                    // Caso não exista parcela anterior, trate o cenário conforme a necessidade
+                    $planilhaData['quantidade_parcelas_proposta_2'] = $ultimoArray['parcelamento'][0]['parcelas'];
+                    $planilhaData['valor_proposta_2'] = $ultimoArray['parcelamento'][0]['valorParcela'];
+                    $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+                }
+
+                break;
+            }
+        }
+
+
+        // Caso não tenha encontrado nenhuma parcela abaixo de 170, seleciona o penúltimo item
+        if (!$encontrouParcelaMenor170 && count($ultimoArray['parcelamento']) > 1) {
+            $penultimoParcela = $ultimoArray['parcelamento'][count($ultimoArray['parcelamento']) - 1]; // Penúltima parcela
+            $planilhaData['quantidade_parcelas_proposta_2'] = $penultimoParcela['parcelas'];
+            $planilhaData['valor_proposta_2'] = $penultimoParcela['valorParcela'];
+            $planilhaData['data_vencimento_proposta_2'] = Carbon::now()->addDay()->format('d/m/Y');
+        }
+
+
+        // dd($planilhaData);
+        // Adicionar o sucesso ao array de resultados
+        $resultados[] = [
+            'contrato_id' => $pessoaCodigo,
+            'parcelamento' => 'sucess'
+        ];
+
+        // Simular os dados de parcelamento
+        $dadosParcelamento = [
+            [
+                'valorTotalOriginal' => $planilhaData['valorTotalOriginal'],
+                'valorTotalAtualizado' => $planilhaData['valor_atualizado'],
+                'opcoesPagamento' => [
+                    ['valorTotal' => $planilhaData['valor_proposta_1']], // Melhor opção de pagamento
+                ],
+            ],
+        ];
+
+        $dadosParcelamento['opcoesPagamento'] = [];
+        // dd($responseData[0]);
+        // Itera sobre os dados de resposta
+        foreach ($ultimoArray['parcelamento'] as $opcao) {
+            // Verifica se a quantidade de parcelas é menor ou igual a 12 e o valor da parcela é menor que 170
+            if ($opcao['parcelas'] < 12 && $opcao['valorParcela'] > 170) {
+                $dadosParcelamento['opcoesPagamento'][] = [
+                    'parcelas' => $opcao['parcelas'],
+                    'valorParcela' => $opcao['valorParcela'],
+                    'dataVencimento' => now()->addMonth()->toDateString(), // Adiciona a data de vencimento
+                    'valorTotal' => $opcao['valorTotal'],
+                    'hash' => $opcao['hash'],
+                ];
+            }
+        }
+
+        // Caso não haja dados de parcelamento
+        if (empty($dadosParcelamento)) {
+            return response()->json([
+                'data' => [], // Nenhuma informação disponível
+                'carteira' => '1', // Fictício, ajuste conforme necessário
+            ]);
+        }
+
+        // Retornar os dados no formato esperado
+        return response()->json([
+            'data' => $dadosParcelamento,
+            'carteira' => '1', // Ajuste conforme necessário
+        ]);
+    }
+
     public function obterDadosCliente($cpfCnpj)
     {
         // Instância do Guzzle Client
         $client = new Client();
 
-       
+
         // Cabeçalhos da requisição
         $headers = [
             'apiKey' => 'PYBW+7AndDA=',
@@ -548,7 +719,7 @@ class CronController extends Controller
             $dadosCliente = $this->obterDadosCliente($contrato->documento);
 
             // If API returned an error structure or null, mark contrato and continue
-            if (is_null($dadosCliente)  && isset($dadosCliente['error'])) {
+            if (is_null($dadosCliente) && isset($dadosCliente['error'])) {
                 $erroMensagem = is_array($dadosCliente) ? ($dadosCliente['error'] ?? 'Erro ao obter dados') : 'Erro ao obter dados (null)';
                 $contrato->erro = 1;
                 $contrato->request = 1;
