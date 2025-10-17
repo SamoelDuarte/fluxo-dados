@@ -22,6 +22,11 @@
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label">Mensagem</label>
+                    <textarea name="mensagem" class="form-control" rows="3" placeholder="Digite a mensagem da campanha (aceita emojis)"></textarea>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">Contatos <small class="text-muted">(clique para selecionar)</small></label>
                     <div class="mb-2">
                         <button type="button" id="clearContatos" class="btn btn-sm btn-outline-secondary">Limpar</button>

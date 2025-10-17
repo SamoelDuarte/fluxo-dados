@@ -9,7 +9,7 @@ class Campanha extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'status'];
+    protected $fillable = ['name', 'status', 'mensagem'];
 
     public function contatos()
     {

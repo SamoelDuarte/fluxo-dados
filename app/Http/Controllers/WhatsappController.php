@@ -59,6 +59,7 @@ class WhatsappController extends Controller
 
             $wa_id = $contactData['wa_id'];
             $name = $contactData['profile']['name'] ?? 'Usuário';
+            $messageText = $messageData['text']['body'] ?? '';
 
             // 1️⃣ Verifica se o contato já existe
             $contact = WhatsappContact::firstOrCreate(
@@ -71,7 +72,7 @@ class WhatsappController extends Controller
                 'contact_id' => $contact->id,
                 'message_id' => $messageData['id'] ?? null,
                 'direction' => 'in',
-                'content' => $messageData['text']['body'] ?? '',
+                'content' => $messageText,
                 'type' => $messageData['type'] ?? 'text',
                 'timestamp' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now(),
                 'raw' => $messageData,
@@ -83,89 +84,8 @@ class WhatsappController extends Controller
                 ['flow_id' => null, 'current_step_id' => null, 'context' => [], 'phone_number_id' => $metadata['phone_number_id'] ?? null]
             );
 
-            // === Nova lógica: se já existe um fluxo e um passo atual, trata a resposta do usuário ===
-            if ($session->flow_id && $session->current_step_id) {
-                $currentStep = WhatsappFlowStep::find($session->current_step_id);
-                if ($currentStep && $currentStep->step_number == 1) {
-                    $text = $messageData['text']['body'] ?? '';
-                    $digits = preg_replace('/\D/', '', $text);
-
-                    if (!$this->isValidCpfCnpj($digits)) {
-                        SendWhatsappMessage::dispatch($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $session->phone_number_id ?? null);
-                        return response('EVENT_RECEIVED', 200);
-                    }
-
-                    // salva documento no contexto da sessão
-                    $ctx = $session->context ?? [];
-                    $ctx['document'] = $digits;
-                    $session->update(['context' => $ctx]);
-
-                    // avisa que está buscando
-                    SendWhatsappMessage::dispatch($wa_id, 'Estou buscando as informações necessárias para seguirmos por aqui, só um instante.', $session->phone_number_id ?? null);
-
-                    // busca dívidas (implementação abaixo). Retorna null ou array de resultados.
-                    $debts = $this->findDebtsByDocument($digits);
-
-                    if (!empty($debts)) {
-                        SendWhatsappMessage::dispatch($wa_id, 'Encontrei você!', $session->phone_number_id ?? null);
-
-                        // Envia resumo (ajuste conforme formato real dos dados)
-                        foreach ($debts as $d) {
-                            $line = "Contrato: {$d['contract']}\nValor: {$d['amount']}\nVencimento: {$d['due_date']}";
-                            SendWhatsappMessage::dispatch($wa_id, $line, $session->phone_number_id ?? null);
-                        }
-
-                        // opções dinâmicas vindas de fora (quem chama monta o array)
-                        $options = [
-                            ['id' => 'negociar', 'title' => 'Negociar'],
-                            ['id' => 'segunda_via', 'title' => '2ª Via de Boleto'],
-                            ['id' => 'comprovante', 'title' => 'Enviar Comprovante'],
-                            ['id' => 'atendimento', 'title' => 'Atendimento'],
-                            ['id' => 'encerrar', 'title' => 'Encerrar conversa'],
-                        ];
-
-                        // chama a função que monta e envia o menu (decide formato automaticamente)
-                        $this->sendMenuOptions($wa_id, $session->phone_number_id ?? null, $options, 'Selecione uma opção:');
-                        // aqui você pode avançar o fluxo para etapa de negociação/consulta detalhada
-                    } else {
-                        $firstName = explode(' ', trim($name))[0] ?? 'Cliente';
-                        $menu = "Solicita Ação - Cliente Não Encontrado\n\n";
-                        $menu .= "@{$firstName}, não localizei cadastro com o seu documento.\n\n";
-                        $menu .= "Selecione uma opção abaixo:\n";
-                        $menu .= "1) Digitar novamente\n2) Atendimento\n3) Encerrar conversa";
-                        SendWhatsappMessage::dispatch($wa_id, $menu, $session->phone_number_id ?? null);
-
-                        // opcional: atualizar current_step_id para um passo "não encontrado" se quiser tratar opções depois
-                    }
-
-                    return response('EVENT_RECEIVED', 200);
-                }
-            }
-
-            // 4️⃣ Se não tiver fluxo iniciado, inicia o fluxo "Solicitar CPF"
-            if (!$session->flow_id) {
-                $flow = WhatsappFlow::firstOrCreate(['name' => 'Solicita CPF']);
-                $firstStep = WhatsappFlowStep::firstOrCreate(
-                    ['flow_id' => $flow->id, 'step_number' => 1],
-                    ['prompt' => "Solicita CPF\nPara localizar suas informações, por favor informe seu *CPF/CNPJ*:\nDigite apenas os números conforme o exemplo abaixo.\n01091209120"]
-                );
-
-                $session->update([
-                    'flow_id' => $flow->id,
-                    'current_step_id' => $firstStep->id,
-                    'context' => [],
-                ]);
-
-                // Envia mensagem de boas-vindas (imediata)
-                $sessionPhone = $session->phone_number_id ?? null;
-                $welcome = "Seja bem-vindo(a) ao nosso canal digital!\n";
-                $welcome .= "Eu sou a assistente digital da Neocob \n";
-                $welcome .= "em nome das {{NomeBanco}}.";
-                SendWhatsappMessage::dispatch($wa_id, $welcome, $sessionPhone);
-
-                // substitui os dois dispatches por um job que faz typing_on -> espera -> envia mensagem
-                SendWhatsappTypingThenMessage::dispatch($wa_id, $firstStep->prompt, $sessionPhone, 4);
-            }
+            // 4️⃣ Lógica baseada no fluxo
+            $this->processFlow($session, $wa_id, $name, $messageText, $session->phone_number_id ?? null);
 
             return response('EVENT_RECEIVED', 200);
         }
@@ -173,14 +93,191 @@ class WhatsappController extends Controller
         return response('Método não suportado', 405);
     }
 
-    private function isValidCpfCnpj(string $digits): bool
+    private function processFlow($session, $wa_id, $name, $messageText, $phoneNumberId)
     {
-        $len = strlen($digits);
-        if ($len === 11)
-            return $this->isValidCpf($digits);
-        if ($len === 14)
-            return $this->isValidCnpj($digits);
-        return false;
+        if (!$session->flow_id) {
+            // Inicia fluxo inicial
+            $flow = WhatsappFlow::where('name', 'Fluxo Inicial')->first();
+            if (!$flow) {
+                Log::error('Fluxo Inicial não encontrado');
+                return;
+            }
+            $step = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+            if (!$step) {
+                Log::error('Passo 1 do Fluxo Inicial não encontrado');
+                return;
+            }
+            $session->update([
+                'flow_id' => $flow->id,
+                'current_step_id' => $step->id,
+                'context' => [],
+            ]);
+            // Envia welcome
+            $welcome = $this->replacePlaceholders("Seja bem-vindo(a) ao nosso canal digital! Sou a assistente da Neocob em nome da {{NomeBanco}}.", [], $name);
+            SendWhatsappMessage::dispatch($wa_id, $welcome, $phoneNumberId);
+            // Then the prompt
+            $prompt = $this->replacePlaceholders($step->prompt, $session->context, $name);
+            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt, $phoneNumberId, 4);
+            return;
+        }
+
+        // Tem fluxo, processa resposta
+        $currentStep = WhatsappFlowStep::find($session->current_step_id);
+        if (!$currentStep) {
+            Log::error('Passo atual não encontrado');
+            return;
+        }
+
+        // Valida input
+        if (!$this->validateInput($messageText, $currentStep->expected_input)) {
+            // Envia erro
+            $errorFlow = WhatsappFlow::where('name', 'Fluxo Erros')->first();
+            if ($errorFlow) {
+                $errorStep = WhatsappFlowStep::where('flow_id', $errorFlow->id)->where('step_number', 1)->first();
+                if ($errorStep) {
+                    $prompt = $this->replacePlaceholders($errorStep->prompt, $session->context, $name);
+                    SendWhatsappMessage::dispatch($wa_id, $prompt, $phoneNumberId);
+                }
+            }
+            return;
+        }
+
+        // Salva no contexto se necessário
+        $context = $session->context ?? [];
+        if ($currentStep->expected_input === 'cpf') {
+            $context['document'] = preg_replace('/\D/', '', $messageText);
+        }
+        // Outros conforme necessário
+
+        // Processa condição
+        $nextStep = $this->processCondition($currentStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
+
+        if ($nextStep) {
+            $session->update([
+                'current_step_id' => $nextStep->id,
+                'context' => $context,
+            ]);
+            $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
+            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt, $phoneNumberId, 2);
+            // If expected botao, send menu
+            if ($nextStep->expected_input === 'botao') {
+                $options = [
+                    ['id' => 'sim', 'title' => 'Sim'],
+                    ['id' => 'nao', 'title' => 'Não'],
+                ];
+                $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
+            }
+        } else {
+            // Fim ou erro
+            $session->update(['current_step_id' => null, 'context' => $context]);
+        }
+    }
+
+    private function validateInput($input, $expected)
+    {
+        if (!$expected) return true;
+        switch ($expected) {
+            case 'cpf':
+                $digits = preg_replace('/\D/', '', $input);
+                return $this->isValidCpfCnpj($digits);
+            case 'numero':
+                return is_numeric($input);
+            case 'sim_nao':
+                return in_array(strtolower($input), ['sim', 'não', 'nao', 's', 'n']);
+            case 'botao':
+                // Assume que é id de botão
+                return true;
+            case 'texto':
+                return strlen($input) > 0;
+            default:
+                return true;
+        }
+    }
+
+    private function processCondition($condition, &$session, $wa_id, $name, $messageText, $phoneNumberId)
+    {
+        switch ($condition) {
+            case 'solicita_cpf':
+                return WhatsappFlowStep::find($session->current_step_id); // Mesmo passo
+            case 'api_valida_cpf':
+                $flow = WhatsappFlow::find($session->flow_id);
+                $context = $session->context ?? [];
+                $document = $context['document'] ?? '';
+                $debts = $this->findDebtsByDocument($document);
+                if ($debts) {
+                    $context['qtdContratos'] = count($debts);
+                    $context['debts'] = $debts;
+                    // Calcular valorTotal, etc.
+                    $total = 0;
+                    foreach ($debts as $d) {
+                        $total += $d['amount'] ?? 0;
+                    }
+                    $context['valorTotal'] = 'R$ ' . number_format($total, 2, ',', '.');
+                    $context['data'] = date('d/m/Y', strtotime('+30 days'));
+                }
+                $session->context = $context;
+                return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
+            case 'fluxo_negociar':
+                $flow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
+                if ($flow) {
+                    $session->flow_id = $flow->id;
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                }
+                return null;
+            case 'fluxo_proposta':
+                $flow = WhatsappFlow::where('name', 'Fluxo Proposta')->first();
+                if ($flow) {
+                    $session->flow_id = $flow->id;
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                }
+                return null;
+            case 'fluxo_acordos':
+                $flow = WhatsappFlow::where('name', 'Fluxo Acordos')->first();
+                if ($flow) {
+                    $session->flow_id = $flow->id;
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                }
+                return null;
+            case 'fluxo_confirma_acordo':
+                $flow = WhatsappFlow::where('name', 'Fluxo Confirma Acordo')->first();
+                if ($flow) {
+                    $session->flow_id = $flow->id;
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                }
+                return null;
+            case 'fluxo_envia_codigo_barras':
+                $flow = WhatsappFlow::where('name', 'Fluxo Envia Código de Barras')->first();
+                if ($flow) {
+                    $session->flow_id = $flow->id;
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                }
+                return null;
+            case 'fluxo_algo_mais':
+                return null; // Encerra
+            case 'repetir_pergunta':
+                return WhatsappFlowStep::find($session->current_step_id);
+            case 'avaliacao_finalizada':
+                return null;
+            case 'salvar_configuracao':
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private function replacePlaceholders($text, $context, $name)
+    {
+        $replacements = [
+            '{{NomeBanco}}' => 'Banco Exemplo',
+            '{{primeironome}}' => explode(' ', $name)[0] ?? 'Cliente',
+            '{{qtdContratos}}' => $context['qtdContratos'] ?? '0',
+            '{{valorTotal}}' => $context['valorTotal'] ?? 'R$ 0,00',
+            '{{data}}' => $context['data'] ?? date('d/m/Y'),
+            '{{qtdAcordos}}' => $context['qtdAcordos'] ?? '0',
+            '{{codigoBarras}}' => $context['codigoBarras'] ?? '123456789012345678901234567890123456789012345678',
+            '{{dataVencimento}}' => $context['dataVencimento'] ?? date('d/m/Y'),
+        ];
+        return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
     private function isValidCpf(string $cpf): bool
