@@ -31,7 +31,7 @@ class CronController extends Controller
 
        
 
-        foreach ($carteiras as $key => $carteira) {
+     
             // Cria uma instância do cliente Guzzle
             $client = new Client();
 
@@ -63,19 +63,19 @@ class CronController extends Controller
 
                 // Retorna o corpo da resposta
                 $responseBody = $response->getBody();
-                    dd($responseBody );
+                    dd(vars: $responseBody );
                 $responseData = json_decode($responseBody, true);
                 // Verifica se o "parcelamento" é null
-                if ($responseData[0]['parcelamento'] === null) {
-                    // dd($carteira);
-                    // Se "parcelamento" for null, continua para a próxima carteira
-                    continue;
-                }
+                // if ($responseData[0]['parcelamento'] === null) {
+                //     // dd($carteira);
+                //     // Se "parcelamento" for null, continua para a próxima carteira
+                //     continue;
+                // }
 
                 // Caso tenha um valor válido para "parcelamento", você pode parar o loop
                 // ou processar a resposta
-                $planilhaData['carteira'] = $carteira->id;
-                break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
+                // $planilhaData['carteira'] = $carteira->id;
+                // break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
                 if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
@@ -87,7 +87,7 @@ class CronController extends Controller
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
             }
-        }
+        
 
       
         // Processar os dados de parcelamento
