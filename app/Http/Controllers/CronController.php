@@ -66,8 +66,8 @@ class CronController extends Controller
       
         // Dados da requisição POST com as informações do contrato
         $data = [
-            "codigoUsuarioCarteiraCobranca" => (int)$codigoUsuario, // Utilizando o relacionamento com a carteira
-            "codigoCarteiraCobranca" => (int)$codigoCarteira, // Obtendo o id da carteira associada ao contrato
+            "codigoUsuarioCarteiraCobranca" => (string)$codigoUsuario, // Utilizando o relacionamento com a carteira
+            "codigoCarteiraCobranca" => (string)$codigoCarteira, // Obtendo o id da carteira associada ao contrato
             "pessoaCodigo" => (string)$pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
             "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
             "valorEntrada" => 0, // Defina o valor conforme necessário
@@ -75,7 +75,7 @@ class CronController extends Controller
             "renegociaSomenteDocumentosEmAtraso" => false // Deixe como false ou conforme necessário
         ];
 
-        dd($data);
+        // dd($data);
 
 
 
