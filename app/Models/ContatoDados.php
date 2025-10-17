@@ -21,6 +21,8 @@ class ContatoDados extends Model
         'dias_atraso',
         'valor',
         'carteira',
+        'send',
+        'play',
     ];
 
     public function contato()

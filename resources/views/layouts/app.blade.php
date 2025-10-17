@@ -101,8 +101,8 @@
                     <div class="bg-white py-2 collapse-inner rounded">
             <a class="collapse-item" href="{{ route('contatos.index') }}"><i class="fas fa-address-book"
                 style="color: #1cc88a;"></i> Contatos</a>
-                        <a class="collapse-item" href="{{ route('campanhas.index') }}"><i class="fas fa-bullhorn"
-                                style="color: #f6c23e;"></i> Campanhas</a>
+            <a class="collapse-item" href="{{ route('campanhas.crud.index') }}"><i class="fas fa-bullhorn"
+                style="color: #f6c23e;"></i> Campanhas</a>
                         <a class="collapse-item" href="{{ route('campanhas.relatorio') }}"><i class="fas fa-file-alt"
                                 style="color: #858796;"></i> Relatório de envio</a>
                     </div>
@@ -308,8 +308,9 @@
                 icon: 'error',
                 title: "{!! session('error') !!}",
             })
-        </script>
     @endif
+
+    @stack('scripts')
 </body>
 
 </html>

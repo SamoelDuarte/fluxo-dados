@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Contato;
 
 class CampanhaController extends Controller
 {
@@ -14,8 +15,8 @@ class CampanhaController extends Controller
 
     public function contatos()
     {
-        // Placeholder contacts management
-        return view('campanhas.contatos');
+        $total = Contato::count();
+        return view('campanhas.contatos', ['totalContatos' => $total]);
     }
 
     public function relatorio()
