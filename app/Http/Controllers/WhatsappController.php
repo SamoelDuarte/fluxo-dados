@@ -173,6 +173,21 @@ class WhatsappController extends Controller
                 ];
                 $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
             }
+            // If this step has no expected input and a condition, process immediately
+            if ($nextStep->expected_input === null && $nextStep->next_step_condition) {
+                $nextNextStep = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, '', $phoneNumberId);
+                if ($nextNextStep) {
+                    $session->update(['current_step_id' => $nextNextStep->id]);
+                    $prompt2 = $this->replacePlaceholders($nextNextStep->prompt, $session->context, $name);
+                    SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 2);
+                    if ($nextNextStep->expected_input === 'botao') {
+                        $this->sendMenuOptions($wa_id, $phoneNumberId, [
+                            ['id' => 'sim', 'title' => 'Sim'],
+                            ['id' => 'nao', 'title' => 'Não'],
+                        ], 'Escolha:');
+                    }
+                }
+            }
         } else {
             // Fim ou erro
             $session->update(['current_step_id' => null, 'context' => $context]);
