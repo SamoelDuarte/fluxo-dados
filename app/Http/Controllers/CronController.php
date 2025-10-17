@@ -69,7 +69,12 @@ class CronController extends Controller
                 break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
-                dd($e); // Mostra o erro real da requisição para debug
+                if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
+                    $response = $e->getResponse();
+                    dd('Erro na requisição: ' . $response->getStatusCode() . ' - ' . $response->getBody()->getContents());
+                } else {
+                    dd('Erro geral: ' . $e->getMessage());
+                }
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
             }
