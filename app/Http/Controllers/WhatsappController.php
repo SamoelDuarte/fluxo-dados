@@ -343,6 +343,17 @@ class WhatsappController extends Controller
         return ($cnpj[12] == $d1 && $cnpj[13] == $d2);
     }
 
+    private function isValidCpfCnpj(string $document): bool
+    {
+        $len = strlen($document);
+        if ($len == 11) {
+            return $this->isValidCpf($document);
+        } elseif ($len == 14) {
+            return $this->isValidCnpj($document);
+        }
+        return false;
+    }
+
     private function findDebtsByDocument(string $document): ?array
     {
         // Se existir uma API configurada, consulta; senão retorna null (não encontrado)
