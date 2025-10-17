@@ -48,7 +48,7 @@ class CronController extends Controller
                 $codigoUsuario = 24;
                 break;
             case '869':
-                $codigoUsuario = 24;
+                $codigoUsuario = 30;
                 break;
         }
 
