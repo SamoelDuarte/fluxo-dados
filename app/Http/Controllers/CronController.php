@@ -207,6 +207,21 @@ class CronController extends Controller
             // Receber os dados do cliente
             $dadosCliente = $this->obterDadosCliente($contrato->documento);
 
+            // Se obterDadosCliente retornar um array com error or null, registre e continue
+            if (is_null($dadosCliente) || (is_array($dadosCliente) && isset($dadosCliente['error']))) {
+                $erroMensagem = is_array($dadosCliente) ? ($dadosCliente['error'] ?? 'Erro ao obter dados') : 'Erro ao obter dados (null)';
+                $contrato->erro = 1;
+                $contrato->request = 1;
+                $contrato->mensagem_erro = $erroMensagem;
+                $contrato->save();
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'error' => $erroMensagem,
+                    'details' => $dadosCliente,
+                ];
+                continue;
+            }
+
             // Procurar pelo índice do array com "IdGrupo" igual a 1582
             $indice = null;
             foreach ($dadosCliente as $index => $item) {
@@ -422,7 +437,7 @@ class CronController extends Controller
         // Instância do Guzzle Client
         $client = new Client();
 
-        // dd($this->geraTokenDATACOB());
+       
         // Cabeçalhos da requisição
         $headers = [
             'apiKey' => 'PYBW+7AndDA=',
@@ -444,27 +459,28 @@ class CronController extends Controller
                 // Retorna o corpo da resposta como JSON decodificado
                 return json_decode($response->getBody(), true);
             } else {
-                // Retorna erro caso o código de status não seja 200
-                return response()->json([
+                // Retorna array de erro (não um JsonResponse) para o chamador tratar
+                return [
                     'error' => 'Erro na requisição. Código de status: ' . $response->getStatusCode(),
                     'body' => $response->getBody()->getContents(),
-                ], $response->getStatusCode());
+                    'status_code' => $response->getStatusCode(),
+                ];
             }
         } catch (RequestException $e) {
             // Tratamento de erro com resposta
             if ($e->hasResponse()) {
                 $errorResponse = $e->getResponse();
-                return response()->json([
+                return [
                     'error' => 'Erro na requisição: ' . $errorResponse->getBody()->getContents(),
                     'status_code' => $errorResponse->getStatusCode(),
-                ], $errorResponse->getStatusCode());
+                ];
             }
 
             // Tratamento de erro genérico
-            return response()->json([
+            return [
                 'error' => 'Erro desconhecido ao processar a requisição.',
                 'exception' => $e->getMessage(),
-            ], 500);
+            ];
         }
     }
 
@@ -500,27 +516,18 @@ class CronController extends Controller
                 // Retornar o corpo da resposta como JSON decodificado
                 return json_decode($response->getBody(), true)['access_token'];
             } else {
-                // Retornar erro caso o código de status não seja 200
-                return response()->json([
-                    'error' => 'Erro na requisição. Código de status: ' . $response->getStatusCode(),
-                    'body' => $response->getBody()->getContents(),
-                ], $response->getStatusCode());
+                // Retornar null para indicar falha ao obter token
+                return null;
             }
         } catch (RequestException $e) {
             // Tratamento de erro com resposta
             if ($e->hasResponse()) {
                 $errorResponse = $e->getResponse();
-                return response()->json([
-                    'error' => 'Erro na requisição: ' . $errorResponse->getBody()->getContents(),
-                    'status_code' => $errorResponse->getStatusCode(),
-                ], $errorResponse->getStatusCode());
+                return null;
             }
 
             // Tratamento de erro genérico
-            return response()->json([
-                'error' => 'Erro desconhecido ao processar a requisição.',
-                'exception' => $e->getMessage(),
-            ], 500);
+            return null;
         }
     }
 
@@ -528,7 +535,7 @@ class CronController extends Controller
     {
         // Buscar até 100 contratos que tenham 'request' igual a 0
         $contratos = Contrato::where('request', 0)
-            ->limit(500)
+            ->limit(5)
             ->get();
 
         if ($contratos->isEmpty()) {
@@ -540,6 +547,20 @@ class CronController extends Controller
             // Receber os dados do cliente
             $dadosCliente = $this->obterDadosCliente($contrato->documento);
 
+            // If API returned an error structure or null, mark contrato and continue
+            if (is_null($dadosCliente) || (is_array($dadosCliente) && isset($dadosCliente['error']))) {
+                $erroMensagem = is_array($dadosCliente) ? ($dadosCliente['error'] ?? 'Erro ao obter dados') : 'Erro ao obter dados (null)';
+                $contrato->erro = 1;
+                $contrato->request = 1;
+                $contrato->mensagem_erro = $erroMensagem;
+                $contrato->save();
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'error' => $erroMensagem,
+                    'details' => $dadosCliente,
+                ];
+                continue;
+            }
             // Procurar pelo índice do array com "IdGrupo" igual a 1582
             $indice = null;
             foreach ($dadosCliente as $index => $item) {
@@ -741,7 +762,7 @@ class CronController extends Controller
     {
         // Buscar até 20 planilhas que tenham 'valor_proposta_1' como null
         // e onde os contratos relacionados tenham request == 1 e erro == 0
-        $planilhas = Planilha::with('contrato')
+        $planilhas = Planilha::with(relations: 'contrato')
             ->whereNull('valor_proposta_1')
             ->whereHas('contrato', function ($query) {
                 $query->where('request', 1)
