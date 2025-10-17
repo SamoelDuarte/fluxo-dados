@@ -27,7 +27,7 @@ class CronController extends Controller
         $pessoaCodigo = $contato->numero_contrato;
         $codigoUsuario = null;
         $codigoCarteira = null;
-        dd($contato->carteira);
+        // dd($contato->carteira);
 
         switch ($contato->carteira) {
             case '875':
