@@ -38,7 +38,7 @@ class CronController extends Controller
                 "renegociaSomenteDocumentosEmAtraso" => false // Deixe como false ou conforme necessário
             ];
 
-            dd($this->gerarToken());
+        
 
             // Cabeçalhos da requisição
             $headers = [
@@ -69,7 +69,7 @@ class CronController extends Controller
                 break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
 
             } catch (\Exception $e) {
-                dd(vars: 'Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+                dd($e); // Mostra o erro real da requisição para debug
                 // Lida com possíveis exceções
                 Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
             }
