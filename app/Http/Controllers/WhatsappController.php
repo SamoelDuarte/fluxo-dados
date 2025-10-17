@@ -113,12 +113,12 @@ class WhatsappController extends Controller
                 'current_step_id' => $step2->id, // Começa no passo 2 (pedir CPF)
                 'context' => [],
             ]);
-            // Envia prompt do passo 1 (welcome)
+            // Envia prompt do passo 1 (welcome) com typing curto
             $prompt1 = $this->replacePlaceholders($step1->prompt, $session->context, $name);
-            SendWhatsappMessage::dispatch($wa_id, $prompt1, $phoneNumberId);
-            // Então o prompt do passo 2
+            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt1, $phoneNumberId, 2);
+            // Aguarda e envia prompt do passo 2
             $prompt2 = $this->replacePlaceholders($step2->prompt, $session->context, $name);
-            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 4);
+            SendWhatsappTypingThenMessage::dispatch($wa_id, $prompt2, $phoneNumberId, 6);
             return;
         }
 
