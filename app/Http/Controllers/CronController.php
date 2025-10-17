@@ -65,7 +65,7 @@ class CronController extends Controller
                 $responseBody = $response->getBody();
                 $responseData = json_decode($responseBody, true);
 
-                dd($responseData);
+                // dd($responseData);
                 // Verifica se o "parcelamento" é null
                 if ($responseData[0]['parcelamento'] === null) {
                     // dd($carteira);
