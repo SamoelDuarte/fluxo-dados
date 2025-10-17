@@ -95,13 +95,16 @@ class CronController extends Controller
             // Retorna o corpo da resposta
             $responseBody = $response->getBody();
             $responseData = json_decode($responseBody, true);
+
+
+            dd($responseData);
             // Verifica se o "parcelamento" é null
             if (empty($responseData[0]['parcelamento'])) {
                 // Sem opções de parcelamento: retorna resposta vazia para o chamador
                 return response()->json([
                     'data' => [],
                     'message' => 'Nenhuma opção de parcelamento disponível para este contrato.'
-                ], 204);
+                ], status: 204);
             }
 
             // Caso tenha um valor válido para "parcelamento", processa a resposta
@@ -110,7 +113,7 @@ class CronController extends Controller
 
         } catch (\Exception $e) {
             // Lida com possíveis exceções de forma segura e registra o erro
-            Log::error('Erro ao fazer requisição Guzzle: ' . $e->getMessage());
+            Log::error(message: 'Erro ao fazer requisição Guzzle: ' . $e->getMessage());
 
             if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
                 $response = $e->getResponse();
@@ -221,7 +224,6 @@ class CronController extends Controller
                 ];
             }
         }
-
         // Caso não haja dados de parcelamento
         if (empty($dadosParcelamento)) {
             return response()->json([
@@ -235,6 +237,8 @@ class CronController extends Controller
             'data' => $dadosParcelamento,
             'carteira' => '1', // Ajuste conforme necessário
         ]);
+
+       
     }
 
     public function obterOpcoesParcelamento_()
