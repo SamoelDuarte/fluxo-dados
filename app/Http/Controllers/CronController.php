@@ -89,7 +89,7 @@ class CronController extends Controller
             }
         
 
-      
+            dd($responseData);
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
 
