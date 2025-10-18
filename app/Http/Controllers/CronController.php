@@ -20,7 +20,7 @@ class CronController extends Controller
     public function getDadoHavan(HttpRequest $request)
     {
 
-       $contato = ContatoDados::where('telefone', '5548988601650')->first();
+       $contato = ContatoDados::where('telefone', '5579998667794')->first();
 
       
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
@@ -64,8 +64,7 @@ class CronController extends Controller
                 // Retorna o corpo da resposta
                 $responseBody = $response->getBody();
                     
-                $responseData = json_decode($responseBody, true);
-                dd( $responseData );
+                $responseData = json_decode($responseBody, associative: true);
                 // Verifica se o "parcelamento" é null
                 // if ($responseData[0]['parcelamento'] === null) {
                 //     // dd($carteira);
