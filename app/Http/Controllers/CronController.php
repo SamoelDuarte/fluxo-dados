@@ -65,17 +65,18 @@ class CronController extends Controller
                 $responseBody = $response->getBody();
                     
                 $responseData = json_decode($responseBody, associative: true);
-                // Verifica se o "parcelamento" é null
-                // if ($responseData[0]['parcelamento'] === null) {
-                //     // dd($carteira);
-                //     // Se "parcelamento" for null, continua para a próxima carteira
-                //     continue;
-                // }
 
-                // Caso tenha um valor válido para "parcelamento", você pode parar o loop
-                // ou processar a resposta
-                // $planilhaData['carteira'] = $carteira->id;
-                // break;  // Adiciona um break se quiser parar o loop ao encontrar uma resposta válida
+                // Verifica se há mensagem de erro
+                if (isset($responseData[0]['messagem']) && !empty($responseData[0]['messagem'])) {
+                    return response()->json(['error' => $responseData[0]['messagem']], 400);
+                }
+
+                // Verifica se o "parcelamento" é válido
+                if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
+                    return response()->json(['error' => 'Nenhuma opção de parcelamento disponível para este contrato.'], 204);
+                }
+
+                $planilhaData['carteira'] = '869'; // fixed for now
 
             } catch (\Exception $e) {
                 if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
@@ -92,8 +93,10 @@ class CronController extends Controller
             // dd($responseData);
         // Processar os dados de parcelamento
         $ultimoArray = end($responseData);
+        if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
+            return response()->json(['error' => 'Nenhuma opção de parcelamento disponível para este contrato.'], 204);
+        }
 
-    
         $planilhaData['valor_atualizado'] = $ultimoArray['valorDivida'];
         $planilhaData['valorTotalOriginal'] = $ultimoArray['valorTotalOriginal'];
         $planilhaData['valor_proposta_1'] = $ultimoArray['parcelamento'][0]['valorTotal'];
