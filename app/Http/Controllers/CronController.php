@@ -20,7 +20,7 @@ class CronController extends Controller
     public function getDadoHavan(HttpRequest $request)
     {
 
-       $contato = ContatoDados::where('telefone', '5579998667794')->first();
+       $contato = ContatoDados::where('telefone', $request->input('telefone'))->first();
 
       
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
