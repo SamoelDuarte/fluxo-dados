@@ -131,6 +131,12 @@ class ContatoController extends Controller
             $data_venc_str = $mapped['coringa4'] ?? null;
             $carteira = $mapped['coringa1'] ?? null;
 
+            // Skip if carteira is 869
+            if ($carteira == '869') {
+                $import->increment('processed_rows');
+                continue;
+            }
+
             // Process date
             $data_venc = $data_venc_str;
             if (preg_match('/\d{2}\/\d{2}\/\d{4}/', $data_venc)) {
