@@ -196,6 +196,25 @@ class WhatsappController extends Controller
             $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
             $this->sendMessage($wa_id, $prompt, $phoneNumberId);
 
+                // Special-case: if this is Flow 1 Step 3 (buscar -> encaminha para Fluxo Negociar + menu)
+                if ($nextStep->flow_id == 1 && $nextStep->step_number == 3) {
+                    $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
+                    if ($negFlow) {
+                        $stepNeg = WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
+                        $session->update(['flow_id' => $negFlow->id, 'current_step_id' => $stepNeg->id, 'context' => $context]);
+                        // send fixed menu options for negociacao
+                        $options = [
+                            ['id' => 'negociar', 'title' => 'Negociar'],
+                            ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
+                            ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
+                            ['id' => 'atendimento', 'title' => 'Atendimento'],
+                            ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                        ];
+                        $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
+                    }
+                    return;
+                }
+
             if (!empty($nextStep->next_step_condition)) {
                 $followUp = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
                 if ($followUp) {
