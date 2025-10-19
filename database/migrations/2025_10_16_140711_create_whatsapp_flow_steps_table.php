@@ -20,7 +20,7 @@ return new class extends Migration {
             $table->timestamps();
         });
 
-         // === PASSOS (STEPS) ===
+        // === PASSOS (STEPS) ===
         $steps = [
             // === FLUXO INICIAL ===
             [
@@ -54,10 +54,27 @@ return new class extends Migration {
             ],
 
             // === FLUXO NEGOCIAR ===
+            // Step 1: mensagem inicial informando débitos
             [
                 'flow_id' => 2,
                 'step_number' => 1,
-                'prompt' => '@primeironome, confira como podemos te ajudar por este canal. ',
+                'prompt' => '@primeironome! Identifiquei 1 débito em atraso a *5* dias.\n\nAguarde enquanto localizo a melhor proposta para você... ',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 2: pergunta quando cliente não possui contratos/ acordos
+            [
+                'flow_id' => 2,
+                'step_number' => 2,
+                'prompt' => '{{Nome}}, você não possui contrato(s) ativo(s) em nossa assessoria.\n\n\nPodemos ajudar em algo mais?\nSelecione uma opção abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 3: lista de contratos
+            [
+                'flow_id' => 2,
+                'step_number' => 3,
+                'prompt' => '@primeironome, localizei *8* contratos em aberto.\n\nSelecione o botão abaixo para conferir:',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],

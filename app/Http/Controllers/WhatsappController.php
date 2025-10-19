@@ -488,6 +488,7 @@ class WhatsappController extends Controller
             case 'solicita_cpf':
                 return WhatsappFlowStep::find($session->current_step_id); // Mesmo passo
             case 'api_valida_cpf':
+                // Uso do novo fluxo: procurar na tabela de contatos e contar resultados
                 $flow = WhatsappFlow::find($session->flow_id);
                 $context = $session->context ?? [];
                 // Se o contexto não tiver o document, tentar extrair diretamente da mensagem (usuário acabou de digitar)
@@ -500,34 +501,36 @@ class WhatsappController extends Controller
                         $session->save();
                     }
                 }
-                $debts = $this->findDebtsByDocument($document);
-                if ($debts) {
-                    $context['qtdContratos'] = 1;
-                    $context['debts'] = $debts;
-                    $context['valorTotal'] = 'R$ ' . number_format($debts['amount'], 2, ',', '.');
-                    $context['data'] = date('d/m/Y', strtotime('+30 days'));
-                    $context['parcelamento'] = $debts['parcelamento'];
-                    $context['carteira'] = $debts['carteira'];
-                    $context['data_response'] = [
-                        '0' => [
-                            'valorTotalOriginal' => $debts['valorTotalOriginal'],
-                            'valorTotalAtualizado' => $debts['valorDivida'],
-                            'opcoesPagamento' => [
-                                ['valorTotal' => $debts['parcelamento'][0]['valorTotal'] ?? 0]
-                            ]
-                        ],
-                        'opcoesPagamento' => $debts['parcelamento']
-                    ];
+
+                // Normaliza document para pesquisa (apenas dígitos)
+                $searchDoc = preg_replace('/\D/', '', $document);
+
+                // Faz a contagem direta na tabela contato_dados (model ContatoDados)
+                $query = ContatoDados::where('document', $searchDoc);
+                // também tentar sem zeros à esquerda caso exista divergência
+                $altNoLeading = ltrim($searchDoc, '0');
+                if (!empty($altNoLeading) && $altNoLeading !== $searchDoc) {
+                    $query = $query->orWhere('document', $altNoLeading);
                 }
-                else {
-                    // Não encontrou cadastro para o documento informado -> garantir que o passo 4 exista e retorná-lo
-                    // Isso permite que o fluxo siga a lógica do passo configurado mesmo que o seeder tenha sido desfeito.
-                    $step4 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 4)->first();
-                  
-                    return $step4;
-                }
+
+                $count = $query->count();
+                $context['qtdContratos'] = $count;
                 $session->context = $context;
-                return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
+
+                // Decidir qual step do Fluxo Negociar retornar:
+                // - se exatamente 1 contrato -> step 1
+                // - se 0 -> step 2 (Cliente sem contratos)
+                // - se mais de 1 -> step 3 (Lista de contratos)
+                $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
+                if (!$negFlow) return null;
+
+                if ($count === 1) {
+                    return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
+                } elseif ($count === 0) {
+                    return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 2)->first();
+                } else {
+                    return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 3)->first();
+                }
             case 'fluxo_negociar':
                 Log::info('processCondition fluxo_negociar called');
                 $flow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
