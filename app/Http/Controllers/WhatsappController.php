@@ -490,7 +490,16 @@ class WhatsappController extends Controller
             case 'api_valida_cpf':
                 $flow = WhatsappFlow::find($session->flow_id);
                 $context = $session->context ?? [];
+                // Se o contexto não tiver o document, tentar extrair diretamente da mensagem (usuário acabou de digitar)
                 $document = $context['document'] ?? '';
+                if (empty($document)) {
+                    $document = preg_replace('/\D/', '', $messageText);
+                    if (!empty($document)) {
+                        $context['document'] = $document;
+                        $session->context = $context;
+                        $session->save();
+                    }
+                }
                 $debts = $this->findDebtsByDocument($document);
                 if ($debts) {
                     $context['qtdContratos'] = 1;
