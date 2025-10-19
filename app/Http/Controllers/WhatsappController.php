@@ -550,35 +550,43 @@ class WhatsappController extends Controller
                     $query = $query->orWhere('document', $altNoLeading);
                 }
 
-                $count = $query->count();
-                $context['qtdContratos'] = $count;
-                $session->context = $context;
-                // Persistir contexto e log do resultado
-                $session->save();
-                Log::info('api_valida_cpf debug after search', [
-                    'searchDoc' => $searchDoc,
-                    'altNoLeading' => $altNoLeading,
-                    'count' => $count,
-                ]);
+                    $count = $query->count();
+                    $context['qtdContratos'] = $count;
+                    $session->context = $context;
+                    // Persistir contexto e log do resultado
+                    $session->save();
+                    Log::info('api_valida_cpf debug after search', [
+                        'searchDoc' => $searchDoc,
+                        'altNoLeading' => $altNoLeading,
+                        'count' => $count,
+                    ]);
 
+                    // Decide which step to return explicitly and avoid switch fall-through
+                    $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
 
-                if ($count > 1) {
-                    return WhatsappFlowStep::where('flow_id', 1)->where('step_number', 3)->first();
-                }
-            // Decidir qual step do Fluxo Negociar retornar:
-            // - se exatamente 1 contrato -> step 1
-            // - se 0 -> step 2 (Cliente sem contratos)
-            // - se mais de 1 -> step 3 (Lista de contratos)
-            // $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
-            // if (!$negFlow) return null;
+                    if ($count > 1) {
+                        // When multiple contracts, return Flow 1 step 3 (the 'buscando' step)
+                        return WhatsappFlowStep::where('flow_id', 1)->where('step_number', 3)->first();
+                    }
 
-            // if ($count === 1) {
-            //     return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
-            // } elseif ($count === 0) {
-            //     return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 2)->first();
-            // } else {
-            //     return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 3)->first();
-            // }
+                    // If negociacao flow is missing, return null to avoid errors
+                    if (!$negFlow) {
+                        Log::warning('api_valida_cpf: Fluxo Negociar not found');
+                        return null;
+                    }
+
+                    if ($count === 1) {
+                        // Single contract -> first step of Fluxo Negociar
+                        return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
+                    }
+
+                    if ($count === 0) {
+                        // No contracts -> negociacao step 2 (cliente sem contratos)
+                        return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 2)->first();
+                    }
+
+                    // Fallback
+                    return null;
             case 'fluxo_negociar':
                 Log::info('processCondition fluxo_negociar called');
                 $flow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
