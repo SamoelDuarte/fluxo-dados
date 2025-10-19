@@ -505,6 +505,13 @@ class WhatsappController extends Controller
                 // Normaliza document para pesquisa (apenas dígitos)
                 $searchDoc = preg_replace('/\D/', '', $document);
 
+                // Debug: log do que o usuário digitou e o que vamos buscar
+                Log::info('api_valida_cpf debug before search', [
+                    'incoming_message' => $messageText,
+                    'document_in_context' => $document,
+                    'searchDoc' => $searchDoc,
+                ]);
+
                 // Faz a contagem direta na tabela contato_dados (model ContatoDados)
                 $query = ContatoDados::where('document', $searchDoc);
                 // também tentar sem zeros à esquerda caso exista divergência
@@ -516,6 +523,13 @@ class WhatsappController extends Controller
                 $count = $query->count();
                 $context['qtdContratos'] = $count;
                 $session->context = $context;
+                // Persistir contexto e log do resultado
+                $session->save();
+                Log::info('api_valida_cpf debug after search', [
+                    'searchDoc' => $searchDoc,
+                    'altNoLeading' => $altNoLeading,
+                    'count' => $count,
+                ]);
 
                 // Decidir qual step do Fluxo Negociar retornar:
                 // - se exatamente 1 contrato -> step 1
