@@ -260,9 +260,11 @@ class WhatsappController extends Controller
                     ];
                 }
                 else {
-                    // Não encontrou cadastro para o documento informado -> retornar o passo 4 (mensagem 'não localizado')
-                    // A mensagem será enviada pela lógica que envia o step.prompt
-                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 4)->first();
+                    // Não encontrou cadastro para o documento informado -> garantir que o passo 4 exista e retorná-lo
+                    // Isso permite que o fluxo siga a lógica do passo configurado mesmo que o seeder tenha sido desfeito.
+                    $step4 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 4)->first();
+                  
+                    return $step4;
                 }
                 $session->context = $context;
                 return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
