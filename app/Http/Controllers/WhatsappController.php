@@ -164,17 +164,8 @@ class WhatsappController extends Controller
                 'context' => $context,
             ]);
             $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
-
-            // If we previously set a flag to await the user's document retry, skip re-sending the CPF prompt
-            if (!(isset($context['awaiting_document_retry']) && $context['awaiting_document_retry'] && $nextStep->expected_input === 'cpf')) {
-                $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-            } else {
-                // clear the awaiting flag so future steps behave normally
-                $context = $session->context ?? [];
-                unset($context['awaiting_document_retry']);
-                $session->context = $context;
-                $session->save();
-            }
+            // always send the configured step prompt (no special-case awaiting flag)
+            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
 
             // If this step has a server-side next_step_condition (like 'fluxo_negociar'), process it immediately
             if (!empty($nextStep->next_step_condition)) {
@@ -269,16 +260,9 @@ class WhatsappController extends Controller
                     ];
                 }
                 else {
-                    // Não encontrou cadastro para o documento informado -> pede para digitar novamente o CPF/CNPJ
-                    $this->sendMessage($wa_id, 'Não localizei cadastro com esse documento. Por favor digite novamente o CPF/CNPJ (apenas números).', $phoneNumberId);
-
-                    // marcar contexto para aguardar nova entrada do usuário e não reenviar o prompt automaticamente
-                    $context['awaiting_document_retry'] = true;
-                    $session->context = $context;
-                    $session->save();
-
-                    // Retorna o passo 2 do Fluxo Inicial (pedir CPF) para que o fluxo espere a nova entrada
-                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 2)->first();
+                    // Não encontrou cadastro para o documento informado -> retornar o passo 4 (mensagem 'não localizado')
+                    // A mensagem será enviada pela lógica que envia o step.prompt
+                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 4)->first();
                 }
                 $session->context = $context;
                 return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();

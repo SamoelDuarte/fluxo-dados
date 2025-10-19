@@ -44,6 +44,14 @@ return new class extends Migration {
                 'expected_input' => null,
                 'next_step_condition' => 'fluxo_negociar',
             ],
+            // Mensagem quando não encontra cadastro
+            [
+                'flow_id' => 1,
+                'step_number' => 4,
+                'prompt' => 'Não localizei cadastro com esse documento. Por favor digite novamente o CPF/CNPJ (apenas números).',
+                'expected_input' => 'cpf',
+                'next_step_condition' => 'api_valida_cpf',
+            ],
 
             // === FLUXO NEGOCIAR ===
             [
