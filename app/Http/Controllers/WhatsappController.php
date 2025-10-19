@@ -490,16 +490,13 @@ class WhatsappController extends Controller
             case 'api_valida_cpf':
                 // Uso do novo fluxo: procurar na tabela de contatos e contar resultados
                 $flow = WhatsappFlow::find($session->flow_id);
+                // Sempre extrair o document diretamente da mensagem recebida (ignorar o contexto)
                 $context = $session->context ?? [];
-                // Se o contexto não tiver o document, tentar extrair diretamente da mensagem (usuário acabou de digitar)
-                $document = $context['document'] ?? '';
-                if (empty($document)) {
-                    $document = preg_replace('/\D/', '', $messageText);
-                    if (!empty($document)) {
-                        $context['document'] = $document;
-                        $session->context = $context;
-                        $session->save();
-                    }
+                $document = preg_replace('/\D/', '', $messageText);
+                if (!empty($document)) {
+                    $context['document'] = $document;
+                    $session->context = $context;
+                    $session->save();
                 }
 
                 // Normaliza document para pesquisa (apenas dígitos)
