@@ -188,14 +188,22 @@ class WhatsappController extends Controller
         $context = $session->context ?? $context;
 
         if ($nextStep) {
-            // Special-case: if this is Flow 1 Step 3 (buscar -> encaminha para Fluxo Negociar + menu)
-            // Check BEFORE sending the configured prompt to avoid sending the 'buscando' message and the menu together
+            // Normal path: update session and send the configured prompt
+            $session->update([
+                'current_step_id' => $nextStep->id,
+                'flow_id' => $nextStep->flow_id,
+                'context' => $context,
+            ]);
+            $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
+            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
+
+            // Special-case after sending Flow 1 Step 3: transition to Fluxo Negociar and send the menu
             if ($nextStep->flow_id == 1 && $nextStep->step_number == 3) {
                 $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
                 if ($negFlow) {
                     $stepNeg = WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
                     $session->update(['flow_id' => $negFlow->id, 'current_step_id' => $stepNeg->id, 'context' => $context]);
-                    // send fixed menu options for negociacao (do not send the 'buscando' prompt)
+                    // send fixed menu options for negociacao
                     $options = [
                         ['id' => 'negociar', 'title' => 'Negociar'],
                         ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
@@ -564,8 +572,8 @@ class WhatsappController extends Controller
                     // Decide which step to return explicitly and avoid switch fall-through
                     $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
 
-                    if ($count > 1) {
-                        // When multiple contracts, return Flow 1 step 3 (the 'buscando' step)
+                    if ($count >= 1) {
+                        // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
                         return WhatsappFlowStep::where('flow_id', 1)->where('step_number', 3)->first();
                     }
 
