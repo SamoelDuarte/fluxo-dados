@@ -669,7 +669,34 @@ class WhatsappController extends Controller
 
     private function findDebtsByDocument(string $document): ?array
     {
+        // Primeiro tenta encontrar pelo documento exatamente como veio
         $contato = ContatoDados::where('document', $document)->first();
+
+        // Se não encontrou, tentar formatos alternativos comuns:
+        // - remover zeros à esquerda (ex: '019...' -> '19...')
+        // - preencher com zeros à esquerda para 11 dígitos (cpf) caso esteja menor
+        if (!$contato) {
+            // tenta sem zeros à esquerda
+            $altNoLeading = ltrim($document, '0');
+            if (!empty($altNoLeading)) {
+                $contato = ContatoDados::where('document', $altNoLeading)->first();
+                if ($contato) {
+                    Log::info('findDebtsByDocument: matched after ltrim', ['original' => $document, 'tried' => $altNoLeading]);
+                }
+            }
+        }
+
+        if (!$contato) {
+            // se for somente dígitos e tiver menos que 11, tenta preencher à esquerda com zeros (possível CPF armazenado como 11)
+            if (ctype_digit($document) && strlen($document) < 11) {
+                $pad = str_pad($document, 11, '0', STR_PAD_LEFT);
+                $contato = ContatoDados::where('document', $pad)->first();
+                if ($contato) {
+                    Log::info('findDebtsByDocument: matched after pad', ['original' => $document, 'tried' => $pad]);
+                }
+            }
+        }
+
         if (!$contato) {
             Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => null, 'result' => 'no_contato']);
             return null;
