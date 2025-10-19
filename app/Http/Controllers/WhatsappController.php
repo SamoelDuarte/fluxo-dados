@@ -256,6 +256,12 @@ class WhatsappController extends Controller
                         'opcoesPagamento' => $debts['parcelamento']
                     ];
                 }
+                else {
+                    // Não encontrou cadastro para o documento informado -> pede para digitar novamente o CPF/CNPJ
+                    $this->sendMessage($wa_id, 'Não localizei cadastro com esse documento. Por favor digite novamente o CPF/CNPJ (apenas números).', $phoneNumberId);
+                    // Retorna o passo 2 do Fluxo Inicial (pedir CPF) para tentar novamente
+                    return WhatsappFlowStep::where('flow_id', operator: $flow->id)->where('step_number', 2)->first();
+                }
                 $session->context = $context;
                 return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
             case 'fluxo_negociar':
