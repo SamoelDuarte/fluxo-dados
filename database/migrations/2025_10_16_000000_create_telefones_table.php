@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -19,6 +20,16 @@ return new class extends Migration
             $table->string('phone_number');
             $table->timestamps();
         });
+
+        // Inserir dados fake
+        DB::table('telefones')->insert([
+            [
+                'phone_number_id' => '881105538408837',
+                'phone_number' => '+1 555 632 7606',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        ]);
     }
 
     /**

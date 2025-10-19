@@ -11,6 +11,7 @@ use App\Models\WhatsappSession;
 use App\Models\WhatsappFlow;
 use App\Models\WhatsappFlowStep;
 use App\Models\Carteira;
+use App\Models\ContatoDados;
 use GuzzleHttp\Client;
 use Carbon\Carbon;
 
@@ -35,7 +36,6 @@ class WhatsappController extends Controller
         // === Recebimento de mensagens (POST) ===
         if ($request->isMethod('post')) {
             $data = $request->all();
-            Log::info('Webhook recebido: ' . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
             // Se vier metadata com phone_number_id, salvar na configuração para usar no envio
             $metadata = $data['entry'][0]['changes'][0]['value']['metadata'] ?? null;
@@ -44,9 +44,8 @@ class WhatsappController extends Controller
                     DB::table('whatsapp')->updateOrInsert(['id' => 1], [
                         'phone_number_id' => $metadata['phone_number_id']
                     ]);
-                    Log::info('phone_number_id salvo a partir do webhook: ' . $metadata['phone_number_id']);
                 } catch (\Exception $e) {
-                    Log::error('Erro ao salvar phone_number_id: ' . $e->getMessage());
+                    // metadata save failed - suppressed log per request
                 }
             }
 
@@ -100,13 +99,11 @@ class WhatsappController extends Controller
             // Inicia fluxo inicial
             $flow = WhatsappFlow::where('name', 'Fluxo Inicial')->first();
             if (!$flow) {
-                Log::error('Fluxo Inicial não encontrado');
                 return;
             }
             $step1 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
             $step2 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 2)->first();
             if (!$step1 || !$step2) {
-                Log::error('Passos do Fluxo Inicial não encontrados');
                 return;
             }
             $session->update([
@@ -126,7 +123,6 @@ class WhatsappController extends Controller
         // Tem fluxo, processa resposta
         $currentStep = WhatsappFlowStep::find($session->current_step_id);
         if (!$currentStep) {
-            Log::error('Passo atual não encontrado');
             return;
         }
 
@@ -162,44 +158,49 @@ class WhatsappController extends Controller
         if ($nextStep) {
             $session->update([
                 'current_step_id' => $nextStep->id,
+                'flow_id'=> $nextStep->flow_id,
                 'context' => $context,
             ]);
             $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
             $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-            // If expected botao, send menu
-            if ($nextStep->expected_input === 'botao') {
-                if ($nextStep->next_step_condition === 'processar_opcao') {
-                    $options = [
-                        ['id' => 'negociar', 'title' => 'Negociar'],
-                        ['id' => '2 via de boleto', 'title' => '2ª via de boleto'],
-                        ['id' => 'enviar comprovante', 'title' => 'Enviar comprovante'],
-                        ['id' => 'atendimento', 'title' => 'Atendimento'],
-                        ['id' => 'encerrar conversa', 'title' => 'Encerrar conversa'],
-                    ];
-                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
-                } else {
-                    $options = [
-                        ['id' => 'sim', 'title' => 'Sim'],
-                        ['id' => 'nao', 'title' => 'Não'],
-                    ];
-                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
-                }
-            }
-            // If this step has no expected input and a condition, process immediately
-            if ($nextStep->expected_input === null && $nextStep->next_step_condition) {
-                $nextNextStep = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, '', $phoneNumberId);
-                if ($nextNextStep) {
-                    $session->update(['current_step_id' => $nextNextStep->id]);
-                    $prompt2 = $this->replacePlaceholders($nextNextStep->prompt, $session->context, $name);
+
+            // If this step has a server-side next_step_condition (like 'fluxo_negociar'), process it immediately
+            if (!empty($nextStep->next_step_condition)) {
+                $followUp = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
+                if ($followUp) {
+                    // update session to the new flow/step returned by the condition
+                    $session->update([
+                        'current_step_id' => $followUp->id,
+                        'flow_id' => $followUp->flow_id,
+                        'context' => $context,
+                    ]);
+
+                    $prompt2 = $this->replacePlaceholders($followUp->prompt, $context, $name);
                     $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
-                    if ($nextNextStep->expected_input === 'botao') {
-                        $this->sendMenuOptions($wa_id, $phoneNumberId, [
-                            ['id' => 'sim', 'title' => 'Sim'],
-                            ['id' => 'nao', 'title' => 'Não'],
-                        ], 'Escolha:');
+                    // If the follow-up expects a button/menu, send appropriate interactive message
+                    if ($followUp->expected_input === 'botao') {
+                        // For Fluxo Negociar (flow_id == 2) send the full menu options
+                        if ($followUp->flow_id == 2) {
+                            $options = [
+                                ['id' => 'negociar', 'title' => 'Negociar'],
+                                ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
+                                ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
+                                ['id' => 'atendimento', 'title' => 'Atendimento'],
+                                ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                            ];
+                            $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
+                        } else {
+                            // Generic botao: if <=3 options the sendMenuOptions will map to quick replies
+                            $options = [
+                                ['id' => 'sim', 'title' => 'Sim'],
+                                ['id' => 'nao', 'title' => 'Não'],
+                            ];
+                            $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
+                        }
                     }
                 }
             }
+         
         } else {
             // Fim ou erro
             $session->update(['current_step_id' => null, 'context' => $context]);
@@ -258,11 +259,16 @@ class WhatsappController extends Controller
                 $session->context = $context;
                 return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
             case 'fluxo_negociar':
+                Log::info('processCondition fluxo_negociar called');
                 $flow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
+                Log::info('flow found: ' . ($flow ? $flow->id : 'null'));
                 if ($flow) {
                     $session->flow_id = $flow->id;
-                    return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                    $step = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
+                    Log::info('step found: ' . ($step ? $step->id . ' flow_id:' . $step->flow_id : 'null'));
+                    return $step;
                 }
+                Log::info('returning null');
                 return null;
             case 'fluxo_proposta':
                 $flow = WhatsappFlow::where('name', 'Fluxo Proposta')->first();
@@ -303,7 +309,7 @@ class WhatsappController extends Controller
             case 'processar_opcao':
                 switch (strtolower($messageText)) {
                     case 'negociar':
-                        return $this->processCondition('fluxo_negociar', $session, $wa_id, $name, $messageText, $phoneNumberId);
+                        return $this->processCondition('fluxo_proposta', $session, $wa_id, $name, $messageText, $phoneNumberId);
                     case '2 via de boleto':
                         return $this->processCondition('fluxo_envia_codigo_barras', $session, $wa_id, $name, $messageText, $phoneNumberId);
                     case 'enviar comprovante':
@@ -393,53 +399,93 @@ class WhatsappController extends Controller
 
     private function findDebtsByDocument(string $document): ?array
     {
-        $carteiras = Carteira::all();
-        foreach ($carteiras as $carteira) {
-            $client = new Client();
-            $data = [
-                "codigoUsuarioCarteiraCobranca" => (string)$carteira->codigo_usuario_cobranca,
-                "codigoCarteiraCobranca" => (string)$carteira->id,
-                "pessoaCodigo" => $document,
-                "dataPrimeiraParcela" => Carbon::today()->toDateString(),
-                "valorEntrada" => 0,
-                "chave" => "3cr1O35JfhQ8vBO",
-                "renegociaSomenteDocumentosEmAtraso" => false
-            ];
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->gerarToken()
-            ];
-            try {
-                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
-                    'json' => $data,
-                    'headers' => $headers,
-                ]);
-                $responseBody = $response->getBody();
-                $responseData = json_decode($responseBody, true);
-                if (isset($responseData[0]['messagem']) && !empty($responseData[0]['messagem'])) {
-                    continue;
-                }
-                if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
-                    continue;
-                }
-                $ultimoArray = end($responseData);
-                if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
-                    continue;
-                }
-                return [
-                    'amount' => $ultimoArray['valorDivida'],
-                    'contract' => $document,
-                    'carteira' => $carteira->id,
-                    'parcelamento' => $ultimoArray['parcelamento'],
-                    'valorTotalOriginal' => $ultimoArray['valorTotalOriginal'],
-                    'valorDivida' => $ultimoArray['valorDivida'],
-                ];
-            } catch (\Exception $e) {
-                Log::error('Erro ao buscar débitos: ' . $e->getMessage());
-                continue;
-            }
+        $contato = ContatoDados::where('document', $document)->first();
+        if (!$contato) {
+            Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => null, 'result' => 'no_contato']);
+            return null;
         }
-        return null;
+        $carteiraId = $contato->carteira;
+        switch ($carteiraId) {
+            case 875:
+                $codigoUsuarioCarteiraCobranca = 30;
+                break;
+
+            case 874:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+
+            case 873:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+
+            case 872:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+
+            case 871:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+
+            case 870:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+
+            default:
+                $codigoUsuarioCarteiraCobranca = null;
+                break;
+        }
+        if ($codigoUsuarioCarteiraCobranca === null) {
+            Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => $carteiraId, 'result' => 'codigoUsuarioCarteiraCobranca_null']);
+            return null;
+        }
+
+        $client = new Client();
+        $data = [
+            "codigoUsuarioCarteiraCobranca" => (string)$codigoUsuarioCarteiraCobranca,
+            "codigoCarteiraCobranca" => (string)$carteiraId,
+            "pessoaCodigo" => $contato->numero_contrato,
+            "dataPrimeiraParcela" => Carbon::today()->toDateString(),
+            "valorEntrada" => 0,
+            "chave" => "3cr1O35JfhQ8vBO",
+            "renegociaSomenteDocumentosEmAtraso" => false
+        ];
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Authorization' => 'Bearer ' . $this->gerarToken()
+        ];
+        try {
+            $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                'json' => $data,
+                'headers' => $headers,
+            ]);
+            $responseBody = $response->getBody();
+            $responseData = json_decode($responseBody, true);
+            if (isset($responseData[0]['messagem']) && !empty($responseData[0]['messagem'])) {
+                Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => $carteiraId, 'result' => 'api_messagem', 'message' => $responseData[0]['messagem']]);
+                return null;
+            }
+            if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
+                return null;
+            }
+            $ultimoArray = end($responseData);
+            if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
+                Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => $carteiraId, 'result' => 'no_parcelamento']);
+                return null;
+            }
+            $result = [
+                'amount' => $ultimoArray['valorDivida'],
+                'contract' => $contato->numero_contrato,
+                'carteira' => $carteiraId,
+                'parcelamento' => $ultimoArray['parcelamento'],
+                'valorTotalOriginal' => $ultimoArray['valorTotalOriginal'],
+                'valorDivida' => $ultimoArray['valorDivida'],
+            ];
+            Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => $carteiraId, 'result' => 'found', 'amount' => $result['amount']]);
+            return $result;
+        } catch (\Exception $e) {
+            Log::info('findDebtsByDocument result', ['document' => $document, 'carteira' => $carteiraId ?? null, 'result' => 'error', 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     // Função para enviar mensagem via WhatsApp Cloud API
@@ -464,9 +510,8 @@ class WhatsappController extends Controller
         ];
 
         $response = Http::withToken($token)
-            ->post("https://graph.facebook.com/v21.0/{$phoneNumberId}/messages", $data);
+            ->post("https://graph.facebook.com/v18.0/{$phoneNumberId}/messages", $data);
 
-        Log::info('Mensagem enviada: ' . $body . ' | Response: ' . $response->body());
         return true;
     }
     public function sendMenuOptions(string $wa_id, ?string $phone_number_id, array $options, string $title = null)
@@ -515,9 +560,9 @@ class WhatsappController extends Controller
                 ]
             ];
 
-            $url = "https://graph.facebook.com/v21.0/{$phoneNumberId}/messages";
+            Log::info('sendMenuOptions body: ' . json_encode($body));
+            $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
             $res = Http::withToken($token)->post($url, $body);
-            Log::info('sendMenuOptions (buttons) response', ['status' => $res->status(), 'body' => $res->body()]);
             return true;
         }
 
@@ -527,7 +572,7 @@ class WhatsappController extends Controller
             $rows[] = [
                 'id' => $opt['id'],
                 'title' => $opt['title'],
-                'description' => $opt['title']
+                'description' => ''
             ];
         }
 
@@ -556,9 +601,10 @@ class WhatsappController extends Controller
             ]
         ];
 
-        $url = "https://graph.facebook.com/v21.0/{$phoneNumberId}/messages";
+        Log::info('sendMenuOptions body: ' . json_encode($body));
+        $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
         $res = Http::withToken(token: $token)->post($url, $body);
-        Log::info('sendMenuOptions (list) response', ['status' => $res->status(), 'body' => $res->body()]);
+        Log::info('sendMenuOptions response: ' . $res->body());
         return true;
     }
 
