@@ -466,10 +466,10 @@ class WhatsappController extends Controller
         if (!$expected) return true;
         switch ($expected) {
             case 'cpf':
-                $digits = preg_replace('/\D/', '', $input);
-                return $this->isValidCpfCnpj($digits);
+                // Temporariamente desabilitada validação de CPF/CNPJ — aceitar qualquer entrada
+                return true;
             case 'numero':
-                return is_numeric($input);
+                return is_numeric(value: $input);
             case 'sim_nao':
                 return in_array(strtolower($input), ['sim', 'não', 'nao', 's', 'n']);
             case 'botao':
