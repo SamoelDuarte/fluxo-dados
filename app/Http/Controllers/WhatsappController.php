@@ -10,6 +10,9 @@ use App\Models\WhatsappMessage;
 use App\Models\WhatsappSession;
 use App\Models\WhatsappFlow;
 use App\Models\WhatsappFlowStep;
+use App\Models\Carteira;
+use GuzzleHttp\Client;
+use Carbon\Carbon;
 
 class WhatsappController extends Controller
 {
@@ -163,13 +166,24 @@ class WhatsappController extends Controller
             ]);
             $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
             $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-            // If expected botao, send menu diretamente
+            // If expected botao, send menu
             if ($nextStep->expected_input === 'botao') {
-                $options = [
-                    ['id' => 'sim', 'title' => 'Sim'],
-                    ['id' => 'nao', 'title' => 'Não'],
-                ];
-                $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
+                if ($nextStep->next_step_condition === 'processar_opcao') {
+                    $options = [
+                        ['id' => 'negociar', 'title' => 'Negociar'],
+                        ['id' => '2 via de boleto', 'title' => '2ª via de boleto'],
+                        ['id' => 'enviar comprovante', 'title' => 'Enviar comprovante'],
+                        ['id' => 'atendimento', 'title' => 'Atendimento'],
+                        ['id' => 'encerrar conversa', 'title' => 'Encerrar conversa'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
+                } else {
+                    $options = [
+                        ['id' => 'sim', 'title' => 'Sim'],
+                        ['id' => 'nao', 'title' => 'Não'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, 'Escolha:');
+                }
             }
             // If this step has no expected input and a condition, process immediately
             if ($nextStep->expected_input === null && $nextStep->next_step_condition) {
@@ -224,15 +238,22 @@ class WhatsappController extends Controller
                 $document = $context['document'] ?? '';
                 $debts = $this->findDebtsByDocument($document);
                 if ($debts) {
-                    $context['qtdContratos'] = count($debts);
+                    $context['qtdContratos'] = 1;
                     $context['debts'] = $debts;
-                    // Calcular valorTotal, etc.
-                    $total = 0;
-                    foreach ($debts as $d) {
-                        $total += $d['amount'] ?? 0;
-                    }
-                    $context['valorTotal'] = 'R$ ' . number_format($total, 2, ',', '.');
+                    $context['valorTotal'] = 'R$ ' . number_format($debts['amount'], 2, ',', '.');
                     $context['data'] = date('d/m/Y', strtotime('+30 days'));
+                    $context['parcelamento'] = $debts['parcelamento'];
+                    $context['carteira'] = $debts['carteira'];
+                    $context['data_response'] = [
+                        '0' => [
+                            'valorTotalOriginal' => $debts['valorTotalOriginal'],
+                            'valorTotalAtualizado' => $debts['valorDivida'],
+                            'opcoesPagamento' => [
+                                ['valorTotal' => $debts['parcelamento'][0]['valorTotal'] ?? 0]
+                            ]
+                        ],
+                        'opcoesPagamento' => $debts['parcelamento']
+                    ];
                 }
                 $session->context = $context;
                 return WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
@@ -279,6 +300,22 @@ class WhatsappController extends Controller
                 return null;
             case 'salvar_configuracao':
                 return null;
+            case 'processar_opcao':
+                switch (strtolower($messageText)) {
+                    case 'negociar':
+                        return $this->processCondition('fluxo_negociar', $session, $wa_id, $name, $messageText, $phoneNumberId);
+                    case '2 via de boleto':
+                        return $this->processCondition('fluxo_envia_codigo_barras', $session, $wa_id, $name, $messageText, $phoneNumberId);
+                    case 'enviar comprovante':
+                        return $this->processCondition('fluxo_envia_codigo_barras', $session, $wa_id, $name, $messageText, $phoneNumberId);
+                    case 'atendimento':
+                        $this->sendMessage($wa_id, 'Entrando em contato com atendimento.', $phoneNumberId);
+                        return null;
+                    case 'encerrar conversa':
+                        return null;
+                    default:
+                        return WhatsappFlowStep::find($session->current_step_id);
+                }
             default:
                 return null;
         }
@@ -356,26 +393,52 @@ class WhatsappController extends Controller
 
     private function findDebtsByDocument(string $document): ?array
     {
-        // Se existir uma API configurada, consulta; senão retorna null (não encontrado)
-        $apiUrl = env('DEBT_API_URL');
-        if (empty($apiUrl)) {
-            Log::info('findDebtsByDocument: DEBT_API_URL não configurada, retornando null', ['doc' => $document]);
-            return null;
-        }
-
-        try {
-            $res = Http::get($apiUrl, ['document' => $document]);
-            if ($res->successful()) {
-                $body = $res->json();
-                // espera array de débitos. ajuste conforme API real
-                return $body['debts'] ?? $body;
-            } else {
-                Log::warning('findDebtsByDocument: resposta não OK', ['status' => $res->status(), 'body' => $res->body()]);
+        $carteiras = Carteira::all();
+        foreach ($carteiras as $carteira) {
+            $client = new Client();
+            $data = [
+                "codigoUsuarioCarteiraCobranca" => (string)$carteira->codigo_usuario_cobranca,
+                "codigoCarteiraCobranca" => (string)$carteira->id,
+                "pessoaCodigo" => $document,
+                "dataPrimeiraParcela" => Carbon::today()->toDateString(),
+                "valorEntrada" => 0,
+                "chave" => "3cr1O35JfhQ8vBO",
+                "renegociaSomenteDocumentosEmAtraso" => false
+            ];
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->gerarToken()
+            ];
+            try {
+                $response = $client->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', [
+                    'json' => $data,
+                    'headers' => $headers,
+                ]);
+                $responseBody = $response->getBody();
+                $responseData = json_decode($responseBody, true);
+                if (isset($responseData[0]['messagem']) && !empty($responseData[0]['messagem'])) {
+                    continue;
+                }
+                if (!isset($responseData[0]['parcelamento']) || $responseData[0]['parcelamento'] === null || empty($responseData[0]['parcelamento'])) {
+                    continue;
+                }
+                $ultimoArray = end($responseData);
+                if (!$ultimoArray || !isset($ultimoArray['parcelamento']) || !is_array($ultimoArray['parcelamento']) || empty($ultimoArray['parcelamento'])) {
+                    continue;
+                }
+                return [
+                    'amount' => $ultimoArray['valorDivida'],
+                    'contract' => $document,
+                    'carteira' => $carteira->id,
+                    'parcelamento' => $ultimoArray['parcelamento'],
+                    'valorTotalOriginal' => $ultimoArray['valorTotalOriginal'],
+                    'valorDivida' => $ultimoArray['valorDivida'],
+                ];
+            } catch (\Exception $e) {
+                Log::error('Erro ao buscar débitos: ' . $e->getMessage());
+                continue;
             }
-        } catch (\Exception $e) {
-            Log::error('findDebtsByDocument erro: ' . $e->getMessage());
         }
-
         return null;
     }
 
@@ -617,6 +680,50 @@ class WhatsappController extends Controller
             }
         } catch (\Exception $e) {
             return redirect()->route('whatsapp.connect')->with('error', 'Erro ao renovar token: ' . $e->getMessage());
+        }
+    }
+
+    function gerarToken()
+    {
+        // Inicializa a sessão cURL
+        $curl = curl_init();
+
+        // Configurações da requisição cURL
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://cobrancaexternaauthapi.apps.havan.com.br/token', // URL do endpoint de autenticação
+            CURLOPT_RETURNTRANSFER => true, // Retorna a resposta como string
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST', // Tipo da requisição
+            CURLOPT_POSTFIELDS => 'grant_type=password&client_id=bd210e1b-dac2-49b0-a9c4-7c5e1b0b241f&username=THF&password=3cr1O35JfhQ8vBO', // Parâmetros do POST
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/x-www-form-urlencoded' // Tipo de conteúdo
+            ),
+        ));
+
+        // Executa a requisição e captura a resposta
+        $response = curl_exec($curl);
+
+        // Verifica se ocorreu erro na requisição cURL
+        if ($response === false) {
+            echo 'Erro cURL: ' . curl_error($curl);
+            return null;
+        }
+
+        // Fecha a sessão cURL
+        curl_close($curl);
+
+        // Converte a resposta JSON para um array PHP
+        $responseData = json_decode($response, true);
+        // Verifica se a resposta contém o token
+        if (isset($responseData['access_token'])) {
+            return $responseData['access_token'];
+        } else {
+            echo 'Erro ao obter o token: ' . $responseData;
+            return null;
         }
     }
 }

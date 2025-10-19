@@ -60,9 +60,9 @@ class WhatsappFlowSeeder extends Seeder
             [
                 'flow_id' => 2,
                 'step_number' => 1,
-                'prompt' => '@primeironome, localizei *{{qtdContratos}}* contratos em aberto. Deseja negociar?',
+                'prompt' => 'Encontramos opções de parcelamento. Escolha uma opção:',
                 'expected_input' => 'botao',
-                'next_step_condition' => 'fluxo_proposta',
+                'next_step_condition' => 'processar_opcao',
             ],
 
             // === FLUXO PROPOSTA ===
