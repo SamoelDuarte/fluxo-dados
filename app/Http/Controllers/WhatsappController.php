@@ -194,14 +194,14 @@ class WhatsappController extends Controller
 
             $verificaContrato = true;
             //verifica aki se iver vefica nahavanse tem algu em aberto
-            $verificaVigente = true;
+            $verificaVigente = false;
             if ($verificaContrato) {
                 // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
                 $stepbuscndo = $this->getStepFluxo(1, 4);
                 $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
 
-                 // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
-                $stepbuscndo = $this->getStepFluxo( 1, 6);
+                // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
+                $stepbuscndo = $this->getStepFluxo(1, 6);
                 $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
 
                 $session->context = $context;
@@ -209,15 +209,15 @@ class WhatsappController extends Controller
                 $session->save();
 
                 if ($verificaVigente) {
-                    $stepbuscndo = $this->getStepFluxo(2, 9);
+                    $stepVigente = $this->getStepFluxo(2, 9);
                     $options = [
                         ['id' => 'negociar', 'title' => 'Negociar'],
                         ['id' => 'atendimento', 'title' => 'Atendimento'],
                         ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
                     ];
-                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options,$stepbuscndo->prompt);
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $stepVigente->prompt);
                 } else {
-                    $stepbuscndo = $this->getStepFluxo(2, 10);
+                    $stepNaoVigente = $this->getStepFluxo(2, 10);
                     $options = [
                         ['id' => 'negociar', 'title' => 'Negociar'],
                         ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
@@ -225,7 +225,7 @@ class WhatsappController extends Controller
                         ['id' => 'atendimento', 'title' => 'Atendimento'],
                         ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
                     ];
-                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options,$stepbuscndo->prompt);
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $stepNaoVigente->prompt);
                 }
             } else {
 
@@ -960,38 +960,7 @@ class WhatsappController extends Controller
             return ['id' => (string) $o, 'title' => (string) $o];
         }, $options);
 
-        // Se tiver até 3 opções, usa interactive type=button (quick replies)
-        if (count($normalized) <= 3) {
-            $buttons = array_map(function ($opt) {
-                return [
-                    'type' => 'reply',
-                    'reply' => [
-                        'id' => $opt['id'],
-                        'title' => $opt['title']
-                    ]
-                ];
-            }, $normalized);
-
-            $body = [
-                'messaging_product' => 'whatsapp',
-                'to' => $wa_id,
-                'type' => 'interactive',
-                'interactive' => [
-                    'type' => 'button',
-                    'body' => [
-                        'text' => $title ?? 'Escolha uma opção:'
-                    ],
-                    'action' => [
-                        'buttons' => $buttons
-                    ]
-                ]
-            ];
-
-            Log::info('sendMenuOptions body: ' . json_encode($body));
-            $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
-            $res = Http::withToken($token)->post($url, $body);
-            return true;
-        }
+        // Always send an interactive list payload. Buttons branch removed per request.
 
         // Se tiver mais de 3 opções, usa interactive type=list (mais flexível)
         $rows = [];
@@ -1003,8 +972,37 @@ class WhatsappController extends Controller
             ];
         }
 
+        $originalTitle = is_string($title) ? trim($title) : '';
+
+        $safeHeader = 'Selecione uma opção:';
+
+        // Section title stricter limit
+        $sectionTitle = 'Opções';
+        if (!empty($originalTitle)) {
+            // try to derive a short section title from the original (trim to 24)
+            $candidate = preg_replace('/\s+@\w+/', '', $originalTitle); // remove simple @placeholders
+            $candidate = trim($candidate);
+            if (!empty($candidate)) {
+                $sectionTitle = mb_substr($candidate, 0, 24);
+            }
+        }
+        if (mb_strlen($sectionTitle) > 24) {
+            $sectionTitle = mb_substr($sectionTitle, 0, 21) . '...';
+        }
+
+        // Ensure each row title fits within 24 chars
+        foreach ($rows as &$r) {
+            if (!empty($r['title'])) {
+                $r['title'] = trim($r['title']);
+                if (mb_strlen($r['title']) > 24) {
+                    $r['title'] = mb_substr($r['title'], 0, 21) . '...';
+                }
+            }
+        }
+        unset($r);
+
         $section = [
-            'title' => $title ?? 'Opções',
+            'title' => $sectionTitle,
             'rows' => $rows
         ];
 
@@ -1016,10 +1014,10 @@ class WhatsappController extends Controller
                 'type' => 'list',
                 'header' => [
                     'type' => 'text',
-                    'text' => $title ?? 'Selecione:'
+                    'text' => ''
                 ],
                 'body' => [
-                    'text' => $title ?? 'Escolha uma opção abaixo:'
+                    'text' => 'Escolha uma opção abaixo:'
                 ],
                 'action' => [
                     'button' => 'Ver opções',
@@ -1028,7 +1026,7 @@ class WhatsappController extends Controller
             ]
         ];
 
-        Log::info('sendMenuOptions body: ' . json_encode($body));
+        Log::info(message: 'sendMenuOptions body: ' . json_encode($body));
         $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
         $res = Http::withToken(token: $token)->post($url, $body);
         Log::info('sendMenuOptions response: ' . $res->body());
