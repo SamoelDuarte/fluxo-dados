@@ -157,7 +157,8 @@ return new class extends Migration {
             [
                 'flow_id' => 3,
                 'step_number' => 4,
-                'prompt' => 'Confira as opções de parcelamento com vencimento da primeira parcela para *{{dataVencimento}}*:\n\n1) {{opcoesPagamento[0].valorParcela}} - {{opcoesPagamento[0].descricao}}\n2) {{opcoesPagamento[1].valorParcela}} - {{opcoesPagamento[1].descricao}}\n\nSelecione a opção desejada:',
+                'prompt' => '
+                ,,,,ções de parcelamento com vencimento da primeira parcela para *{{dataVencimento}}*:\n\n1) {{opcoesPagamento[0].valorParcela}} - {{opcoesPagamento[0].descricao}}\n2) {{opcoesPagamento[1].valorParcela}} - {{opcoesPagamento[1].descricao}}\n\nSelecione a opção desejada:',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],
@@ -294,6 +295,87 @@ return new class extends Migration {
                 'flow_id' => 10,
                 'step_number' => 1,
                 'prompt' => 'Posso ajudar em algo mais?\n\nSelecione um botão abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // === MODULO ENCERRAR CONVERSA (flow_id = 11) ===
+            [
+                'flow_id' => 11,
+                'step_number' => 1,
+                'prompt' => 'Agradecemos a sua atenção.\n\nFoi um prazer te ajudar através deste canal!\n\nAté mais. 🙂',
+                'expected_input' => null,
+                'next_step_condition' => 'finalizar_atendimento',
+            ],
+            // === ABANDONO BOT (flow_id = 12) ===
+            [
+                'flow_id' => 12,
+                'step_number' => 1,
+                'prompt' => '{{head}}\n@primeironome, notei que parou de responder. Deseja continuar seu atendimento?',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            [
+                'flow_id' => 12,
+                'step_number' => 2,
+                'prompt' => 'Seja bem-vindo(a) de volta! 👋',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            [
+                'flow_id' => 12,
+                'step_number' => 3,
+                'prompt' => 'Entendi que deseja encerrar. Posso finalizar o atendimento?',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // === MODULO TRANSBORDO (flow_id = 13) ===
+            [
+                'flow_id' => 13,
+                'step_number' => 1,
+                'prompt' => 'Aguarde, seu atendimento está sendo transferido a um de nossos especialistas.',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // === ABANDONO ATENDENTE (flow_id = 14) ===
+            [
+                'flow_id' => 14,
+                'step_number' => 1,
+                'prompt' => '@primeironome, vamos continuar o atendimento?\n\nEstou te aguardando. 🙂\n\nSelecione um botão abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            [
+                'flow_id' => 14,
+                'step_number' => 2,
+                'prompt' => 'Seja bem-vindo(a) de volta! 👋',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            [
+                'flow_id' => 14,
+                'step_number' => 3,
+                'prompt' => 'Estou finalizando nossa conversa devido a falta de resposta.\n\nQuando desejar conversar novamente, estaremos à disposição. 🙂',
+                'expected_input' => null,
+                'next_step_condition' => 'finalizar_atendimento',
+            ],
+            [
+                'flow_id' => 13,
+                'step_number' => 2,
+                'prompt' => 'No momento, estamos fora do horário de atendimento. Por favor, retorne no seguinte período:\n\n• Segunda a sexta de 08h às 19h.\n• Sábado de 08h às 14h.',
+                'expected_input' => null,
+                'next_step_condition' => 'fora_expediente_humano',
+            ],
+            [
+                'flow_id' => 13,
+                'step_number' => 3,
+                'prompt' => '{{fraseFeriado}}',
+                'expected_input' => null,
+                'next_step_condition' => 'finalizar_atendimento',
+            ],
+            [
+                'flow_id' => 11,
+                'step_number' => 2,
+                'prompt' => 'Deseja finalizar o atendimento agora?',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],

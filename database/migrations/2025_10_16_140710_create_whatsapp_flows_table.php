@@ -30,6 +30,10 @@ return new class extends Migration {
             ['name' => 'Fluxo Administrativo', 'description' => 'Gerencia feriados e horários de atendimento'],
             ['name' => 'Fluxo Avaliação Atendente', 'description' => 'Coleta e registra avaliações de atendimento'],
             ['name' => 'Módulo Algo Mais', 'description' => 'Menu adicional: Início / Atendimento / Encerrar conversa'],
+            ['name' => 'Módulo Encerrar Conversa', 'description' => 'Mensagem de encerramento da conversa e opção de finalizar atendimento'],
+            ['name' => 'Abandono Bot', 'description' => 'Fluxo de abandono por inatividade — pergunta de retorno e roteamento para Encerrar/Retomar'],
+            ['name' => 'Módulo Transbordo', 'description' => 'Transfere atendimento para um especialista de acordo com expediente, sábado e feriados'],
+            ['name' => 'Abandono Atendente', 'description' => 'Gatilho de abandono quando atendente aguarda resposta — Continuar/Finalizar'],
         ];
 
         foreach ($flows as $flow) {
