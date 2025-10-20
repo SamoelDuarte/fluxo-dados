@@ -14,7 +14,8 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('flow_id')->constrained('whatsapp_flows')->cascadeOnDelete();
             $table->integer('step_number'); // ordem do passo
-            $table->string('prompt'); // mensagem a ser enviada
+            // use text to allow long prompts and emojis
+            $table->text('prompt'); // mensagem a ser enviada
             $table->string('expected_input')->nullable(); // tipo de resposta esperada (ex: cpf, sim/nao)
             $table->string('next_step_condition')->nullable(); // lógica para próximo passo
             $table->timestamps();
@@ -61,6 +62,13 @@ return new class extends Migration {
                 'prompt' => 'Não localizei cadastro com esse documento. Por favor digite novamente o CPF/CNPJ (apenas números).',
                 'expected_input' => 'cpf',
                 'next_step_condition' => 'api_valida_cpf',
+            ],
+            [
+                'flow_id' => 1,
+                'step_number' => 6,
+                'prompt' => 'Encontrei Você!',
+                'expected_input' => null,
+                'next_step_condition' => 'fluxo_negociar',
             ],
 
             // === FLUXO NEGOCIAR ===
@@ -127,6 +135,21 @@ return new class extends Migration {
                 'prompt' => 'Comprovante recebido!\n\n_Aguarde, estamos verificando a disponibilidade dos nossos especialistas._',
                 'expected_input' => null,
                 'next_step_condition' => 'fluxo_algo_mais',
+            ],
+            // Step 8: confirmação de recebimento do comprovante
+            [
+                'flow_id' => 2,
+                'step_number' => 9,
+                'prompt' => '@primeironome, confira como podemos te ajudar por este canal. 🙂',
+                'expected_input' => null,
+                'next_step_condition' => 'processar_opcao_negociar',
+            ],
+            [
+                'flow_id' => 2,
+                'step_number' => 10,
+                'prompt' => '@primeironome, confira como podemos te ajudar por este canal. 🙂',
+                'expected_input' => null,
+                'next_step_condition' => 'processar_opcao_negociar',
             ],
 
             // === FLUXO PROPOSTA ===

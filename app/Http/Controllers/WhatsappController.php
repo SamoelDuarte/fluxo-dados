@@ -38,55 +38,19 @@ class WhatsappController extends Controller
         if ($request->isMethod('post')) {
             $data = $request->all();
 
-            // Se vier metadata com phone_number_id, salvar na configuração para usar no envio
-            $metadata = $data['entry'][0]['changes'][0]['value']['metadata'] ?? null;
-            if (!empty($metadata['phone_number_id'])) {
-                try {
-                    DB::table('whatsapp')->updateOrInsert(['id' => 1], [
-                        'phone_number_id' => $metadata['phone_number_id']
-                    ]);
-                } catch (\Exception $e) {
-                    // metadata save failed - suppressed log per request
-                }
-            }
 
-            // Verifica se veio uma mensagem
-            $messageData = $data['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
-            $contactData = $data['entry'][0]['changes'][0]['value']['contacts'][0] ?? null;
+            $this->teste($data);
+            exit;
 
-            if (!$messageData || !$contactData) {
-                return response('Nenhuma mensagem encontrada', 200);
-            }
 
-            $wa_id = $contactData['wa_id'];
-            $name = $contactData['profile']['name'] ?? 'Usuário';
-            $messageText = $messageData['text']['body'] ?? '';
 
-            // 1️⃣ Verifica se o contato já existe
-            $contact = WhatsappContact::firstOrCreate(
-                ['wa_id' => $wa_id],
-                ['name' => $name]
-            );
 
-            // 2️⃣ Salva a mensagem recebida
-            WhatsappMessage::create([
-                'contact_id' => $contact->id,
-                'message_id' => $messageData['id'] ?? null,
-                'direction' => 'in',
-                'content' => $messageText,
-                'type' => $messageData['type'] ?? 'text',
-                'timestamp' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now(),
-                'raw' => $messageData,
-            ]);
 
-            // 3️⃣ Verifica sessão do usuário
-            $session = WhatsappSession::firstOrCreate(
-                ['contact_id' => $contact->id],
-                ['flow_id' => null, 'current_step_id' => null, 'context' => [], 'phone_number_id' => $metadata['phone_number_id'] ?? null]
-            );
 
-            // 4️⃣ Lógica baseada no fluxo
-            $this->processFlow($session, $wa_id, $name, $messageText, $session->phone_number_id ?? null);
+
+
+
+
 
             return response('EVENT_RECEIVED', 200);
         }
@@ -94,17 +58,72 @@ class WhatsappController extends Controller
         return response('Método não suportado', 405);
     }
 
-    private function processFlow($session, $wa_id, $name, $messageText, $phoneNumberId)
+    private function teste($data)
     {
 
+        // Verifica se veio uma mensagem
+        $messageData = $data['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
+        $contactData = $data['entry'][0]['changes'][0]['value']['contacts'][0] ?? null;
+        $metadata = $data['entry'][0]['changes'][0]['value']['metadata'] ?? null;
 
+        if (!$messageData || !$contactData) {
+            return response('Nenhuma mensagem encontrada', 200);
+        }
+
+        $wa_id = $contactData['wa_id'];
+        $name = $contactData['profile']['name'] ?? 'Usuário';
+        $messageText = $messageData['text']['body'] ?? '';
+
+        // 1️⃣ Verifica se o contato já existe
+        $contact = WhatsappContact::firstOrCreate(
+            ['wa_id' => $wa_id],
+            ['name' => $name]
+        );
+
+        // 2️⃣ Salva a mensagem recebida
+        WhatsappMessage::create([
+            'contact_id' => $contact->id,
+            'message_id' => $messageData['id'] ?? null,
+            'direction' => 'in',
+            'content' => $messageText,
+            'type' => $messageData['type'] ?? 'text',
+            'timestamp' => isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now(),
+            'raw' => $messageData,
+        ]);
+
+        // 3️⃣ Verifica sessão do usuário
+        $session = WhatsappSession::firstOrCreate(
+            ['contact_id' => $contact->id],
+            ['flow_id' => null, 'current_step_id' => null, 'context' => [], 'phone_number_id' => $metadata['phone_number_id'] ?? null]
+        );
+        // Log::info('$sessao : ' . $session);
+        // If we have metadata with phone_number_id but the session doesn't, update it
+        if (!empty($metadata['phone_number_id']) && empty($session->phone_number_id)) {
+            $session->phone_number_id = $metadata['phone_number_id'];
+            $session->save();
+        }
+
+        // 4️⃣ Lógica baseada no fluxo (passa phone_number_id explicitamente)
+        $this->processFlow($session, $wa_id, $name, $messageText, $metadata['phone_number_id'] ?? $session->phone_number_id ?? null);
+
+    }
+
+    private function processFlow($session, $wa_id, $name, $messageText, $phoneNumberId)
+    {
         // Se não tem fluxo, inicia o Fluxo Inicial
         if (!$session->flow_id) {
             $flow = WhatsappFlow::where('name', 'Fluxo Inicial')->first();
             if (!$flow)
                 return;
             $step1 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 1)->first();
-            $step2 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 2)->first();
+            // se dia útil (configurável) — muda para lógica real de expediente quando necessário
+            $isDiaUtil = true; // substituir por verificação de horário/feriado real
+            if ($isDiaUtil) {
+                $step2 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 3)->first();
+            } else {
+                $step2 = WhatsappFlowStep::where('flow_id', $flow->id)->where('step_number', 2)->first();
+            }
+
             if (!$step1 || !$step2)
                 return;
             $session->update([
@@ -114,15 +133,14 @@ class WhatsappController extends Controller
             ]);
             // Envia boas-vindas e solicitação de CPF
             $this->sendMessage($wa_id, $this->replacePlaceholders($step1->prompt, $session->context, $name), $phoneNumberId);
+
             $this->sendMessage($wa_id, $this->replacePlaceholders($step2->prompt, $session->context, $name), $phoneNumberId);
             return;
         }
 
         // Dispatcher por fluxo: facilita adicionar lógica específica por fluxo conforme migrations
         $flow = WhatsappFlow::find($session->flow_id);
-        if (!$flow)
-            return;
-
+        // Log::info('fluxo nome : ' . $flow->name);
         switch ($flow->name) {
             case 'Fluxo Inicial':
                 // Migrations: flow_id = 1, steps: 1 (welcome), 2 (solicita cpf), 3 (buscando), 4 (nao localizado)
@@ -152,118 +170,16 @@ class WhatsappController extends Controller
                 $this->processGenericFlow($session, $wa_id, $name, $messageText, $phoneNumberId);
                 break;
         }
+
     }
 
     // ------------------------- Handlers por fluxo -------------------------
     // Cada handler pode conter lógica específica para os passos desse fluxo
     private function handleFlowInicial($session, $wa_id, $name, $messageText, $phoneNumberId)
     {
-        // Lógica específica do Fluxo Inicial (validação, contexto, transição de passos)
-        $currentStep = WhatsappFlowStep::find($session->current_step_id);
-        if (!$currentStep)
-            return;
-
-        if (!$this->validateInput($messageText, $currentStep->expected_input)) {
-            if ($currentStep->expected_input === 'cpf') {
-                $this->sendMessage($wa_id, 'CPF/CNPJ inválido. Por favor digite apenas os números do seu CPF (11 dígitos) ou CNPJ (14 dígitos).', $phoneNumberId);
-            } else {
-                $errorFlow = WhatsappFlow::where('name', 'Fluxo Erros')->first();
-                if ($errorFlow) {
-                    $errorStep = WhatsappFlowStep::where('flow_id', $errorFlow->id)->where('step_number', 1)->first();
-                    if ($errorStep) {
-                        $prompt = $this->replacePlaceholders($errorStep->prompt, $session->context, $name);
-                        $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-                    }
-                }
-            }
-            return;
-        }
-
-        $context = $session->context ?? [];
-        if ($currentStep->expected_input === 'cpf') {
-            $context['document'] = preg_replace('/\D/', '', $messageText);
-        }
-
-        $nextStep = $this->processCondition($currentStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
-        $context = $session->context ?? $context;
-
-        if ($nextStep) {
-            // Normal path: update session and send the configured prompt
-            $session->update([
-                'current_step_id' => $nextStep->id,
-                'flow_id' => $nextStep->flow_id,
-                'context' => $context,
-            ]);
-            $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
-            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-
-            // Special-case after sending Flow 1 Step 3: transition to Fluxo Negociar and send the menu
-            if ($nextStep->flow_id == 1 && $nextStep->step_number == 3) {
-                $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
-                if ($negFlow) {
-                    $stepNeg = WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
-                    $session->update(['flow_id' => $negFlow->id, 'current_step_id' => $stepNeg->id, 'context' => $context]);
-                    // send fixed menu options for negociacao
-                    $options = [
-                        ['id' => 'negociar', 'title' => 'Negociar'],
-                        ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
-                        ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
-                        ['id' => 'atendimento', 'title' => 'Atendimento'],
-                        ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
-                    ];
-                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
-                }
-                return;
-            }
-
-            // Normal path: update session and send the configured prompt
-            $session->update([
-                'current_step_id' => $nextStep->id,
-                'flow_id' => $nextStep->flow_id,
-                'context' => $context,
-            ]);
-            $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
-            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
-
-            // If the next step has an immediate server-side condition, process follow-up
-            if (!empty($nextStep->next_step_condition)) {
-                $followUp = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
-                if ($followUp) {
-                    if ($followUp->id === $nextStep->id) {
-                        $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
-                        return;
-                    }
-                    $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
-                    $prompt2 = $this->replacePlaceholders($followUp->prompt, $context, $name);
-                    $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
-                    if ($followUp->expected_input === 'botao') {
-                        if ($followUp->flow_id == 2) {
-                            $options = [
-                                ['id' => 'negociar', 'title' => 'Negociar'],
-                                ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
-                                ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
-                                ['id' => 'atendimento', 'title' => 'Atendimento'],
-                                ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
-                            ];
-                            $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
-                        } else {
-                            $options = [['id' => 'sim', 'title' => 'Sim'], ['id' => 'nao', 'title' => 'Não']];
-                            $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
-                        }
-                    }
-                }
-            }
-        } else {
-            $session->update(['current_step_id' => null, 'context' => $context]);
-        }
-    }
-
-    private function handleFlowNegociar($session, $wa_id, $name, $messageText, $phoneNumberId)
-    {
         // Lógica específica do Fluxo Negociar
         $currentStep = WhatsappFlowStep::find($session->current_step_id);
-        if (!$currentStep)
-            return;
+        // Log::info('$currentStep : ' . $currentStep);
 
         if (!$this->validateInput($messageText, $currentStep->expected_input)) {
             $errorStep = WhatsappFlowStep::where('flow_id', WhatsappFlow::where('name', 'Fluxo Erros')->first()->id ?? 0)->where('step_number', 1)->first();
@@ -272,43 +188,109 @@ class WhatsappController extends Controller
             }
             return;
         }
-
         $context = $session->context ?? [];
-        // botao input treated as option text/id
-        $nextStep = $this->processCondition($currentStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
-        $context = $session->context ?? $context;
 
-        if ($nextStep) {
-            $session->update(['current_step_id' => $nextStep->id, 'flow_id' => $nextStep->flow_id, 'context' => $context]);
-            $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
-            $this->sendMessage($wa_id, $prompt, $phoneNumberId);
+        if ($currentStep->next_step_condition == "api_valida_cpf") {
 
-            if (!empty($nextStep->next_step_condition)) {
-                $followUp = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
-                if ($followUp) {
-                    if ($followUp->id === $nextStep->id) {
-                        $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
-                        return;
-                    }
-                    $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
-                    $prompt2 = $this->replacePlaceholders($followUp->prompt, $context, $name);
-                    $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
-                    if ($followUp->expected_input === 'botao') {
-                        // explicit menu for negociacao
-                        $options = [
-                            ['id' => 'negociar', 'title' => 'Negociar'],
-                            ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
-                            ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
-                            ['id' => 'atendimento', 'title' => 'Atendimento'],
-                            ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
-                        ];
-                        $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
-                    }
+            $verificaContrato = true;
+            //verifica aki se iver vefica nahavanse tem algu em aberto
+            $verificaVigente = true;
+            if ($verificaContrato) {
+                // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
+                $stepbuscndo = $this->getStepFluxo(1, 4);
+                $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
+
+                 // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
+                $stepbuscndo = $this->getStepFluxo( 1, 6);
+                $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
+
+                $session->context = $context;
+                // Persistir contexto e log do resultado
+                $session->save();
+
+                if ($verificaVigente) {
+                    $stepbuscndo = $this->getStepFluxo(2, 9);
+                    $options = [
+                        ['id' => 'negociar', 'title' => 'Negociar'],
+                        ['id' => 'atendimento', 'title' => 'Atendimento'],
+                        ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options,$stepbuscndo->prompt);
+                } else {
+                    $stepbuscndo = $this->getStepFluxo(2, 10);
+                    $options = [
+                        ['id' => 'negociar', 'title' => 'Negociar'],
+                        ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
+                        ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
+                        ['id' => 'atendimento', 'title' => 'Atendimento'],
+                        ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options,$stepbuscndo->prompt);
                 }
+            } else {
+
             }
-        } else {
-            $session->update(['current_step_id' => null, 'context' => $context]);
+
+
+
         }
+
+    }
+    private function getStepFluxo($negFlow, $step_number)
+    {
+        Log::info('getStepFluxo debug', [
+            'negFlow' => $negFlow,
+            'step_number' => $step_number,
+        ]);
+        return WhatsappFlowStep::where('flow_id', $negFlow)->where('step_number', $step_number)->first();
+    }
+
+    private function handleFlowNegociar($session, $wa_id, $name, $messageText, $phoneNumberId)
+    {
+
+    }
+    private function handleFlowNegocia($session, $wa_id, $name, $messageText, $phoneNumberId)
+    {
+
+
+
+
+
+        // // botao input treated as option text/id
+        // $nextStep = $this->processCondition($currentStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
+        // $context = $session->context ?? $context;
+
+        // if ($nextStep) {
+        //     $session->update(['current_step_id' => $nextStep->id, 'flow_id' => $nextStep->flow_id, 'context' => $context]);
+        //     $prompt = $this->replacePlaceholders($nextStep->prompt, $context, $name);
+        //     $this->sendMessage($wa_id, $prompt, $phoneNumberId);
+
+        //     if (!empty($nextStep->next_step_condition)) {
+        //         $followUp = $this->processCondition($nextStep->next_step_condition, $session, $wa_id, $name, $messageText, $phoneNumberId);
+        //         if ($followUp) {
+        //             if ($followUp->id === $nextStep->id) {
+        //                 $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
+        //                 return;
+        //             }
+        //             $session->update(['current_step_id' => $followUp->id, 'flow_id' => $followUp->flow_id, 'context' => $context]);
+        //             $prompt2 = $this->replacePlaceholders($followUp->prompt, $context, $name);
+        //             $this->sendMessage($wa_id, $prompt2, $phoneNumberId);
+        //             if ($followUp->expected_input === 'botao') {
+        //                 // explicit menu for negociacao
+        //                 $options = [
+        //                     ['id' => 'negociar', 'title' => 'Negociar'],
+        //                     ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
+        //                     ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
+        //                     ['id' => 'atendimento', 'title' => 'Atendimento'],
+        //                     ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+        //                 ];
+        //                 $this->sendMenuOptions($wa_id, $phoneNumberId, $options);
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     $session->update(['current_step_id' => null, 'context' => $context]);
+        // }
     }
 
     private function handleFlowProposta($session, $wa_id, $name, $messageText, $phoneNumberId)
@@ -529,72 +511,10 @@ class WhatsappController extends Controller
             case 'solicita_cpf':
                 return WhatsappFlowStep::find($session->current_step_id); // Mesmo passo
             case 'api_valida_cpf':
-                // Uso do novo fluxo: procurar na tabela de contatos e contar resultados
-                $flow = WhatsappFlow::find($session->flow_id);
-                // Sempre extrair o document diretamente da mensagem recebida (ignorar o contexto)
-                $context = $session->context ?? [];
-                $document = preg_replace('/\D/', '', $messageText);
-                if (!empty($document)) {
-                    $context['document'] = $document;
-                    $session->context = $context;
-                    $session->save();
-                }
 
-                // Normaliza document para pesquisa (apenas dígitos)
-                $searchDoc = preg_replace('/\D/', '', $document);
 
-                // Debug: log do que o usuário digitou e o que vamos buscar
-                Log::info('api_valida_cpf debug before search', [
-                    'incoming_message' => $messageText,
-                    'document_in_context' => $document,
-                    'searchDoc' => $searchDoc,
-                ]);
-
-                // Faz a contagem direta na tabela contato_dados (model ContatoDados)
-                $query = ContatoDados::where('document', $searchDoc);
-                // também tentar sem zeros à esquerda caso exista divergência
-                $altNoLeading = ltrim($searchDoc, '0');
-                if (!empty($altNoLeading) && $altNoLeading !== $searchDoc) {
-                    $query = $query->orWhere('document', $altNoLeading);
-                }
-
-                    $count = $query->count();
-                    $context['qtdContratos'] = $count;
-                    $session->context = $context;
-                    // Persistir contexto e log do resultado
-                    $session->save();
-                    Log::info('api_valida_cpf debug after search', [
-                        'searchDoc' => $searchDoc,
-                        'altNoLeading' => $altNoLeading,
-                        'count' => $count,
-                    ]);
-
-                    // Decide which step to return explicitly and avoid switch fall-through
-                    $negFlow = WhatsappFlow::where('name', 'Fluxo Negociar')->first();
-
-                    if ($count >= 1) {
-                        // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
-                        return WhatsappFlowStep::where('flow_id', 1)->where('step_number', 3)->first();
-                    }
-
-                    // If negociacao flow is missing, return null to avoid errors
-                    if (!$negFlow) {
-                        Log::warning('api_valida_cpf: Fluxo Negociar not found');
-                        return null;
-                    }
-
-                    if ($count === 1) {
-                        // Single contract -> first step of Fluxo Negociar
-                        return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 1)->first();
-                    }
-
-                    if ($count === 0) {
-                        // No contracts -> negociacao step 2 (cliente sem contratos)
-                        return WhatsappFlowStep::where('flow_id', $negFlow->id)->where('step_number', 2)->first();
-                    }
-
-                    // Fallback
-                    return null;
+                // Fallback
+                return null;
             case 'verifica_horario':
                 $msg = strtolower(trim($messageText));
                 if (in_array($msg, ['sim', 's'])) {
@@ -804,6 +724,10 @@ class WhatsappController extends Controller
 
     private function replacePlaceholders($text, $context, $name)
     {
+        // Convert escaped newline sequences stored as literal backslash-n into real newlines
+        if (is_string($text)) {
+            $text = str_replace(["\\r\\n", "\\n", "\\r"], ["\r\n", "\n", "\r"], $text);
+        }
         $replacements = [
             '{{NomeBanco}}' => 'Banco Exemplo',
             '{{primeironome}}' => explode(' ', $name)[0] ?? 'Cliente',
@@ -993,6 +917,7 @@ class WhatsappController extends Controller
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
     {
+        Log::error('telefone. ' . $overridePhoneNumberId);
         // Tenta obter token e phoneNumberId salvos no banco (configurados pelo fluxo de auth)
         $config = DB::table('whatsapp')->first();
         $token = $config->access_token ?? env('WHATSAPP_TOKEN');
