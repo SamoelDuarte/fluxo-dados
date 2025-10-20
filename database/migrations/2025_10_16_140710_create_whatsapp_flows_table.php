@@ -29,6 +29,7 @@ return new class extends Migration {
             ['name' => 'Fluxo Erros', 'description' => 'Tratamento de erros de input, API e mídias'],
             ['name' => 'Fluxo Administrativo', 'description' => 'Gerencia feriados e horários de atendimento'],
             ['name' => 'Fluxo Avaliação Atendente', 'description' => 'Coleta e registra avaliações de atendimento'],
+            ['name' => 'Módulo Algo Mais', 'description' => 'Menu adicional: Início / Atendimento / Encerrar conversa'],
         ];
 
         foreach ($flows as $flow) {

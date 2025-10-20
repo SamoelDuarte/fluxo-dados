@@ -112,6 +112,22 @@ return new class extends Migration {
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],
+            // Step 7: solicita envio de comprovante (imagem/arquivo)
+            [
+                'flow_id' => 2,
+                'step_number' => 7,
+                'prompt' => 'Por favor, envie seu comprovante de pagamento.\n\n📸 Tire uma foto legível ou envie um arquivo contendo o comprovante.',
+                'expected_input' => 'media',
+                'next_step_condition' => 'recebeu_comprovante',
+            ],
+            // Step 8: confirmação de recebimento do comprovante
+            [
+                'flow_id' => 2,
+                'step_number' => 8,
+                'prompt' => 'Comprovante recebido!\n\n_Aguarde, estamos verificando a disponibilidade dos nossos especialistas._',
+                'expected_input' => null,
+                'next_step_condition' => 'fluxo_algo_mais',
+            ],
 
             // === FLUXO PROPOSTA ===
             [
@@ -136,6 +152,30 @@ return new class extends Migration {
                 'prompt' => 'Opções adicionais:\n- Alterar Vencimento\n- Parcelar Pagamento\n- Ver outro contrato\n- Falar com Especialista\n- Encerrar Atendimento',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 4: opções de parcelamento (retornadas pela API)
+            [
+                'flow_id' => 3,
+                'step_number' => 4,
+                'prompt' => 'Confira as opções de parcelamento com vencimento da primeira parcela para *{{dataVencimento}}*:\n\n1) {{opcoesPagamento[0].valorParcela}} - {{opcoesPagamento[0].descricao}}\n2) {{opcoesPagamento[1].valorParcela}} - {{opcoesPagamento[1].descricao}}\n\nSelecione a opção desejada:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 5: mensagem quando API não retornar opções
+            [
+                'flow_id' => 3,
+                'step_number' => 5,
+                'prompt' => 'Não conseguimos consultar as opções de parcelamento no momento. Por favor, tente novamente mais tarde.',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 6: confirmação da data escolhida pelo usuário
+            [
+                'flow_id' => 3,
+                'step_number' => 6,
+                'prompt' => 'Você escolheu a data *{{DataEscolhida}}* para pagamento.\n\nDeseja confirmar essa opção?',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'fluxo_confirma_acordo',
             ],
 
             // === FLUXO ACORDOS ===
@@ -176,18 +216,51 @@ return new class extends Migration {
             [
                 'flow_id' => 5,
                 'step_number' => 1,
-                'prompt' => 'Resumo do acordo: Valor R$ *{{valorTotal}}*, Vencimento *{{dataVencimento}}*. Confirmar formalização?',
-                'expected_input' => 'sim_nao',
-                'next_step_condition' => 'fluxo_envia_codigo_barras',
+                'prompt' => '@primeironome, aqui está o resumo da proposta:\n\n- Valor acordo: R$ *{{valorTotal}}*\n- Data de Vencimento: *{{dataVencimento}}*\n- Modo de pagamento: *{{modoPagamento}}*\n\n*Podemos formalizar o acordo?*',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
             ],
 
             // === FLUXO ENVIA CÓDIGO DE BARRAS ===
+            // Step 1: confirmação de geração do acordo
             [
                 'flow_id' => 6,
                 'step_number' => 1,
-                'prompt' => 'Estou te enviando o código de barras para pagamento: {{codigoBarras}}',
+                'prompt' => 'Acordo gerado com sucesso!\n\n{{textAcordoFormalizado}}',
                 'expected_input' => null,
-                'next_step_condition' => 'fluxo_algo_mais',
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 2: aviso de envio do código de barras
+            [
+                'flow_id' => 6,
+                'step_number' => 2,
+                'prompt' => 'Estou te enviando o código de barras para pagamento. 🔔',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 3: código de barras (texto)
+            [
+                'flow_id' => 6,
+                'step_number' => 3,
+                'prompt' => '{{codigoBarras}}',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 4: placeholder para anexo/arquivo do boleto
+            [
+                'flow_id' => 6,
+                'step_number' => 4,
+                'prompt' => 'Enviei o boleto em anexo. Por favor verifique o arquivo para pagamento.',
+                'expected_input' => null,
+                'next_step_condition' => 'repetir_pergunta',
+            ],
+            // Step 5: lembrete e menu de opções pós-envio
+            [
+                'flow_id' => 6,
+                'step_number' => 5,
+                'prompt' => 'Lembrando que é muito importante você realizar o pagamento para garantir esse valor.\n\nDeseja algo mais?',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
             ],
 
             // === FLUXO ERROS ===
@@ -215,6 +288,14 @@ return new class extends Migration {
                 'prompt' => '@primeironome, avalie seu atendimento com uma nota de 0 a 10:',
                 'expected_input' => 'numero',
                 'next_step_condition' => 'avaliacao_finalizada',
+            ],
+            // === MODULO ALGO MAIS (flow_id = 10) ===
+            [
+                'flow_id' => 10,
+                'step_number' => 1,
+                'prompt' => 'Posso ajudar em algo mais?\n\nSelecione um botão abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
             ],
         ];
 
