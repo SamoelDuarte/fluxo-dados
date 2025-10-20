@@ -28,26 +28,36 @@ return new class extends Migration {
                 'step_number' => 1,
                 'prompt' => 'Seja bem-vindo(a) ao nosso canal digital! Sou a assistente da Neocob em nome da {{NomeBanco}}.',
                 'expected_input' => null,
-                'next_step_condition' => 'solicita_cpf',
+                'next_step_condition' => 'verifica_horario',
             ],
+            // Pergunta de horário (Sim / Não)
             [
                 'flow_id' => 1,
                 'step_number' => 2,
-                'prompt' => 'Por favor, informe seu *CPF/CNPJ* (apenas números):',
-                'expected_input' => 'cpf',
-                'next_step_condition' => 'api_valida_cpf',
+                'prompt' => 'Hoje é dia útil ? (07:00 às 22:00; Sábados: 07:00 às 14:00)\n\nSelecione: Sim ou Não',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'verifica_horario',
             ],
+            // Solicitação de CPF com instrução de exemplo
             [
                 'flow_id' => 1,
                 'step_number' => 3,
+                'prompt' => 'Para localizar suas informações, por favor informe seu *CPF/CNPJ* (apenas números).\nDigite apenas os números conforme o exemplo abaixo:\n01010109120',
+                'expected_input' => 'cpf',
+                'next_step_condition' => 'api_valida_cpf',
+            ],
+            // Mensagem de busca (buscando informações)
+            [
+                'flow_id' => 1,
+                'step_number' => 4,
                 'prompt' => 'Estou buscando as informações necessárias para seguirmos por aqui, só um instante.',
                 'expected_input' => null,
                 'next_step_condition' => 'fluxo_negociar',
             ],
-            // Mensagem quando não encontra cadastro
+            // Mensagem quando não encontra cadastro (repetir CPF)
             [
                 'flow_id' => 1,
-                'step_number' => 4,
+                'step_number' => 5,
                 'prompt' => 'Não localizei cadastro com esse documento. Por favor digite novamente o CPF/CNPJ (apenas números).',
                 'expected_input' => 'cpf',
                 'next_step_condition' => 'api_valida_cpf',
@@ -75,6 +85,30 @@ return new class extends Migration {
                 'flow_id' => 2,
                 'step_number' => 3,
                 'prompt' => '@primeironome, localizei *8* contratos em aberto.\n\nSelecione o botão abaixo para conferir:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 4: pergunta se possui acordo vigente para o contrato selecionado
+            [
+                'flow_id' => 2,
+                'step_number' => 4,
+                'prompt' => '@primeironome, este contrato possui acordo vigente? Por favor selecione: Sim ou Não',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'verifica_acordo',
+            ],
+            // Step 5: caso exista(s) acordo(s) vigentes - pergunta para visualizar
+            [
+                'flow_id' => 2,
+                'step_number' => 5,
+                'prompt' => '@primeironome, localizei *{{qtdAcordos}}* acordo(s) vigente(s). Deseja visualizar?',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'fluxo_acordos',
+            ],
+            // Step 6: opções para o contrato selecionado (negociar / 2ª via / enviar comprovante / atendimento / encerrar)
+            [
+                'flow_id' => 2,
+                'step_number' => 6,
+                'prompt' => 'Para este contrato, selecione uma opção abaixo:',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],
