@@ -115,10 +115,35 @@ Este documento descreve os fluxos e passos configurados no sistema de WhatsApp (
 
 - Step 1
   - step_number: 1
-  - prompt: "@primeironome, localizei *{{qtdAcordos}}* acordos formalizados. Deseja visualizar?"
-  - expected_input: `botao`
+  - prompt: "Obrigado pela confirmação! Identifiquei que você possui uma negociação na data *{{dataAcordo}}* no valor de *{{valorTotal}}*.\nAguarde, vou te enviar o código de barras referente ao seu acordo."
+  - expected_input: null
   - next_step_condition: `fluxo_envia_codigo_barras`
-  - Descrição: pergunta sobre visualizar acordos formalizados.
+  - Descrição: fluxo para o caso em que existe exatamente um acordo — notifica o usuário e encaminha para o envio do código de barras.
+
+- Step 2
+  - step_number: 2
+  - prompt: "Localizei *{{qtdAcordos}}* acordo(s) formalizado(s).\nClique no botão abaixo para conferir:"
+  - expected_input: `botao`
+  - next_step_condition: `seleciona_acordo`
+  - Descrição: quando há múltiplos acordos, apresenta uma lista/interação para o usuário selecionar qual acordo deseja acessar.
+
+- Step 3
+  - step_number: 3
+  - prompt: "Selecione uma opção para o acordo selecionado:\n- Enviar código de barras\n- Ver detalhes do acordo\n- Voltar"
+  - expected_input: `botao`
+  - next_step_condition: `processar_opcao`
+  - Descrição: opções aplicáveis ao acordo escolhido — cada botão deve mapear para a ação correspondente (envio de código, exibição de detalhes, retorno ao menu de acordos).
+
+- Step 4
+  - step_number: 4
+  - prompt: "{{Nome}}, você não possui acordo(s) ativo(s) em nossa assessoria.\n\nPodemos ajudar em algo mais?\nSelecione uma opção abaixo:"
+  - expected_input: `botao`
+  - next_step_condition: `processar_opcao`
+  - Descrição: caso não existam acordos, informa o cliente e apresenta o menu de opções (falar com atendente, encerrar, etc.).
+
+**Observações técnicas**
+- `seleciona_acordo` é uma condição server-side que deve ler `context['acordos']` (array) e retornar o passo 3 (opções) com contexto do acordo selecionado. Se preferir, pode retornar diretamente `fluxo_envia_codigo_barras` quando a ação desejada for envio do código.
+- Use `processar_opcao` para mapear botões como 'Enviar código de barras' -> `fluxo_envia_codigo_barras`, 'Ver detalhes do acordo' -> passo com resumo, 'Voltar' -> retorna à lista de acordos.
 
 
 ## Fluxo Confirma Acordo (flow_id = 5)

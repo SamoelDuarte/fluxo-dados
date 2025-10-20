@@ -139,12 +139,37 @@ return new class extends Migration {
             ],
 
             // === FLUXO ACORDOS ===
+            // Step 1: caso exista exatamente 1 acordo - confirma e envia código
             [
                 'flow_id' => 4,
                 'step_number' => 1,
-                'prompt' => '@primeironome, localizei *{{qtdAcordos}}* acordos formalizados. Deseja visualizar?',
-                'expected_input' => 'botao',
+                'prompt' => 'Obrigado pela confirmação! Identifiquei que você possui uma negociação na data *{{dataAcordo}}* no valor de *{{valorTotal}}*.\nAguarde, vou te enviar o código de barras referente ao seu acordo.',
+                'expected_input' => null,
                 'next_step_condition' => 'fluxo_envia_codigo_barras',
+            ],
+            // Step 2: lista de acordos quando houver mais de um
+            [
+                'flow_id' => 4,
+                'step_number' => 2,
+                'prompt' => 'Localizei *{{qtdAcordos}}* acordo(s) formalizado(s).\nClique no botão abaixo para conferir:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'seleciona_acordo',
+            ],
+            // Step 3: ações para o acordo selecionado (enviar código, ver detalhes, voltar)
+            [
+                'flow_id' => 4,
+                'step_number' => 3,
+                'prompt' => 'Selecione uma opção para o acordo selecionado:\n- Enviar código de barras\n- Ver detalhes do acordo\n- Voltar',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 4: mensagem quando não existem acordos
+            [
+                'flow_id' => 4,
+                'step_number' => 4,
+                'prompt' => '{{Nome}}, você não possui acordo(s) ativo(s) em nossa assessoria.\n\nPodemos ajudar em algo mais?\nSelecione uma opção abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
             ],
 
             // === FLUXO CONFIRMA ACORDO ===
