@@ -68,7 +68,7 @@ return new class extends Migration {
             [
                 'flow_id' => 2,
                 'step_number' => 1,
-                'prompt' => '@primeironome! Identifiquei 1 débito em atraso a *5* dias.\n\nAguarde enquanto localizo a melhor proposta para você... ',
+                'prompt' => '@primeironome! Identifiquei *{{qtdContratos}}* débito(s) em atraso.\n\nAguarde enquanto localizo a melhor proposta para você...',
                 'expected_input' => null,
                 'next_step_condition' => 'repetir_pergunta',
             ],
@@ -84,7 +84,7 @@ return new class extends Migration {
             [
                 'flow_id' => 2,
                 'step_number' => 3,
-                'prompt' => '@primeironome, localizei *8* contratos em aberto.\n\nSelecione o botão abaixo para conferir:',
+                'prompt' => '@primeironome, localizei *{{qtdContratos}}* contratos em aberto.\n\nSelecione o botão abaixo para conferir:',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'processar_opcao',
             ],
@@ -117,9 +117,25 @@ return new class extends Migration {
             [
                 'flow_id' => 3,
                 'step_number' => 1,
-                'prompt' => 'A melhor oferta é de R$ *{{valorTotal}}* com vencimento em *{{data}}*. Deseja gerar o boleto?',
-                'expected_input' => 'sim_nao',
-                'next_step_condition' => 'fluxo_confirma_acordo',
+                'prompt' => 'A melhor oferta para pagamento é de R$ *{{valorTotal}}* com vencimento em *{{data}}*.\n\n*Podemos enviar o boleto?*\nSelecione uma opção abaixo:',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 2: botões específicos da proposta (Gerar Acordo / Mais Opções / Ver outro contrato)
+            [
+                'flow_id' => 3,
+                'step_number' => 2,
+                'prompt' => 'Opções:\n- Gerar Acordo\n- Mais Opções\n- Ver outro Contrato',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
+            ],
+            // Step 3: lista de opções adicionais (ex: Alterar Vencimento, Parcelar Pagamento...)
+            [
+                'flow_id' => 3,
+                'step_number' => 3,
+                'prompt' => 'Opções adicionais:\n- Alterar Vencimento\n- Parcelar Pagamento\n- Ver outro contrato\n- Falar com Especialista\n- Encerrar Atendimento',
+                'expected_input' => 'botao',
+                'next_step_condition' => 'processar_opcao',
             ],
 
             // === FLUXO ACORDOS ===
