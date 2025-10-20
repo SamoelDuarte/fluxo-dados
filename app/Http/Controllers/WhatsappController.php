@@ -192,10 +192,11 @@ class WhatsappController extends Controller
 
         if ($currentStep->next_step_condition == "api_valida_cpf") {
 
-            $verificaContrato = true;
+            $PossuiContratoAberto = false;
             //verifica aki se iver vefica nahavanse tem algu em aberto
-            $verificaVigente = false;
-            if ($verificaContrato) {
+
+            if ($PossuiContratoAberto) {
+                $verificaVigente = false;
                 // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
                 $stepbuscndo = $this->getStepFluxo(1, 4);
                 $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
@@ -228,6 +229,18 @@ class WhatsappController extends Controller
                     $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $stepNaoVigente->prompt);
                 }
             } else {
+                $PossuiAcordoVigente = true;
+                if ($PossuiAcordoVigente) {
+                    $stepNaoVigente = $this->getStepFluxo(4, 4);
+                    $options = [
+                        ['id' => 'falar_com_atendente', 'title' => 'Falar Com Atendente'],
+                        ['id' => 'encerrar_atendimento', 'title' => 'Encerrar Atendimento'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $stepNaoVigente->prompt);
+                } else {
+                    
+
+                }
 
             }
 
@@ -974,7 +987,12 @@ class WhatsappController extends Controller
 
         $originalTitle = is_string($title) ? trim($title) : '';
 
-        $safeHeader = 'Selecione uma opção:';
+        // If there's a title/prompt text, send it first as a normal text message
+        // so the interactive list is sent after (user requested this behavior).
+        if (!empty($originalTitle)) {
+            $this->sendMessage($wa_id, $originalTitle, $phoneNumberId);
+        }
+
 
         // Section title stricter limit
         $sectionTitle = 'Opções';
