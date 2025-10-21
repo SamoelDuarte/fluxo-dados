@@ -10,15 +10,15 @@ class WhatsappFlowStep extends Model
     use HasFactory;
 
     protected $fillable = [
-        'flow_id',
-        'step_number',
         'prompt',
         'expected_input',
         'next_step_condition',
     ];
 
-    public function flow()
+
+     public function sessions()
     {
-        return $this->belongsTo(WhatsappFlow::class, 'flow_id');
+        return $this->hasMany(WhatsappSession::class, 'current_step_id');
     }
+   
 }

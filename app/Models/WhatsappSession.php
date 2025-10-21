@@ -11,7 +11,6 @@ class WhatsappSession extends Model
 
     protected $fillable = [
         'contact_id',
-        'flow_id',
         'current_step_id',
         'context',
     ];
@@ -25,10 +24,6 @@ class WhatsappSession extends Model
         return $this->belongsTo(WhatsappContact::class, 'contact_id');
     }
 
-    public function flow()
-    {
-        return $this->belongsTo(WhatsappFlow::class, 'flow_id');
-    }
 
     public function currentStep()
     {
