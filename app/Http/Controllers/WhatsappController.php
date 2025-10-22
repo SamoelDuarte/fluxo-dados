@@ -302,7 +302,7 @@ class WhatsappController extends Controller
 
                     $this->sendMessage($wa_id, $this->replacePlaceholders('codigo de barra', $session->context, $name), $phoneNumberId);
 
-                    $this->sendMessage($wa_id, body: $this->replacePlaceholders('envia pdf', $session->context, $name), $phoneNumberId);
+                    $this->sendMessage($wa_id,  $this->replacePlaceholders('envia pdf', $session->context, $name), $phoneNumberId);
 
                     $step = $this->getStepFluxo(25);
                     $this->sendMessage($wa_id, $this->replacePlaceholders($step->prompt, $session->context, $name), $phoneNumberId);
