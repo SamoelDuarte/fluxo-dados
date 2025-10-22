@@ -339,29 +339,29 @@ class WhatsappController extends Controller
                 default:
                     # code...
                     break;
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
         // 4️⃣ Lógica baseada no fluxo (passa phone_number_id explicitamente)
