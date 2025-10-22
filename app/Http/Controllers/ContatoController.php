@@ -112,7 +112,7 @@ class ContatoController extends Controller
                     'telefone' => $row[0] ?? null,
                     'nome' => $row[1] ?? null,
                     'document' => $row[2] ?? null,
-                    'numero_contrato' => $row[3] ?? null,
+                    'cod_cliente' => $row[3] ?? null,
                     'data_vencimento' => $row[4] ?? null,
                     'dias_atraso' => $row[5] ?? null,
                     'valor' => $row[6] ?? null,
@@ -125,7 +125,7 @@ class ContatoController extends Controller
             $telefone = ($tipo === 'TELEFONE') ? ($mapped['valor_do_registro'] ?? null) : null;
             $nome = $mapped['nome_cliente'] ?? null;
             $document = $mapped['cpfcnpj'] ?? null;
-            $numero_contrato = $mapped['codcliente'] ?? null;
+            $cod_cliente = $mapped['codcliente'] ?? null;
             $valor_str = $mapped['coringa2'] ?? null;
             $dias_atraso_str = $mapped['coringa3'] ?? null;
             $data_venc_str = $mapped['coringa4'] ?? null;
@@ -159,7 +159,7 @@ class ContatoController extends Controller
                 'telefone' => $telefone,
                 'nome' => $nome,
                 'document' => $document,
-                'numero_contrato' => $numero_contrato,
+                'cod_cliente' => $cod_cliente,
                 'data_vencimento' => $data_venc,
                 'dias_atraso' => $dias_atraso,
                 'valor' => $valor,
