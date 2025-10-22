@@ -121,7 +121,17 @@ class WhatsappController extends Controller
         }
 
         if ($session->currentStep->next_step_condition == "api_valida_cpf") {
-            $PossuiContratoAberto = true;
+
+            // Busca cod_cliente na tabela contato_dados usando document = $messageText
+            $document = preg_replace('/\D/', '', $messageText);
+            $contatoDados = \App\Models\ContatoDados::where('document', $document)->first();
+            $codCliente = $contatoDados ? $contatoDados->cod_cliente : null;
+            if ($codCliente) {
+                $PossuiContratoAberto = $this->obterAcordosPorCliente($codCliente);
+            } else {
+                $PossuiContratoAberto = false;
+            }
+
             //verifica aki se iver vefica nahavanse tem algu em aberto
 
             // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
@@ -302,7 +312,7 @@ class WhatsappController extends Controller
 
                     $this->sendMessage($wa_id, $this->replacePlaceholders('codigo de barra', $session->context, $name), $phoneNumberId);
 
-                    $this->sendMessage($wa_id,  $this->replacePlaceholders('envia pdf', $session->context, $name), $phoneNumberId);
+                    $this->sendMessage($wa_id, $this->replacePlaceholders('envia pdf', $session->context, $name), $phoneNumberId);
 
                     $step = $this->getStepFluxo(25);
                     $this->sendMessage($wa_id, $this->replacePlaceholders($step->prompt, $session->context, $name), $phoneNumberId);
@@ -367,6 +377,41 @@ class WhatsappController extends Controller
         // 4️⃣ Lógica baseada no fluxo (passa phone_number_id explicitamente)
         // $this->processFlow($session, $wa_id, $name, $messageText, $metadata['phone_number_id'] ?? $session->phone_number_id ?? null);
 
+    }
+
+    /**
+     * Faz request para obter acordos por cliente
+     * @param string $codigoCliente
+     * @return array|false
+     */
+    private function obterAcordosPorCliente($codigoCliente)
+    {
+        $client = new \GuzzleHttp\Client();
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Authorization' => 'meuTokenSecreto123', // Substitua pelo token correto
+        ];
+        $body = json_encode([
+            'codigoCliente' => $codigoCliente
+        ]);
+        $request = new \GuzzleHttp\Psr7\Request(
+            'POST',
+            'https://havan-request.betasolucao.com.br/api/obter-acordos-por-cliente',
+            $headers,
+            $body
+        );
+        try {
+            $res = $client->sendAsync($request)->wait();
+            $responseBody = $res->getBody()->getContents();
+            $data = json_decode($responseBody, true);
+            if (isset($data['mensagem']) && strtolower($data['mensagem']) === 'nenhumacordo encontrado') {
+                return false;
+            }
+            return $data;
+        } catch (\Exception $e) {
+            \Log::error('Erro ao obter acordos por cliente: ' . $e->getMessage());
+            return false;
+        }
     }
 
     private function replacePlaceholders($text, $context, $name)

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('telefone')->nullable();
             $table->string('nome')->nullable();
             $table->string('document')->nullable();
-            $table->string('numero_contrato')->nullable();
+            $table->string('cod_cliente')->nullable();
             $table->date('data_vencimento')->nullable();
             $table->integer('dias_atraso')->nullable();
             $table->decimal('valor', 15, 2)->nullable();
