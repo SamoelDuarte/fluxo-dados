@@ -16,7 +16,7 @@ class ContatoDados extends Model
         'telefone',
         'nome',
         'document',
-        'numero_contrato',
+        'cod_cliente',
         'data_vencimento',
         'dias_atraso',
         'valor',

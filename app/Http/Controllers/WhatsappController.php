@@ -1133,7 +1133,7 @@ class WhatsappController extends Controller
         $data = [
             "codigoUsuarioCarteiraCobranca" => (string) $codigoUsuarioCarteiraCobranca,
             "codigoCarteiraCobranca" => (string) $carteiraId,
-            "pessoaCodigo" => $contato->numero_contrato,
+            "pessoaCodigo" => $contato->cod_cliente,
             "dataPrimeiraParcela" => Carbon::today()->toDateString(),
             "valorEntrada" => 0,
             "chave" => "3cr1O35JfhQ8vBO",
@@ -1164,7 +1164,7 @@ class WhatsappController extends Controller
             }
             $result = [
                 'amount' => $ultimoArray['valorDivida'],
-                'contract' => $contato->numero_contrato,
+                'contract' => $contato->cod_cliente,
                 'carteira' => $carteiraId,
                 'parcelamento' => $ultimoArray['parcelamento'],
                 'valorTotalOriginal' => $ultimoArray['valorTotalOriginal'],

@@ -24,7 +24,7 @@ class CronController extends Controller
 
 
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
-        $pessoaCodigo = $contato->numero_contrato;
+        $pessoaCodigo = $contato->cod_cliente;
 
         $planilhaData = [];
 
