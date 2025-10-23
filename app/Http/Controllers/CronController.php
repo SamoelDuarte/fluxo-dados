@@ -479,7 +479,7 @@ class CronController extends Controller
         }
     }
 
-    public function obterParcelamento(HttpRequest $request)
+    public function obterParcelamento(HttpRequest $request): JsonResponse
     {
         // Simular os dados do contrato, substitua isso com uma lógica real, como uma consulta ao banco de dados
         $pessoaCodigo = '12790584';
