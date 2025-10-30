@@ -66,16 +66,16 @@ return new class extends Migration {
             [
                 'flow_id' => 2,
                 'step_number' => 2,
-                'prompt' => '@primeironome, confira como podemos te ajudar por este canal. 🙂',
+                'prompt' => '{{primeironome}}, confira como podemos te ajudar por este canal. 🙂',
                 'expected_input' => null,
-                'next_step_condition' => 'aguarda_resposta_acordo_aberto_true',
+                'next_step_condition' => 'aguarda_resposta_acordo_aberto',
             ],
             [
                 'flow_id' => 2,
                 'step_number' => 3,
-                'prompt' => '@primeironome, confira como podemos te ajudar por este canal. 🙂',
+                'prompt' => '{{primeironome}}, confira como podemos te ajudar por este canal. 🙂',
                 'expected_input' => null,
-                'next_step_condition' => 'aguarda_resposta_acordo_aberto_false',
+                'next_step_condition' => 'aguarda_resposta_divida_aberta',
             ],
             [
                 'flow_id' => 2,
@@ -111,7 +111,7 @@ return new class extends Migration {
             [
                 'flow_id' => 3,
                 'step_number' => 3,
-                'prompt' => '@primeironome, localizei *X* contratos em aberto.',
+                'prompt' => '{{primeironome}}, localizei *X* contratos em aberto.',
                 'expected_input' => 'botao',
                 'next_step_condition' => 'aguarda_resposta_lista_de_contratos',
             ],
@@ -200,7 +200,7 @@ return new class extends Migration {
             [
                 'flow_id' => 9,
                 'step_number' => 1,
-                'prompt' => '@primeironome, aqui está o resumo da proposta: - *Valor acordo*: R$ 500,00 - *Data de Vencimento*: {{dataVencimento} - *Modo de pagamento*: Parcelado em 2x de R$ 250,00 
+                'prompt' => '{{primeironome}}, aqui está o resumo da proposta: - *Valor acordo*: R$ 500,00 - *Data de Vencimento*: {{dataVencimento} - *Modo de pagamento*: Parcelado em 2x de R$ 250,00 
                 *Podemos formalizar o acordo?*
                 Selecione uma opção abaixo:',
                 'expected_input' => 'botao',

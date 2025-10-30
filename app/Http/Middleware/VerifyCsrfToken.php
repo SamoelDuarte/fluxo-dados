@@ -15,6 +15,6 @@ class VerifyCsrfToken extends Middleware
         '/obterparcelamento',
         'api/havan/*',
         '/api/havan/*',
-        '/whatsapp/webhook'
+        '/whatsapp/webhook/*'
     ];
 }

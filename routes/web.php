@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Http\Controllers\CronController;
@@ -9,7 +8,7 @@ use App\Http\Controllers\UploadController;
 use App\Http\Controllers\FacebookController;
 use App\Http\Controllers\WhatsappController;
 use Illuminate\Support\Facades\Route;
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -21,12 +20,21 @@ require __DIR__.'/auth.php';
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+Route::prefix('whatsapp')->group(function () {
+    Route::prefix('webhook')->group(function () {
+        Route::get('verificaChat', [\App\Http\Controllers\WhatsappController::class, 'verificaChat']);
+    });
+});
+
+
 
 Route::get('/', function () {
     return view('welcome');
 });
 Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsappController::class, 'webhook']);
 Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsappController::class, 'webhook']);
+
+
 
 Route::get('/planilha', [ExcelController::class, 'index']);
 Route::post('/excel/upload', [ExcelController::class, 'upload'])->name('excel.upload');
@@ -51,7 +59,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/whatsapp/connect', [WhatsappController::class, 'showForm'])->name('whatsapp.connect');
     Route::post('/whatsapp/connect', [WhatsappController::class, 'save'])->name('whatsapp.save');
-    
+
     // Telefones CRUD
     Route::resource('telefones', \App\Http\Controllers\TelefoneController::class)->except(['show'])->middleware('auth');
 
@@ -78,7 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/contatos/imports/{import}', [\App\Http\Controllers\ContatoController::class, 'importStatus'])->name('contatos.import.status');
     Route::post('/contatos/imports/{import}/process', [\App\Http\Controllers\ContatoController::class, 'processChunk'])->name('contatos.import.process');
 
-       
+
 
 });
 
@@ -91,6 +99,6 @@ Route::get('/parcelamento3', [CronController::class, 'obterOpcoesParcelamento3']
 Route::get('/parcelamento4', [CronController::class, 'obterOpcoesParcelamento4']); // Processamento do upload
 Route::get('/dados', [CronController::class, 'obterDadosEAtualizarContratos']); // Processamento do upload
 Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processamento do upload
-    Route::get('/whatsapp/auth-facebook', [WhatsappController::class, 'authFacebook'])->name('whatsapp.authFacebook');
-    Route::get('/whatsapp/callback', [WhatsappController::class, 'callback'])->name('whatsapp.callback');
+Route::get('/whatsapp/auth-facebook', [WhatsappController::class, 'authFacebook'])->name('whatsapp.authFacebook');
+Route::get('/whatsapp/callback', [WhatsappController::class, 'callback'])->name('whatsapp.callback');
 

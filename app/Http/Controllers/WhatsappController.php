@@ -17,6 +17,16 @@ use Carbon\Carbon;
 
 class WhatsappController extends Controller
 {
+
+    public function verificaChat(Request $request)
+    {
+         $data = $request->all();
+
+         Log::info('VerificaChat Data: ', $data);
+
+
+    }
+
     public function webhook(Request $request)
     {
 
@@ -131,29 +141,62 @@ class WhatsappController extends Controller
             } else {
                 $PossuiContratoAberto = false;
             }
+            $verificaDivida = true;
+            $context = $session->context ?? [];
 
-            //verifica aki se iver vefica nahavanse tem algu em aberto
-
-            // When at least one contract exists, return Flow 1 step 3 (the 'buscando' step)
+            //estou buscando informação
             $stepbuscndo = $this->getStepFluxo(4);
             $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
 
-            $context = $session->context ?? [];
-            if ($PossuiContratoAberto) {
-                $verificaVigente = true;
-
-                // When at least one contract exists, return Flow 2 step 1 (the 'buscando' step)
+            if ($PossuiContratoAberto || $verificaDivida) {
+                //encontrei vc
                 $stepbuscndo = $this->getStepFluxo(5);
                 $this->sendMessage($wa_id, $this->replacePlaceholders($stepbuscndo->prompt, $session->context, $name), $phoneNumberId);
 
-                $session->context = $context;
+                if ($PossuiContratoAberto) {
+                    $context['PossuiContratoAberto'] = true;
+                    $session->context = $context;
+                    $session->save();
+                    $step = $this->getStepFluxo(6);
+                    $options = [
+                        ['id' => 'digitar_novamente', 'title' => 'Digitar Novamente'],
+                        ['id' => 'atendimento', 'title' => 'Atendimento'],
+                        ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                    ];
+                    $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $step->prompt);
+
+                } else {
+
+                }
+
+
+
+            } else {
+
+                $stepNaoVigente = $this->getStepFluxo(9);
+                $options = [
+                    ['id' => 'digitar_novamente', 'title' => 'Digitar Novamente'],
+                    ['id' => 'atendimento', 'title' => 'Atendimento'],
+                    ['id' => 'encerrar_conversa', 'title' => 'Encerrar conversa'],
+                ];
+                $this->sendMenuOptions($wa_id, $phoneNumberId, $options, $stepNaoVigente->prompt);
+            }
+
+
+
+
+            if ($PossuiContratoAberto) {
+                $verificaVigente = true;
+
+
+
                 // Persistir contexto e log do resultado
                 $session->save();
 
                 if ($verificaVigente) {
                     $stepNaoVigente = $this->getStepFluxo(6);
                     $options = [
-                        ['id' => 'negociar', 'title' => 'Negociar'],
+                        // ['id' => 'negociar', 'title' => 'Negociar'],
                         ['id' => '2_via_boleto', 'title' => '2ª via de boleto'],
                         ['id' => 'enviar_comprovante', 'title' => 'Enviar comprovante'],
                         ['id' => 'atendimento', 'title' => 'Atendimento'],
