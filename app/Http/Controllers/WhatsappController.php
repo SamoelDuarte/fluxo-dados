@@ -67,8 +67,14 @@ class WhatsappController extends Controller
             echo 'fora_do_dia_util';
         } else {
             if (!$session) {
+                // Primeira mensagem: cria a sessão
+                $session = WhatsappSession::create([
+                    'contact_id' => $contact->id,
+                    'current_step_id' => null,
+                    'context' => [],
+                    'phone_number_id' => $phoneNumberId ?? null
+                ]);
                 echo 'primeira_mensagem';
-
             } else {
                 echo 'chat_existente';
             }
