@@ -20,9 +20,39 @@ class WhatsappController extends Controller
 
     public function verificaChat(Request $request)
     {
-         $data = $request->all();
+        $data = $request->all();
 
-         Log::info('VerificaChat Data: ', $data);
+        // Extrai os dados recebidos em variáveis
+        $name = $data['nome'] ?? null;
+        $wa_id = $data['numero'] ?? null;
+        $contato = $data['contato'] ?? null;
+        $phoneNumberId = $data['phone_number_id'] ?? null;
+        $messageData = $data['messageData'] ?? null;
+
+        // Extrai dados da mensagem se existir
+        $messageId = $messageData['id'] ?? null;
+        $messageText = $messageData['text']['body'] ?? null;
+        $messageType = $messageData['type'] ?? 'text';
+        $messageTimestamp = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now();
+
+        // 1️⃣ Verifica se o contato já existe
+        $contact = WhatsappContact::firstOrCreate(
+            ['wa_id' => $wa_id],
+            ['name' => $name]
+        );
+
+        // 2️⃣ Salva a mensagem recebida (se houver texto)
+        if ($messageId && $messageText) {
+            WhatsappMessage::create([
+                'contact_id' => $contact->id,
+                'message_id' => $messageId,
+                'direction' => 'in',
+                'content' => $messageText,
+                'type' => $messageType,
+                'timestamp' => $messageTimestamp,
+                'raw' => $messageData,
+            ]);
+        }
 
 
     }
@@ -57,7 +87,6 @@ class WhatsappController extends Controller
 
         return response('Método não suportado', 405);
     }
-
     private function teste($data)
     {
 
@@ -77,7 +106,7 @@ class WhatsappController extends Controller
         // 1️⃣ Verifica se o contato já existe
         $contact = WhatsappContact::firstOrCreate(
             ['wa_id' => $wa_id],
-            ['name' => $name]
+            values: ['name' => $name]
         );
 
         // 2️⃣ Salva a mensagem recebida
