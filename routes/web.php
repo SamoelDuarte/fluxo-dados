@@ -22,7 +22,7 @@ require __DIR__ . '/auth.php';
 */
 Route::prefix('whatsapp')->group(function () {
     Route::prefix('webhook')->group(function () {
-        Route::get('verificaChat', [\App\Http\Controllers\WhatsappController::class, 'verificaChat']);
+        Route::post('verificaChat', [\App\Http\Controllers\WhatsappController::class, 'verificaChat']);
     });
 });
 
