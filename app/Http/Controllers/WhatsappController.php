@@ -35,6 +35,9 @@ class WhatsappController extends Controller
         $messageType = $messageData['type'] ?? 'text';
         $messageTimestamp = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now();
 
+        // Variável fixa para simular dia útil
+        $isDiaUtil = true;
+
         // 1️⃣ Verifica se o contato já existe
         $contact = WhatsappContact::firstOrCreate(
             ['wa_id' => $wa_id],
@@ -54,7 +57,22 @@ class WhatsappController extends Controller
             ]);
         }
 
+        // 3️⃣ Verifica sessão do usuário
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
 
+        // Resposta para o n8n
+        $responseN8N = [];
+
+        if (!$isDiaUtil) {
+            echo 'fora_do_dia_util';
+        } else {
+            if (!$session) {
+                echo 'primeira_mensagem';
+
+            } else {
+                echo 'chat_existente';
+            }
+        }
     }
 
     public function webhook(Request $request)
