@@ -175,10 +175,11 @@ class WhatsappController extends Controller
             'Password' => env('NEOCOBE_PASSWORD'),
             'ApiKey' => env('NEOCOBE_APIKEY')
         ]);
-        $request = new \GuzzleHttp\Psr7\Request('POST', env('NEOCOBE_TOKEN_URL', 'https://datacob.thiagofarias.adv.br/api/account/v1/login'), $headers, $body);
+        $url = env('NEOCOBE_TOKEN_URL');
+        $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
         $res = $client->sendAsync($request)->wait();
         $tokenData = json_decode($res->getBody(), true);
-        return $tokenData['Token'] ?? null;
+        return $tokenData['access_token'] ?? null;
     }
 
     /**
@@ -187,17 +188,22 @@ class WhatsappController extends Controller
     public function consultaDadosCadastrais($cpfCnpj, $token)
     {
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
-       $client = new \GuzzleHttp\Client(['verify' => false]);
+        $client = new \GuzzleHttp\Client(['verify' => false]);
         $headers = [
             'apiKey' => env('NEOCOBE_APIKEY'),
-            'Authorization' => $token
+            'Authorization' => 'Bearer ' . $token
         ];
         $url = env('NEOCOBE_DADOS_URL', 'https://datacob.thiagofarias.adv.br/api/dados-cadastrais/v1?cpfCnpj=') . $cpfCnpj;
         $request = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
-        $res = $client->sendAsync($request)->wait();
-        $body = $res->getBody();
-        $data = json_decode($body, true);
-        return $data;
+        try {
+            $res = $client->sendAsync($request)->wait();
+            $body = $res->getBody();
+            $data = json_decode($body, true);
+            return $data;
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            // Retorna apenas o texto da resposta (body)
+            return $e->getResponse()->getBody()->getContents();
+        }
     }
 
     /**
@@ -209,20 +215,26 @@ class WhatsappController extends Controller
         $cpfCnpj = $request->input('cpfCnpj');
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (!(strlen($cpfCnpj) === 11 || strlen($cpfCnpj) === 14)) {
-            return response()->json(['success' => false, 'error' => 'CPF/CNPJ inválido'], 400);
+            return response()->json(false);
         }
         $token = $this->gerarTokenNeocobe();
         if (!$token) {
-            return response()->json(['success' => false, 'error' => 'Token não gerado'], 500);
+            return response()->json(false);
         }
         $data = $this->consultaDadosCadastrais($cpfCnpj, $token);
+        if (is_string($data)) {
+            // Se o texto contém "Nenhum resultado encontrado", retorna false
+            if (strpos($data, 'Nenhum resultado encontrado') !== false) {
+                return response()->json(false);
+            }
+            // Qualquer outro erro, retorna false
+            return response()->json(false);
+        }
         if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
-            return response()->json(['success' => true, 'data' => $data]);
+            return response()->json(true);
         }
-        if (is_array($data) && isset($data[0]) && $data[0] === 'Nenhum resultado encontrado') {
-            return response()->json(['success' => false, 'data' => []]);
-        }
-        return response()->json(['success' => false, 'error' => 'Erro na consulta'], 500);
+        // Se não for nenhum dos casos acima, retorna false
+        return response()->json(false);
     }
 
 
