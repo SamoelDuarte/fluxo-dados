@@ -215,26 +215,26 @@ class WhatsappController extends Controller
         $cpfCnpj = $request->input('cpfCnpj');
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (!(strlen($cpfCnpj) === 11 || strlen($cpfCnpj) === 14)) {
-            return response()->json(false);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
         $token = $this->gerarTokenNeocobe();
         if (!$token) {
-            return response()->json(false);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
         $data = $this->consultaDadosCadastrais($cpfCnpj, $token);
         if (is_string($data)) {
             // Se o texto contém "Nenhum resultado encontrado", retorna false
             if (strpos($data, 'Nenhum resultado encontrado') !== false) {
-                return response()->json(false);
+                return response()->make('false', 200, ['Content-Type' => 'text/plain']);
             }
             // Qualquer outro erro, retorna false
-            return response()->json(false);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
         if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
-            return response()->json(true);
+            return response()->make('true', 200, ['Content-Type' => 'text/plain']);
         }
         // Se não for nenhum dos casos acima, retorna false
-        return response()->json(false);
+        return response()->make('false', 200, ['Content-Type' => 'text/plain']);
     }
 
 
