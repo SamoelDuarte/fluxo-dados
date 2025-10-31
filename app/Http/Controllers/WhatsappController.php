@@ -78,7 +78,7 @@ class WhatsappController extends Controller
                     'step' => $step
                 ]);
             } else {
-                echo json_encode(value: [
+                echo json_encode( [
                     'status' => 'chat_existente',
                     'step' => $session->current_step
                 ]);
