@@ -166,7 +166,7 @@ class WhatsappController extends Controller
      */
     public function gerarTokenNeocobe()
     {
-        $client = new \GuzzleHttp\Client();
+        $client = new \GuzzleHttp\Client(['verify' => false]);
         $headers = [
             'Content-Type' => 'application/json'
         ];
@@ -187,7 +187,7 @@ class WhatsappController extends Controller
     public function consultaDadosCadastrais($cpfCnpj, $token)
     {
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
-        $client = new \GuzzleHttp\Client();
+       $client = new \GuzzleHttp\Client(['verify' => false]);
         $headers = [
             'apiKey' => env('NEOCOBE_APIKEY'),
             'Authorization' => $token
