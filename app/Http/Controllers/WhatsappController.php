@@ -73,15 +73,9 @@ class WhatsappController extends Controller
                 ]);
                 // Atualiza para o próximo step (exemplo: verifica_cpf)
                 $step = $this->atualizaStep($session, 'verifica_cpf');
-                echo json_encode([
-                    'status' => 'primeira_mensagem',
-                    'step' => $step
-                ]);
+                echo 'primeira_mensagem';
             } else {
-                echo json_encode( [
-                    'status' => 'chat_existente',
-                    'step' => $session->current_step
-                ]);
+                echo $session->current_step;
             }
         }
 
