@@ -75,7 +75,7 @@ class WhatsappController extends Controller
                 $step = $this->atualizaStep($session, 'verifica_cpf');
                 echo json_encode([
                     'status' => 'primeira_mensagem',
-                    'step' => $step
+                    'step' => ''
                 ]);
             } else {
                 echo json_encode( [
