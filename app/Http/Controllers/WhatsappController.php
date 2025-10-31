@@ -231,7 +231,8 @@ class WhatsappController extends Controller
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
         if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
-            return response()->make('true', 200, ['Content-Type' => 'text/plain']);
+            // Retorna todos os dados para n8n acessar as variáveis
+            return response()->json(['success' => true, 'data' => $data]);
         }
         // Se não for nenhum dos casos acima, retorna false
         return response()->make('false', 200, ['Content-Type' => 'text/plain']);
