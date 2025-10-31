@@ -82,7 +82,7 @@ class WhatsappController extends Controller
             } else {
                 echo json_encode([
                     'status' => 'chat_existente',
-                    'step' => $session->current_step_id
+                    'step' => $session->current_step
                 ]);
             }
         }
@@ -93,14 +93,11 @@ class WhatsappController extends Controller
      */
     public function atualizaStep($session, $proximoStep)
     {
-        // Aqui você pode buscar o step pelo nome ou id, exemplo:
-        $stepObj = \App\Models\WhatsappFlowStep::where('name', $proximoStep)->first();
-        if ($stepObj) {
-            $session->current_step_id = $stepObj->id;
+
+            $session->current_step = $proximoStep;
             $session->save();
-            return $stepObj->id;
-        }
-        return null;
+            return $proximoStep;
+
     }
 
     /**
