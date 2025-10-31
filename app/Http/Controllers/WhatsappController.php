@@ -25,7 +25,6 @@ class WhatsappController extends Controller
         // Extrai os dados recebidos em variáveis
         $name = $data['nome'] ?? null;
         $wa_id = $data['numero'] ?? null;
-        $contato = $data['contato'] ?? null;
         $phoneNumberId = $data['phone_number_id'] ?? null;
         $messageData = $data['messageData'] ?? null;
 
@@ -74,11 +73,65 @@ class WhatsappController extends Controller
                     'context' => [],
                     'phone_number_id' => $phoneNumberId ?? null
                 ]);
-                echo 'primeira_mensagem';
+                // Atualiza para o próximo step (exemplo: verifica_cpf)
+                $step = $this->atualizaStep($session, 'verifica_cpf');
+                echo json_encode([
+                    'status' => 'primeira_mensagem',
+                    'step' => $step
+                ]);
             } else {
-                echo 'chat_existente';
+                echo json_encode([
+                    'status' => 'chat_existente',
+                    'step' => $session->current_step_id
+                ]);
             }
         }
+
+    }
+    /**
+     * Atualiza o step da sessão e retorna o step atualizado
+     */
+    public function atualizaStep($session, $proximoStep)
+    {
+        // Aqui você pode buscar o step pelo nome ou id, exemplo:
+        $stepObj = \App\Models\WhatsappFlowStep::where('name', $proximoStep)->first();
+        if ($stepObj) {
+            $session->current_step_id = $stepObj->id;
+            $session->save();
+            return $stepObj->id;
+        }
+        return null;
+    }
+
+    /**
+     * Rota para atualizar o step da sessão via n8n
+     * Exemplo de chamada: POST /api/whatsapp/atualiza-step
+     * Body: { "wa_id": "...", "step": "verifica_cpf" }
+     */
+    public function atualizaStepWebhook(Request $request)
+    {
+        $wa_id = $request->input('wa_id');
+        $stepName = $request->input('step');
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return response()->json(['error' => 'Contato não encontrado'], 404);
+        }
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return response()->json(['error' => 'Sessão não encontrada'], 404);
+        }
+        $stepObj = WhatsappFlowStep::where('name', $stepName)->first();
+        if (!$stepObj) {
+            return response()->json(['error' => 'Step não encontrado'], 404);
+        }
+        $session->current_step_id = $stepObj->id;
+        $session->save();
+        return response()->json([
+            'success' => true,
+            'step_id' => $stepObj->id,
+            'step_name' => $stepObj->name,
+            'prompt' => $stepObj->prompt
+        ]);
     }
 
     public function webhook(Request $request)
