@@ -160,10 +160,6 @@ class WhatsappController extends Controller
         return response('Método não suportado', 405);
     }
   
-
-      /**
-     * Gera token da API Neocobe usando credenciais do .env
-     */
     public function gerarTokenNeocobe()
     {
         $client = new \GuzzleHttp\Client(['verify' => false]);
@@ -182,10 +178,6 @@ class WhatsappController extends Controller
         return $tokenData['access_token'] ?? null;
     }
 
-     /**
-     * Endpoint para verificar dívida ou acordo
-     * POST /api/whatsapp/verifica-divida-ou-acordo { cpfCnpj: "...", idGrupo: "..." }
-     */
     public function verificaDividaOuAcordo(Request $request)
     {
         $cpfCnpj = $request->input('cpfCnpj');
@@ -205,15 +197,22 @@ class WhatsappController extends Controller
         ];
         $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . $cpfCnpj . '&idGrupo=' . $idGrupo;
         $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
+
+        // $acordoData = $this->obterAcordosPorCliente('52291807');
+        //   dd($acordoData);
         try {
             $res = $client->sendAsync($requestApi)->wait();
             $body = $res->getBody()->getContents();
             $dividaData = json_decode($body, true);
+            // dd(is_array($dividaData) && isset($dividaData['Success']) && $dividaData['Success'] === true);
             // Se Success true, verifica acordos
-            if (is_array($dividaData) && isset($dividaData[0]['Success']) && $dividaData[0]['Success'] === true) {
-                $codigoCliente = $dividaData[0]['CodigoCliente'] ?? null;
+            if (is_array($dividaData) && isset($dividaData['Success']) && $dividaData['Success'] === true) {
+                $codigoCliente = $dividaData['NegociacaoDto'][0]['NrContrato'] ?? null;
+                // dd($codigoCliente);
                 if ($codigoCliente) {
+
                     $acordoData = $this->obterAcordosPorCliente($codigoCliente);
+                                        //   dd($acordoData);
                     if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
                         // Tem dívida, mas não tem acordo
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
@@ -687,7 +686,7 @@ class WhatsappController extends Controller
             'codigoCliente' => $codigoCliente
         ]);
         $request = new \GuzzleHttp\Psr7\Request(
-            'POST',
+            'GET',
             'https://havan-request.betasolucao.com.br/api/obter-acordos-por-cliente',
             $headers,
             $body
@@ -696,12 +695,14 @@ class WhatsappController extends Controller
             $res = $client->sendAsync($request)->wait();
             $responseBody = $res->getBody()->getContents();
             $data = json_decode($responseBody, true);
+            // dd($data);
             if (isset($data['mensagem']) && strtolower($data['mensagem']) === 'nenhumacordo encontrado') {
                 return false;
             }
             return $data;
         } catch (\Exception $e) {
-            \Log::error('Erro ao obter acordos por cliente: ' . $e->getMessage());
+            dd($e->getMessage());
+            \Log::error(message: 'Erro ao obter acordos por cliente: ' . $e->getMessage());
             return false;
         }
     }
