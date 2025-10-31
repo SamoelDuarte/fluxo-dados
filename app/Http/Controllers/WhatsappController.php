@@ -182,6 +182,39 @@ class WhatsappController extends Controller
         return $tokenData['access_token'] ?? null;
     }
 
+     /**
+     * Endpoint para verificar dívida ou acordo
+     * POST /api/whatsapp/verifica-divida-ou-acordo { cpfCnpj: "...", idGrupo: "..." }
+     */
+    public function verificaDividaOuAcordo(Request $request)
+    {
+        $cpfCnpj = $request->input('cpfCnpj');
+        $idGrupo = $request->input('idGrupo');
+        $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
+        if (empty($cpfCnpj) || empty($idGrupo)) {
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+        $token = $this->gerarTokenNeocobe();
+        if (!$token) {
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+        $client = new \GuzzleHttp\Client(['verify' => false]);
+        $headers = [
+            'apiKey' => env('NEOCOBE_APIKEY'),
+            'Authorization' => 'Bearer ' . $token
+        ];
+        $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . $cpfCnpj . '&idGrupo=' . $idGrupo;
+        $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
+        try {
+            $res = $client->sendAsync($requestApi)->wait();
+            $body = $res->getBody()->getContents();
+            return response($body, 200)->header('Content-Type', 'application/json');
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $body = $e->getResponse()->getBody()->getContents();
+            return response($body, 200)->header('Content-Type', 'application/json');
+        }
+    }
+
     /**
      * Consulta dados cadastrais na Neocobe
      */
