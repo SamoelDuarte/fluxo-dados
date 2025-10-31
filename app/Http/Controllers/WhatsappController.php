@@ -208,7 +208,30 @@ class WhatsappController extends Controller
         try {
             $res = $client->sendAsync($requestApi)->wait();
             $body = $res->getBody()->getContents();
-            return response($body, 200)->header('Content-Type', 'application/json');
+            $dividaData = json_decode($body, true);
+            // Se Success true, verifica acordos
+            if (is_array($dividaData) && isset($dividaData[0]['Success']) && $dividaData[0]['Success'] === true) {
+                $codigoCliente = $dividaData[0]['CodigoCliente'] ?? null;
+                if ($codigoCliente) {
+                    $acordoData = $this->obterAcordosPorCliente($codigoCliente);
+                    if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
+                        // Tem dívida, mas não tem acordo
+                        return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
+                    } elseif (is_array($acordoData) && isset($acordoData[0]['codigoAcordo'])) {
+                        // Tem acordo
+                        return response()->json(['tipo' => 'acordo', 'acordo' => $acordoData]);
+                    } else {
+                        // Não encontrou acordo, retorna dívida
+                        return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
+                    }
+                } else {
+                    // Não tem códigoCliente, retorna dívida
+                    return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
+                }
+            } else {
+                // Não tem dívida
+                return response()->json(['tipo' => 'sem_divida', 'divida' => $dividaData]);
+            }
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             $body = $e->getResponse()->getBody()->getContents();
             return response($body, 200)->header('Content-Type', 'application/json');
