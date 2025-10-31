@@ -159,58 +159,7 @@ class WhatsappController extends Controller
 
         return response('Método não suportado', 405);
     }
-     /**
-     * Verifica cliente por CPF ou CNPJ usando API externa
-     * @param string $cpfCnpj
-     * @return bool|array Dados do cliente ou false
-     */
-    public function verificaCliente($cpfCnpj)
-    {
-        // Limpa caracteres não numéricos
-        $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
-        // Valida CPF ou CNPJ
-        if (!(strlen($cpfCnpj) === 11 || strlen($cpfCnpj) === 14)) {
-            return false;
-        }
-
-        // 1. Gera o token
-        $client = new \GuzzleHttp\Client();
-        $headersToken = [
-            'Content-Type' => 'application/json'
-        ];
-        $bodyToken = json_encode([
-            'Login' => 'api.dashboard',
-            'Password' => '36810556',
-            'ApiKey' => 'PYBW+7AndDA='
-        ]);
-        $requestToken = new \GuzzleHttp\Psr7\Request('POST', 'https://datacob.thiagofarias.adv.br/api/account/v1/login', $headersToken, $bodyToken);
-        $resToken = $client->sendAsync($requestToken)->wait();
-        $tokenData = json_decode($resToken->getBody(), true);
-        $token = $tokenData['Token'] ?? null;
-        if (!$token) {
-            return false;
-        }
-
-        // 2. Consulta dados cadastrais
-        $headers = [
-            'apiKey' => 'PYBW+7AndDA=',
-            'Authorization' => $token
-        ];
-        $url = 'https://datacob.thiagofarias.adv.br/api/dados-cadastrais/v1?cpfCnpj=' . $cpfCnpj;
-        $request = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
-        $res = $client->sendAsync($request)->wait();
-        $body = $res->getBody();
-        $data = json_decode($body, true);
-
-        // 3. Verifica resultado
-        if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
-            return $data;
-        }
-        if (is_array($data) && isset($data[0]) && $data[0] === 'Nenhum resultado encontrado') {
-            return false;
-        }
-        return false;
-    }
+  
 
       /**
      * Gera token da API Neocobe usando credenciais do .env
@@ -255,7 +204,7 @@ class WhatsappController extends Controller
      * Endpoint para verificar cliente por CPF/CNPJ
      * POST /api/whatsapp/verifica-cliente { cpfCnpj: "..." }
      */
-    public function verificaClienteRequest(Request $request)
+    public function verificaCliente(Request $request)
     {
         $cpfCnpj = $request->input('cpfCnpj');
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
