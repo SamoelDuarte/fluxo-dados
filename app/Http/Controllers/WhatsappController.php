@@ -69,8 +69,6 @@ class WhatsappController extends Controller
                 // Primeira mensagem: cria a sessão
                 $session = WhatsappSession::create([
                     'contact_id' => $contact->id,
-                    'current_step_id' => null,
-                    'context' => [],
                     'phone_number_id' => $phoneNumberId ?? null
                 ]);
                 // Atualiza para o próximo step (exemplo: verifica_cpf)
@@ -80,7 +78,7 @@ class WhatsappController extends Controller
                     'step' => $step
                 ]);
             } else {
-                echo json_encode([
+                echo json_encode(value: [
                     'status' => 'chat_existente',
                     'step' => $session->current_step
                 ]);
