@@ -11,7 +11,7 @@ return new class extends Migration
         if (Schema::hasTable('whatsapp_sessions')) {
             Schema::table('whatsapp_sessions', function (Blueprint $table) {
                 if (!Schema::hasColumn('whatsapp_sessions', 'phone_number_id')) {
-                    $table->string('phone_number_id')->nullable()->after('context');
+                    $table->string('phone_number_id')->nullable();
                 }
             });
         }
