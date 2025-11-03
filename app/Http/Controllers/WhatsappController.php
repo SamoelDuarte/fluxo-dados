@@ -112,20 +112,12 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'Contato não encontrado'], 404);
         }
         $session = WhatsappSession::where('contact_id', $contact->id)->first();
-        if (!$session) {
-            return response()->json(['error' => 'Sessão não encontrada'], 404);
-        }
-        $stepObj = WhatsappFlowStep::where('name', $stepName)->first();
-        if (!$stepObj) {
-            return response()->json(['error' => 'Step não encontrado'], 404);
-        }
-        $session->current_step_id = $stepObj->id;
+       
+        $session->current_step = $stepName;
         $session->save();
         return response()->json([
             'success' => true,
-            'step_id' => $stepObj->id,
-            'step_name' => $stepObj->name,
-            'prompt' => $stepObj->prompt
+            'step_name' => $stepName
         ]);
     }
 
