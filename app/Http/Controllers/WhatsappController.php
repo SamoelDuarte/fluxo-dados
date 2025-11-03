@@ -143,6 +143,38 @@ class WhatsappController extends Controller
     }
 
     /**
+     * Atualiza o context e o current_step da sessão por wa_id
+     * @param string $wa_id
+     * @param array $contextData - dados a serem adicionados/atualizados no context
+     * @param string $currentStep - novo valor para current_step
+     */
+    private function atualizarContextoEStepSessao($wa_id, $contextData, $currentStep)
+    {
+        if (empty($wa_id)) {
+            return false;
+        }
+
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return false;
+        }
+
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return false;
+        }
+
+        $context = $session->context ?? [];
+        // Mescla os dados novos com o contexto existente
+        $context = array_merge($context, $contextData);
+        $session->update([
+            'context' => $context,
+            'current_step' => $currentStep
+        ]);
+        return true;
+    }
+
+    /**
      * Rota para atualizar o step da sessão via n8n
      * Exemplo de chamada: POST /api/whatsapp/atualiza-step
      * Body: { "wa_id": "...", "step": "verifica_cpf" }
@@ -249,54 +281,54 @@ class WhatsappController extends Controller
                     
                     if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
                         // Tem dívida, mas não tem acordo
-                        $this->atualizarContextoSessao($wa_id, [
+                        $this->atualizarContextoEStepSessao($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
                             'codigo_cliente' => $codigoCliente,
                             'verificacao_divida_at' => now()->toIso8601String(),
-                        ]);
+                        ], 'divida_verificada');
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                     } elseif (is_array($acordoData) && isset($acordoData[0]['codigoAcordo'])) {
                         // Tem acordo
-                        $this->atualizarContextoSessao($wa_id, [
+                        $this->atualizarContextoEStepSessao($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'acordo',
                             'acordo_data' => $acordoData,
                             'codigo_cliente' => $codigoCliente,
                             'quantidade_acordos' => count($acordoData),
                             'verificacao_divida_at' => now()->toIso8601String(),
-                        ]);
+                        ], 'acordo_verificado');
                         return response()->json(['tipo' => 'acordo', 'acordo' => $acordoData]);
                     } else {
                         // Não encontrou acordo, retorna dívida
-                        $this->atualizarContextoSessao($wa_id, [
+                        $this->atualizarContextoEStepSessao($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
                             'codigo_cliente' => $codigoCliente,
                             'verificacao_divida_at' => now()->toIso8601String(),
-                        ]);
+                        ], 'divida_verificada');
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                     }
                 } else {
                     // Não tem códigoCliente, retorna dívida
-                    $this->atualizarContextoSessao($wa_id, [
+                    $this->atualizarContextoEStepSessao($wa_id, [
                         'divida_verificada' => true,
                         'tipo_resultado' => 'divida',
                         'divida_data' => $dividaData,
                         'verificacao_divida_at' => now()->toIso8601String(),
-                    ]);
+                    ], currentStep: 'divida_verificada');
                     return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                 }
             } else {
                 // Não tem dívida
-                $this->atualizarContextoSessao($wa_id, [
+                $this->atualizarContextoEStepSessao($wa_id, [
                     'divida_verificada' => true,
                     'tipo_resultado' => 'sem_divida',
                     'divida_data' => $dividaData,
                     'verificacao_divida_at' => now()->toIso8601String(),
-                ]);
+                ], 'sem_divida');
                 return response()->json(['tipo' => 'sem_divida', 'divida' => $dividaData]);
             }
         } catch (\GuzzleHttp\Exception\ClientException $e) {
