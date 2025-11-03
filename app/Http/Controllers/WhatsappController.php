@@ -66,10 +66,18 @@ class WhatsappController extends Controller
             echo 'fora_do_dia_util';
         } else {
             if (!$session) {
-                // Primeira mensagem: cria a sessão
+                // Primeira mensagem: cria a sessão com contexto inicial
+                $initialContext = [
+                    'created_at' => now()->toIso8601String(),
+                    'contact_name' => $name,
+                    'wa_id' => $wa_id,
+                    'messages_count' => 1,
+                    'last_message' => $messageText,
+                ];
                 $session = WhatsappSession::create([
                     'contact_id' => $contact->id,
-                    'phone_number_id' => $phoneNumberId ?? null
+                    'phone_number_id' => $phoneNumberId ?? null,
+                    'context' => $initialContext,
                 ]);
                 // Atualiza para o próximo step (exemplo: verifica_cpf)
                 $step = $this->atualizaStep($session, 'verifica_cpf');
@@ -78,6 +86,14 @@ class WhatsappController extends Controller
                     'step' => ''
                 ]);
             } else {
+                // Atualiza contexto da sessão existente
+                $context = $session->context ?? [];
+                $context['messages_count'] = ($context['messages_count'] ?? 0) + 1;
+                $context['last_message'] = $messageText;
+                $context['last_update_at'] = now()->toIso8601String();
+                
+                $session->update(['context' => $context]);
+                
                 echo json_encode( [
                     'status' => 'chat_existente',
                     'step' => $session->current_step
@@ -633,26 +649,6 @@ class WhatsappController extends Controller
                     # code...
                     break;
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         }
 
