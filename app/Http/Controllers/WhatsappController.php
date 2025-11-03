@@ -115,6 +115,34 @@ class WhatsappController extends Controller
     }
 
     /**
+     * Atualiza o context da sessão por wa_id
+     * @param string $wa_id
+     * @param array $contextData - dados a serem adicionados/atualizados no context
+     */
+    private function atualizarContextoSessao($wa_id, $contextData)
+    {
+        if (empty($wa_id)) {
+            return false;
+        }
+
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return false;
+        }
+
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return false;
+        }
+
+        $context = $session->context ?? [];
+        // Mescla os dados novos com o contexto existente
+        $context = array_merge($context, $contextData);
+        $session->update(['context' => $context]);
+        return true;
+    }
+
+    /**
      * Rota para atualizar o step da sessão via n8n
      * Exemplo de chamada: POST /api/whatsapp/atualiza-step
      * Body: { "wa_id": "...", "step": "verifica_cpf" }
@@ -190,6 +218,7 @@ class WhatsappController extends Controller
     {
         $cpfCnpj = $request->input('cpfCnpj');
         $idGrupo = $request->input('idGrupo');
+        $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (empty($cpfCnpj) || empty($idGrupo)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
@@ -206,37 +235,68 @@ class WhatsappController extends Controller
         $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . $cpfCnpj . '&idGrupo=' . $idGrupo;
         $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
 
-        // $acordoData = $this->obterAcordosPorCliente('52291807');
-        //   dd($acordoData);
         try {
             $res = $client->sendAsync($requestApi)->wait();
             $body = $res->getBody()->getContents();
             $dividaData = json_decode($body, true);
-            // dd(is_array($dividaData) && isset($dividaData['Success']) && $dividaData['Success'] === true);
+            
             // Se Success true, verifica acordos
             if (is_array($dividaData) && isset($dividaData['Success']) && $dividaData['Success'] === true) {
                 $codigoCliente = $dividaData['NegociacaoDto'][0]['NrContrato'] ?? null;
-                // dd($codigoCliente);
+                
                 if ($codigoCliente) {
-
                     $acordoData = $this->obterAcordosPorCliente($codigoCliente);
-                                        //   dd($acordoData);
+                    
                     if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
                         // Tem dívida, mas não tem acordo
+                        $this->atualizarContextoSessao($wa_id, [
+                            'divida_verificada' => true,
+                            'tipo_resultado' => 'divida',
+                            'divida_data' => $dividaData,
+                            'codigo_cliente' => $codigoCliente,
+                            'verificacao_divida_at' => now()->toIso8601String(),
+                        ]);
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                     } elseif (is_array($acordoData) && isset($acordoData[0]['codigoAcordo'])) {
                         // Tem acordo
+                        $this->atualizarContextoSessao($wa_id, [
+                            'divida_verificada' => true,
+                            'tipo_resultado' => 'acordo',
+                            'acordo_data' => $acordoData,
+                            'codigo_cliente' => $codigoCliente,
+                            'quantidade_acordos' => count($acordoData),
+                            'verificacao_divida_at' => now()->toIso8601String(),
+                        ]);
                         return response()->json(['tipo' => 'acordo', 'acordo' => $acordoData]);
                     } else {
                         // Não encontrou acordo, retorna dívida
+                        $this->atualizarContextoSessao($wa_id, [
+                            'divida_verificada' => true,
+                            'tipo_resultado' => 'divida',
+                            'divida_data' => $dividaData,
+                            'codigo_cliente' => $codigoCliente,
+                            'verificacao_divida_at' => now()->toIso8601String(),
+                        ]);
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                     }
                 } else {
                     // Não tem códigoCliente, retorna dívida
+                    $this->atualizarContextoSessao($wa_id, [
+                        'divida_verificada' => true,
+                        'tipo_resultado' => 'divida',
+                        'divida_data' => $dividaData,
+                        'verificacao_divida_at' => now()->toIso8601String(),
+                    ]);
                     return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                 }
             } else {
                 // Não tem dívida
+                $this->atualizarContextoSessao($wa_id, [
+                    'divida_verificada' => true,
+                    'tipo_resultado' => 'sem_divida',
+                    'divida_data' => $dividaData,
+                    'verificacao_divida_at' => now()->toIso8601String(),
+                ]);
                 return response()->json(['tipo' => 'sem_divida', 'divida' => $dividaData]);
             }
         } catch (\GuzzleHttp\Exception\ClientException $e) {
@@ -276,6 +336,7 @@ class WhatsappController extends Controller
     public function verificaCliente(Request $request)
     {
         $cpfCnpj = $request->input('cpfCnpj');
+        $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (!(strlen($cpfCnpj) === 11 || strlen($cpfCnpj) === 14)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
@@ -294,6 +355,21 @@ class WhatsappController extends Controller
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
         if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
+            // Atualiza o context da sessão se wa_id foi fornecido
+            if (!empty($wa_id)) {
+                $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+                if ($contact) {
+                    $session = WhatsappSession::where('contact_id', $contact->id)->first();
+                    if ($session) {
+                        $context = $session->context ?? [];
+                        $context['cliente_verificado'] = true;
+                        $context['cpf_cnpj'] = $cpfCnpj;
+                        $context['dados_cadastrais'] = $data[0]; // Armazena os dados do cliente
+                        $context['verificacao_at'] = now()->toIso8601String();
+                        $session->update(['context' => $context]);
+                    }
+                }
+            }
             // Retorna todos os dados para n8n acessar as variáveis
             return response()->json(['success' => true, 'data' => $data]);
         }
