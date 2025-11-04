@@ -127,11 +127,11 @@ class ContatoController extends Controller
 
             // Map to standard fields based on headers
             // Tenta primeiro com headers parseados, depois com fallback de índices
-            $telefone = $mapped['telefone'] ?? null;
-            $contrato_numero = $mapped['numero_contrato'] ?? $mapped['numero'] ?? null;
+            $telefone = $mapped['numero'] ?? $mapped['telefone'] ?? null;
+            $contrato_numero = $mapped['numero_contrato'] ?? null;
             $nome = $mapped['devedor'] ?? $mapped['nome'] ?? null;
             $document = $mapped['cpf'] ?? $mapped['cpfcnpj'] ?? null;
-            $cod_cliente = $mapped['id_contrato'] ?? $mapped['numero_contrato'] ?? null;
+            $id_contrato = $mapped['id_contrato'] ?? null;
             $carteira = $mapped['codigo_da_carteira'] ?? $mapped['carteira'] ?? null;
             $valor_str = $mapped['valor_contrato'] ?? $mapped['valor'] ?? null;
             $dias_atraso_str = $mapped['dias_em_atraso'] ?? $mapped['dias_atraso'] ?? null;
@@ -180,15 +180,16 @@ class ContatoController extends Controller
             $telefone = !empty($telefone) ? preg_replace('/\D/', '', $telefone) : null;
             $nome = !empty($nome) ? trim($nome) : null;
             $carteira = !empty($carteira) ? trim($carteira) : null;
-            $cod_cliente = !empty($cod_cliente) ? trim($cod_cliente) : null;
+            $contrato_numero = !empty($contrato_numero) ? trim($contrato_numero) : null;
+            $id_contrato = !empty($id_contrato) ? trim($id_contrato) : null;
 
             ContatoDados::create([
-                'id_contrato' => $import->contato_id,
+                'id_contrato' => $id_contrato,
                 'contato_id' => $import->contato_id,
                 'telefone' => $telefone,
                 'nome' => $nome,
                 'document' => $document,
-                'cod_cliente' => $cod_cliente,
+                'cod_cliente' => $contrato_numero,
                 'data_vencimento' => $data_venc,
                 'dias_atraso' => $dias_atraso,
                 'valor' => $valor,
