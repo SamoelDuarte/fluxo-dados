@@ -130,7 +130,7 @@ class ContatoController extends Controller
             $telefone = $mapped['numero'] ?? $mapped['numero'] ?? null;
             $nome = $mapped['devedor'] ?? $mapped['nome'] ?? null;
             $document = $mapped['cpf'] ?? $mapped['cpfcnpj'] ?? null;
-            $cod_cliente = $mapped['id_contrato'] ?? $mapped['numero_contrato'] ?? null;
+            $cod_cliente = $mapped['numero_contrato'] ?? $mapped['numero_contrato'] ?? null;
             $carteira = $mapped['codigo_da_carteira'] ?? $mapped['carteira'] ?? null;
             $valor_str = $mapped['valor_contrato'] ?? $mapped['valor'] ?? null;
             $dias_atraso_str = $mapped['dias_em_atraso'] ?? $mapped['dias_atraso'] ?? null;
