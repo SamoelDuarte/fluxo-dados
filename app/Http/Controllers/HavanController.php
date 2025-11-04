@@ -88,14 +88,7 @@ class HavanController extends Controller
      */
     public function obterParcelamento(Request $request)
     {
-        $codigoUsuarioCarteiraCobranca = $request->input('codigoUsuarioCarteiraCobranca');
-        $codigoCarteiraCobranca = $request->input('codigoCarteiraCobranca');
-        $pessoaCodigo = $request->input('pessoaCodigo');
-        $dataPrimeiraParcela = $request->input('dataPrimeiraParcela');
-        $valorEntrada = $request->input('valorEntrada', 0);
-        $renegociaSomenteDocumentosEmAtraso = $request->input('renegociaSomenteDocumentosEmAtraso');
-        $tipoSimulacao = $request->input('TipoSimulacao');
-        $chave = env('HAVAN_API_PASSWORD');
+      
         
         try {
             $token = $this->obterTokenHavan();
@@ -108,49 +101,19 @@ class HavanController extends Controller
                 ], 401);
             }
 
-            if (!is_numeric($codigoCarteiraCobranca) || intval($codigoCarteiraCobranca) <= 0) {
-                return response()->json([
-                    'error' => 'O parâmetro "codigoCarteiraCobranca" deve ser um inteiro válido maior que zero.'
-                ], 400);
-            }
-            if (!is_numeric($codigoUsuarioCarteiraCobranca) || intval($codigoUsuarioCarteiraCobranca) <= 0) {
-                return response()->json([
-                    'error' => 'O parâmetro "codigoUsuarioCarteiraCobranca" deve ser um inteiro válido maior que zero.'
-                ], 400);
+            // Adicionar a chave (password) aos dados se não estiver presente
+            $requestData = $request->all();
+            if (!isset($requestData['chave'])) {
+                $requestData['chave'] = env('HAVAN_PASSWORD', '3cr1O35JfhQ8vBO');
             }
 
-            $body = [
-                'codigoUsuarioCarteiraCobranca' => (int) $codigoUsuarioCarteiraCobranca,
-                'codigoCarteiraCobranca' => (int) $codigoCarteiraCobranca,
-                'pessoaCodigo' => $pessoaCodigo,
-                'dataPrimeiraParcela' => $dataPrimeiraParcela,
-                'valorEntrada' => (int) $valorEntrada,
-                'chave' => $chave
-            ];
-
-            // Adicionar renegociaSomenteDocumentosEmAtraso apenas se fornecido
-            if ($renegociaSomenteDocumentosEmAtraso !== null) {
-                $body['renegociaSomenteDocumentosEmAtraso'] = (bool) $renegociaSomenteDocumentosEmAtraso;
-            }
-
-            // Adicionar tipoSimulacao apenas se fornecido
-            if ($tipoSimulacao !== null) {
-                $body['TipoSimulacao'] = (int) $tipoSimulacao;
-            }
-
-            Log::info('[FLUXO-DADOS] Payload enviado para ObterOpcoesParcelamento', [
-                'body' => $body,
-                'user_agent' => $request->header('User-Agent'),
-                'ip' => $request->ip()
-            ]);
 
             $response = Http::withHeaders([
-                'Accept' => 'text/plain',
                 'Authorization' => 'Bearer ' . $token,
                 'Content-Type' => 'application/json'
             ])
             ->timeout(60)
-            ->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', $body);
+            ->post('https://cobrancaexternaapi.apps.havan.com.br/api/v3/CobrancaExternaTradicional/ObterOpcoesParcelamento', $requestData);
 
             if ($response->successful()) {
                 $responseData = $response->json();
@@ -171,8 +134,8 @@ class HavanController extends Controller
                         }
                     }
                     
-                    // Se encontrou a mais barata, usar ela; senão usar a primeira
-                    $alcadaSelecionada = $alcadaMaisBarata ?? $responseData[0];
+                    // Se encontrou a mais barata, usar ela; senão usar a última
+                    $alcadaSelecionada = $alcadaMaisBarata ?? end($responseData);
                     $responseData = [$alcadaSelecionada];
                     
                     Log::info('[FLUXO-DADOS] Múltiplas alçadas encontradas - selecionando a mais barata', [
@@ -180,78 +143,31 @@ class HavanController extends Controller
                         'alcada_selecionada' => $alcadaSelecionada['descricao'] ?? 'N/A',
                         'valor_avista_selecionado' => number_format($menorValor, 2, ',', '.'),
                         'total_parcelamentos' => is_array($alcadaSelecionada['parcelamento']) ? count($alcadaSelecionada['parcelamento']) : 0,
+                        'todas_alcadas' => $response->json(),
+                        'alcada_final_selecionada' => $alcadaSelecionada
                     ]);
-                }
-
-                // Verificar se a resposta contém erro
-                if (is_array($responseData) && isset($responseData[0]['messagem']) && strpos($responseData[0]['messagem'], 'não pertence') !== false) {
-                    return response()->json([
-                        'error' => 'Carteira não autorizada',
-                        'message' => $responseData[0]['messagem']
-                    ], 403);
-                }
-
-                if (is_array($responseData) && isset($responseData[0]['text']) && $responseData[0]['text'] === 'Nenhuma opção encontrada.') {
-                    return response()->json(['mensagem' => 'nenhuma opção encontrada']);
                 }
                 
                 return response()->json([
                     'success' => true,
                     'data' => $responseData
-                ], $response->status());
+                ]);
             }
 
-            // Erro na API
-            $responseBody = $response->json();
-            Log::error('[FLUXO-DADOS] Erro na API Havan ObterOpcoesParcelamento - Status: ' . $response->status(), [
-                'body' => $responseBody,
-                'request_body' => $body
-            ]);
-
-            // Verificar se a resposta contém erro sobre carteira
-            if (is_array($responseBody) && isset($responseBody['messagem']) && strpos($responseBody['messagem'], 'não pertence') !== false) {
-                return response()->json([
-                    'error' => 'Carteira não autorizada',
-                    'message' => $responseBody['messagem']
-                ], $response->status());
-            }
-            
-            if (is_array($responseBody) && isset($responseBody[0]['text']) && $responseBody[0]['text'] === 'Nenhuma opção encontrada.') {
-                return response()->json(['mensagem' => 'nenhuma opção encontrada']);
-            }
-
+    
             return response()->json([
                 'success' => false,
                 'message' => 'Erro na API da Havan',
-                'details' => $responseBody
+                'details' => $response->json()
             ], $response->status());
 
-        } catch (\GuzzleHttp\Exception\ClientException $e) {
-            $response = $e->getResponse();
-            $body = $response ? $response->getBody()->getContents() : null;
-            $data = json_decode($body, true);
-
-            Log::error('[FLUXO-DADOS] ClientException em obterParcelamento', [
-                'message' => $e->getMessage(),
-                'status' => $response ? $response->getStatusCode() : 'N/A',
-                'body' => $body
-            ]);
-
-            if (is_array($data) && isset($data[0]['text']) && $data[0]['text'] === 'Nenhuma opção encontrada.') {
-                return response()->json(['mensagem' => 'nenhuma opção encontrada']);
-            }
-
-            return response()->json([
-                'error' => 'Erro ao consultar API externa',
-                'message' => $e->getMessage(),
-                'api_response' => $body
-            ], $response ? $response->getStatusCode() : 500);
         } catch (\Exception $e) {
             Log::error('[FLUXO-DADOS] Exceção em obterParcelamento', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
             ]);
 
             return response()->json([
