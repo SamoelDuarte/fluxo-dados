@@ -362,6 +362,69 @@ class WhatsappController extends Controller
     }
 
     /**
+     * Verifica contratos por wa_id
+     * Busca o CPF/CNPJ do contexto da sessão e retorna os contratos na tabela contato_dados
+     * POST /api/whatsapp/verifica-contratos { wa_id: "..." }
+     */
+    public function verificaContratos(Request $request)
+    {
+        $wa_id = $request->input('wa_id');
+        
+        if (empty($wa_id)) {
+            return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
+        }
+
+        // Busca o contato pelo wa_id
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
+        }
+
+        // Busca a sessão do contato
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
+        }
+
+        // Extrai o CPF/CNPJ do contexto
+        $context = $session->context ?? [];
+        $cpfCnpj = $context['cpf_cnpj'] ?? null;
+
+        if (empty($cpfCnpj)) {
+            return response()->json([
+                'error' => 'CPF/CNPJ não encontrado no contexto da sessão',
+                'success' => false,
+                'context_disponivel' => $context
+            ], 400);
+        }
+
+        // Remove caracteres especiais do CPF/CNPJ para comparação
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpj);
+
+        // Busca os contratos na tabela contato_dados (tenta com e sem formatação)
+        $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
+            ->orWhere('document', $cpfCnpj)
+            ->get();
+        
+        $quantidade = $contratos->count();
+
+        // Atualiza o contexto com os dados encontrados
+        $context['contratos_verificados'] = true;
+        $context['quantidade_contratos'] = $quantidade;
+        $context['verificacao_contratos_at'] = now()->toIso8601String();
+        $context['cpf_cnpj_buscado'] = $cpfCnpj;
+        
+        $session->update(['context' => $context]);
+
+        return response()->json([
+            'success' => true,
+            'quantidade' => $quantidade,
+            'contratos' => $contratos,
+            'context' => $context
+        ]);
+    }
+
+    /**
      * Endpoint para verificar cliente por CPF/CNPJ
      * POST /api/whatsapp/verifica-cliente { cpfCnpj: "..." }
      */
