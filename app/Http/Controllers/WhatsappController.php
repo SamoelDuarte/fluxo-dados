@@ -493,7 +493,9 @@ class WhatsappController extends Controller
             if ($documentos) {
                 $documentosResultados[] = [
                     'contrato' => $contrato->toArray(),
-                    'documentos' => $documentos
+                    'documentos' => $documentos,
+                    "codigo_cliente" => $codigoCliente,
+                    "codigo_carteira" => $codigoCarteira
                 ];
             } else {
                 $erros[] = [
