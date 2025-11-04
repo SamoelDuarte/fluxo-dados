@@ -109,14 +109,14 @@ class ContatoController extends Controller
                 $mapped = array_combine($headers, $row);
             } else {
                 $mapped = [
-                    'numero' => $row[2] ?? null,
-                    'devedor' => $row[1] ?? null,
                     'numero_contrato' => $row[0] ?? null,
+                    'devedor' => $row[1] ?? null,
+                    'numero' => $row[2] ?? null,
                     'grupo' => $row[3] ?? null,
                     'cpf' => $row[4] ?? null,
-                    'status' => $row[5] ?? null,
+                    'status_telefone' => $row[5] ?? null,
                     'ddd' => $row[6] ?? null,
-                    'telefone' => $row[2] ?? null,
+                    'telefone' => $row[7] ?? null,
                     'id_contrato' => $row[8] ?? null,
                     'codigo_da_carteira' => $row[9] ?? null,
                     'valor_contrato' => $row[10] ?? null,
@@ -127,10 +127,11 @@ class ContatoController extends Controller
 
             // Map to standard fields based on headers
             // Tenta primeiro com headers parseados, depois com fallback de índices
-            $telefone = $mapped['numero'] ?? $mapped['numero'] ?? null;
+            $telefone = $mapped['telefone'] ?? null;
+            $contrato_numero = $mapped['numero_contrato'] ?? $mapped['numero'] ?? null;
             $nome = $mapped['devedor'] ?? $mapped['nome'] ?? null;
             $document = $mapped['cpf'] ?? $mapped['cpfcnpj'] ?? null;
-            $cod_cliente = $mapped['numero_contrato'] ?? $mapped['numero_contrato'] ?? null;
+            $cod_cliente = $mapped['id_contrato'] ?? $mapped['numero_contrato'] ?? null;
             $carteira = $mapped['codigo_da_carteira'] ?? $mapped['carteira'] ?? null;
             $valor_str = $mapped['valor_contrato'] ?? $mapped['valor'] ?? null;
             $dias_atraso_str = $mapped['dias_em_atraso'] ?? $mapped['dias_atraso'] ?? null;
@@ -182,6 +183,7 @@ class ContatoController extends Controller
             $cod_cliente = !empty($cod_cliente) ? trim($cod_cliente) : null;
 
             ContatoDados::create([
+                'id_contrato' => $import->contato_id,
                 'contato_id' => $import->contato_id,
                 'telefone' => $telefone,
                 'nome' => $nome,
