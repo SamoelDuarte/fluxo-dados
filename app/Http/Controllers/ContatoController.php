@@ -94,7 +94,7 @@ class ContatoController extends Controller
         // Skip header
         $rowNum = 0;
         $headers = [];
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
             $rowNum++;
             if ($rowNum === 1) {
                 $headers = array_map(function ($h) { return Str::lower(Str::slug($h, '_')); }, $row);
@@ -109,27 +109,38 @@ class ContatoController extends Controller
                 $mapped = array_combine($headers, $row);
             } else {
                 $mapped = [
+                    'numero' => $row[2] ?? null,
+                    'devedor' => $row[1] ?? null,
+                    'numero_contrato' => $row[0] ?? null,
+                    'grupo' => $row[3] ?? null,
+                    'cpf' => $row[4] ?? null,
+                    'status' => $row[5] ?? null,
+                    'ddd' => $row[6] ?? null,
                     'telefone' => $row[2] ?? null,
-                    'nome' => $row[1] ?? null,
-                    'document' => $row[4] ?? null,
-                    'cod_cliente' => $row[0] ?? null,
+                    'id_contrato' => $row[8] ?? null,
+                    'codigo_da_carteira' => $row[9] ?? null,
+                    'valor_contrato' => $row[10] ?? null,
+                    'dias_em_atraso' => $row[11] ?? null,
                     'data_vencimento' => $row[12] ?? null,
-                    'dias_atraso' => $row[11] ?? null,
-                    'valor' => $row[10] ?? null,
-                    'carteira' => $row[9] ?? null,
                 ];
             }
 
             // Map to standard fields based on headers
-            $tipo = $mapped['tipo_de_registro'] ?? null;
-            $telefone = ($tipo === 'TELEFONE') ? ($mapped['valor_do_registro'] ?? null) : null;
-            $nome = $mapped['nome_cliente'] ?? null;
-            $document = $mapped['cpfcnpj'] ?? null;
-            $cod_cliente = $mapped['codcliente'] ?? null;
-            $valor_str = $mapped['coringa2'] ?? null;
-            $dias_atraso_str = $mapped['coringa3'] ?? null;
-            $data_venc_str = $mapped['coringa4'] ?? null;
-            $carteira = $mapped['coringa1'] ?? null;
+            // Tenta primeiro com headers parseados, depois com fallback de índices
+            $telefone = $mapped['numero'] ?? $mapped['numero'] ?? null;
+            $nome = $mapped['devedor'] ?? $mapped['nome'] ?? null;
+            $document = $mapped['cpf'] ?? $mapped['cpfcnpj'] ?? null;
+            $cod_cliente = $mapped['id_contrato'] ?? $mapped['numero_contrato'] ?? null;
+            $carteira = $mapped['codigo_da_carteira'] ?? $mapped['carteira'] ?? null;
+            $valor_str = $mapped['valor_contrato'] ?? $mapped['valor'] ?? null;
+            $dias_atraso_str = $mapped['dias_em_atraso'] ?? $mapped['dias_atraso'] ?? null;
+            $data_venc_str = $mapped['data_vencimento'] ?? null;
+
+            // Debug: Log para ver a estrutura dos dados
+            if ($rowNum === 2) {
+                \Log::info('Headers mapeados:', ['headers' => array_keys($mapped)]);
+                \Log::info('Primeira linha mapeada:', $mapped);
+            }
 
             // Skip if carteira is 869
             if ($carteira == '869') {
@@ -137,22 +148,38 @@ class ContatoController extends Controller
                 continue;
             }
 
-            // Process date
-            $data_venc = $data_venc_str;
-            if (preg_match('/\d{2}\/\d{2}\/\d{4}/', $data_venc)) {
-                $parts = explode('/', $data_venc);
-                $data_venc = $parts[2].'-'.$parts[1].'-'.$parts[0];
+            // Process date - converte de d/m/Y para Y-m-d
+            $data_venc = null;
+            if (!empty($data_venc_str)) {
+                // Limpa espaços
+                $data_venc_str = trim($data_venc_str);
+                
+                // Verifica se está no formato dd/m/YYYY ou d/m/YYYY
+                if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $data_venc_str)) {
+                    $parts = explode('/', $data_venc_str);
+                    $day = str_pad($parts[0], 2, '0', STR_PAD_LEFT);
+                    $month = str_pad($parts[1], 2, '0', STR_PAD_LEFT);
+                    $year = $parts[2];
+                    $data_venc = $year . '-' . $month . '-' . $day;
+                }
             }
 
             // Process valor (replace comma with dot)
             $valor = null;
             if ($valor_str) {
-                $valor_clean = str_replace(',', '.', $valor_str);
+                $valor_clean = str_replace(',', '.', trim($valor_str));
                 $valor = is_numeric($valor_clean) ? floatval($valor_clean) : null;
             }
 
             // Process dias_atraso
             $dias_atraso = is_numeric($dias_atraso_str) ? intval($dias_atraso_str) : null;
+
+            // Limpa dados de string
+            $document = !empty($document) ? preg_replace('/\D/', '', $document) : null;
+            $telefone = !empty($telefone) ? preg_replace('/\D/', '', $telefone) : null;
+            $nome = !empty($nome) ? trim($nome) : null;
+            $carteira = !empty($carteira) ? trim($carteira) : null;
+            $cod_cliente = !empty($cod_cliente) ? trim($cod_cliente) : null;
 
             ContatoDados::create([
                 'contato_id' => $import->contato_id,
