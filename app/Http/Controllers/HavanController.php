@@ -107,6 +107,12 @@ class HavanController extends Controller
                 $requestData['chave'] = env('HAVAN_PASSWORD', '3cr1O35JfhQ8vBO');
             }
 
+            Log::info('[FLUXO-DADOS] Payload enviado para ObterOpcoesParcelamento', [
+                'request_data' => $requestData,
+                'user_agent' => $request->header('User-Agent'),
+                'ip' => $request->ip()
+            ]);
+
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $token,
