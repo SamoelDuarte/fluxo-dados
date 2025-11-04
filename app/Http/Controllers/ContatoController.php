@@ -109,14 +109,14 @@ class ContatoController extends Controller
                 $mapped = array_combine($headers, $row);
             } else {
                 $mapped = [
-                    'telefone' => $row[0] ?? null,
+                    'telefone' => $row[2] ?? null,
                     'nome' => $row[1] ?? null,
-                    'document' => $row[2] ?? null,
-                    'cod_cliente' => $row[3] ?? null,
-                    'data_vencimento' => $row[4] ?? null,
-                    'dias_atraso' => $row[5] ?? null,
-                    'valor' => $row[6] ?? null,
-                    'carteira' => $row[7] ?? null,
+                    'document' => $row[4] ?? null,
+                    'cod_cliente' => $row[0] ?? null,
+                    'data_vencimento' => $row[12] ?? null,
+                    'dias_atraso' => $row[11] ?? null,
+                    'valor' => $row[10] ?? null,
+                    'carteira' => $row[9] ?? null,
                 ];
             }
 
