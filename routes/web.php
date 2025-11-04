@@ -27,6 +27,7 @@ Route::prefix('whatsapp')->group(function () {
         Route::post('verificaDividaOuAcordo', [\App\Http\Controllers\WhatsappController::class, 'verificaDividaOuAcordo']);
         Route::post('atualizaStep', [\App\Http\Controllers\WhatsappController::class, 'atualizaStepWebhook']);
         Route::post('verificaContratos', [\App\Http\Controllers\WhatsappController::class, 'verificaContratos']);
+        Route::post('obterDocumentosAbertos', [\App\Http\Controllers\WhatsappController::class, 'obterDocumentosAbertos']);
     });
 });
 

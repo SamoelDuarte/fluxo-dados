@@ -91,10 +91,10 @@ class WhatsappController extends Controller
                 $context['messages_count'] = ($context['messages_count'] ?? 0) + 1;
                 $context['last_message'] = $messageText;
                 $context['last_update_at'] = now()->toIso8601String();
-                
+
                 $session->update(['context' => $context]);
-                
-                echo json_encode( [
+
+                echo json_encode([
                     'status' => 'chat_existente',
                     'step' => $session->current_step
                 ]);
@@ -108,9 +108,9 @@ class WhatsappController extends Controller
     public function atualizaStep($session, $proximoStep)
     {
 
-            $session->current_step = $proximoStep;
-            $session->save();
-            return $proximoStep;
+        $session->current_step = $proximoStep;
+        $session->save();
+        return $proximoStep;
 
     }
 
@@ -188,7 +188,7 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'Contato não encontrado'], 404);
         }
         $session = WhatsappSession::where('contact_id', $contact->id)->first();
-       
+
         $session->current_step = $stepName;
         $session->save();
         return response()->json([
@@ -227,7 +227,7 @@ class WhatsappController extends Controller
 
         return response('Método não suportado', 405);
     }
-  
+
     public function gerarTokenNeocobe()
     {
         $client = new \GuzzleHttp\Client(['verify' => false]);
@@ -271,14 +271,14 @@ class WhatsappController extends Controller
             $res = $client->sendAsync($requestApi)->wait();
             $body = $res->getBody()->getContents();
             $dividaData = json_decode($body, true);
-            
+
             // Se Success true, verifica acordos
             if (is_array($dividaData) && isset($dividaData['Success']) && $dividaData['Success'] === true) {
                 $codigoCliente = $dividaData['NegociacaoDto'][0]['NrContrato'] ?? null;
-                
+
                 if ($codigoCliente) {
                     $acordoData = $this->obterAcordosPorCliente($codigoCliente);
-                    
+
                     if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
                         // Tem dívida, mas não tem acordo
                         $this->atualizarContextoEStepSessao($wa_id, [
@@ -369,7 +369,7 @@ class WhatsappController extends Controller
     public function verificaContratos(Request $request)
     {
         $wa_id = $request->input('wa_id');
-        
+
         if (empty($wa_id)) {
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
         }
@@ -405,7 +405,7 @@ class WhatsappController extends Controller
         $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
             ->orWhere('document', $cpfCnpj)
             ->get();
-        
+
         $quantidade = $contratos->count();
 
         // Atualiza o contexto com os dados encontrados
@@ -413,7 +413,7 @@ class WhatsappController extends Controller
         $context['quantidade_contratos'] = $quantidade;
         $context['verificacao_contratos_at'] = now()->toIso8601String();
         $context['cpf_cnpj_buscado'] = $cpfCnpj;
-        
+
         $session->update(['context' => $context]);
 
         return response()->json([
@@ -422,6 +422,148 @@ class WhatsappController extends Controller
             'contratos' => $contratos,
             'context' => $context
         ]);
+    }
+
+    public function obterDocumentosAbertos(Request $request)
+    {
+        $wa_id = $request->input('wa_id');
+
+        if (empty($wa_id)) {
+            return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
+        }
+
+        // Busca o contato pelo wa_id
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
+        }
+
+        // Busca a sessão do contato
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
+        }
+
+        // Extrai o CPF/CNPJ do contexto
+        $context = $session->context ?? [];
+        $cpfCnpj = $context['cpf_cnpj'] ?? null;
+
+        if (empty($cpfCnpj)) {
+            return response()->json([
+                'error' => 'CPF/CNPJ não encontrado no contexto da sessão',
+                'success' => false,
+                'context_disponivel' => $context
+            ], 400);
+        }
+
+        // Remove caracteres especiais do CPF/CNPJ para comparação
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpj);
+
+        // Busca os contratos na tabela contato_dados (tenta com e sem formatação)
+        $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
+            ->orWhere('document', $cpfCnpj)
+            ->get();
+
+        if ($contratos->isEmpty()) {
+            return response()->json([
+                'error' => 'Nenhum contrato encontrado para este cliente',
+                'success' => false,
+                'cpf_cnpj_buscado' => $cpfCnpj
+            ], 404);
+        }
+
+        // Obtém documentos abertos para cada contrato
+        $documentosResultados = [];
+        $erros = [];
+
+        foreach ($contratos as $contrato) {
+            $codigoCliente = $contrato->id_contrato ?? $contrato->cod_cliente;
+            $codigoCarteira = $contrato->codigo_da_carteira ?? $contrato->carteira;
+
+            if (empty($codigoCliente) || empty($codigoCarteira)) {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'erro' => 'Faltam dados: cod_cliente ou carteira'
+                ];
+                continue;
+            }
+
+            $documentos = $this->obterDocumentosHavan($codigoCliente, $codigoCarteira);
+            
+            if ($documentos) {
+                $documentosResultados[] = [
+                    'contrato' => $contrato->toArray(),
+                    'documentos' => $documentos
+                ];
+            } else {
+                $erros[] = [
+                    'contrato_id' => $contrato->id,
+                    'codigo_cliente' => $codigoCliente,
+                    'codigo_carteira' => $codigoCarteira,
+                    'erro' => 'Falha ao obter documentos da API'
+                ];
+            }
+        }
+
+        // Atualiza o contexto da sessão
+        $context['documentos_verificados'] = true;
+        $context['documentos_resultados_count'] = count($documentosResultados);
+        $context['verificacao_documentos_at'] = now()->toIso8601String();
+        if (!empty($erros)) {
+            $context['documentos_erros'] = $erros;
+        }
+        $session->update(['context' => $context]);
+
+        return response()->json([
+            'success' => true,
+            'cpf_cnpj' => $cpfCnpj,
+            'quantidade_contratos' => $contratos->count(),
+            'documentos_encontrados' => count($documentosResultados),
+            'documentos' => $documentosResultados,
+            'erros' => $erros,
+            'context_atualizado' => $context
+        ], 200);
+    }
+
+    /**
+     * Faz request para obter documentos abertos na API Havan
+     * @param string $codigoCliente
+     * @param string $codigoCarteira
+     * @return array|false
+     */
+    private function obterDocumentosHavan($codigoCliente, $codigoCarteira)
+    {
+        $client = new \GuzzleHttp\Client();
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+        $body = json_encode([
+            'codigoCliente' => (string)$codigoCliente,
+            'codigoCarteiraCobranca' => (string)$codigoCarteira
+        ]);
+
+        $request = new \GuzzleHttp\Psr7\Request(
+            'GET',
+            'https://havan-request.betasolucao.com.br/api/obter-documentos-aberto',
+            $headers,
+            $body
+        );
+
+        try {
+            $res = $client->sendAsync($request)->wait();
+            $responseBody = $res->getBody()->getContents();
+            $data = json_decode($responseBody, true);
+
+            // Verifica se a resposta indica que não há documentos
+            if (isset($data['mensagem']) && stripos($data['mensagem'], 'nenhum') !== false) {
+                return false;
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            \Log::error('Erro ao obter documentos Havan: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
