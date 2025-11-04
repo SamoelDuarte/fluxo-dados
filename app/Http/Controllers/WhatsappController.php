@@ -477,8 +477,8 @@ class WhatsappController extends Controller
         $erros = [];
 
         foreach ($contratos as $contrato) {
-            $codigoCliente = $contrato->id_contrato ?? $contrato->cod_cliente;
-            $codigoCarteira = $contrato->codigo_da_carteira ?? $contrato->carteira;
+            $codigoCliente = $contrato->cod_cliente ?? $contrato->cod_cliente;
+            $codigoCarteira = $contrato->carteira ?? $contrato->carteira;
 
             if (empty($codigoCliente) || empty($codigoCarteira)) {
                 $erros[] = [
