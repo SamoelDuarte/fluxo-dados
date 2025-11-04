@@ -183,6 +183,21 @@ class ContatoController extends Controller
             $contrato_numero = !empty($contrato_numero) ? trim($contrato_numero) : null;
             $id_contrato = !empty($id_contrato) ? trim($id_contrato) : null;
 
+            // Debug log
+            if ($rowNum === 2) {
+                \Log::info('Dados antes do create:', [
+                    'id_contrato' => $id_contrato,
+                    'telefone' => $telefone,
+                    'nome' => $nome,
+                    'document' => $document,
+                    'cod_cliente' => $contrato_numero,
+                    'carteira' => $carteira,
+                    'valor' => $valor,
+                    'dias_atraso' => $dias_atraso,
+                    'data_venc' => $data_venc,
+                ]);
+            }
+
             ContatoDados::create([
                 'id_contrato' => $id_contrato,
                 'contato_id' => $import->contato_id,
