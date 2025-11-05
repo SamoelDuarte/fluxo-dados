@@ -472,47 +472,54 @@ class WhatsappController extends Controller
             ], 404);
         }
 
-        // Obtém documentos abertos para cada contrato
-        $documentosResultados = [];
+        // Obtém opções de parcelamento para cada contrato
+        $parcelamentosResultados = [];
         $erros = [];
 
         foreach ($contratos as $contrato) {
-            $codigoCliente = $contrato->cod_cliente ?? $contrato->cod_cliente;
-            $codigoCarteira = $contrato->carteira ?? $contrato->carteira;
+            $codigoUsuarioCarteira = $contrato->cod_cliente ?? null;
+            $codigoCarteira = $contrato->codigo_da_carteira ?? $contrato->carteira ?? null;
+            $pessoaCodigo = $contrato->numero_contrato ?? $contrato->cod_cliente ?? null;
 
-            if (empty($codigoCliente) || empty($codigoCarteira)) {
+            if (empty($codigoUsuarioCarteira) || empty($codigoCarteira)) {
                 $erros[] = [
                     'contrato_id' => $contrato->id,
-                    'erro' => 'Faltam dados: cod_cliente ou carteira'
+                    'erro' => 'Faltam dados: codigoUsuarioCarteira ou codigoCarteira'
                 ];
                 continue;
             }
 
-            $documentos = $this->obterDocumentosHavan($codigoCliente, $codigoCarteira);
+            $parcelamentos = $this->obterOpcoesParcelamentoHavan(
+                $codigoUsuarioCarteira,
+                $codigoCarteira,
+                $pessoaCodigo,
+                now()->format('Y-m-d')
+            );
             
-            if ($documentos) {
-                $documentosResultados[] = [
+            if ($parcelamentos) {
+                $parcelamentosResultados[] = [
                     'contrato' => $contrato->toArray(),
-                    'documentos' => $documentos,
-                    "codigo_cliente" => $codigoCliente,
-                    "codigo_carteira" => $codigoCarteira
+                    'parcelamentos' => $parcelamentos,
+                    'codigo_usuario_carteira' => $codigoUsuarioCarteira,
+                    'codigo_carteira' => $codigoCarteira,
+                    'pessoa_codigo' => $pessoaCodigo
                 ];
             } else {
                 $erros[] = [
                     'contrato_id' => $contrato->id,
-                    'codigo_cliente' => $codigoCliente,
+                    'codigo_usuario_carteira' => $codigoUsuarioCarteira,
                     'codigo_carteira' => $codigoCarteira,
-                    'erro' => 'Falha ao obter documentos da API'
+                    'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
             }
         }
 
         // Atualiza o contexto da sessão
-        $context['documentos_verificados'] = true;
-        $context['documentos_resultados_count'] = count($documentosResultados);
-        $context['verificacao_documentos_at'] = now()->toIso8601String();
+        $context['parcelamentos_verificados'] = true;
+        $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
+        $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
         if (!empty($erros)) {
-            $context['documentos_erros'] = $erros;
+            $context['parcelamentos_erros'] = $erros;
         }
         $session->update(['context' => $context]);
 
@@ -520,11 +527,57 @@ class WhatsappController extends Controller
             'success' => true,
             'cpf_cnpj' => $cpfCnpj,
             'quantidade_contratos' => $contratos->count(),
-            'documentos_encontrados' => count($documentosResultados),
-            'documentos' => $documentosResultados,
+            'parcelamentos_encontrados' => count($parcelamentosResultados),
+            'parcelamentos' => $parcelamentosResultados,
             'erros' => $erros,
             'context_atualizado' => $context
         ], 200);
+    }
+
+    /**
+     * Faz request para obter opções de parcelamento na API Havan
+     * @param string $codigoUsuarioCarteira
+     * @param string $codigoCarteira
+     * @param string $pessoaCodigo
+     * @param string $dataPrimeiraParcela
+     * @return array|false
+     */
+    private function obterOpcoesParcelamentoHavan($codigoUsuarioCarteira, $codigoCarteira, $pessoaCodigo, $dataPrimeiraParcela)
+    {
+        $client = new \GuzzleHttp\Client();
+        $headers = [
+            'Content-Type' => 'application/json',
+        ];
+        $body = json_encode([
+            'codigoUsuarioCarteiraCobranca' => (int)$codigoUsuarioCarteira,
+            'codigoCarteiraCobranca' => (int)$codigoCarteira,
+            'pessoaCodigo' => (string)$pessoaCodigo,
+            'dataPrimeiraParcela' => $dataPrimeiraParcela
+        ]);
+
+        $request = new \GuzzleHttp\Psr7\Request(
+            'GET',
+            'https://havan-request.betasolucao.com.br/api/obter-opcoes-parcelamento',
+            $headers,
+            $body
+        );
+
+        try {
+            $res = $client->sendAsync($request)->wait();
+            $responseBody = $res->getBody()->getContents();
+            $data = json_decode($responseBody, true);
+
+            // Verifica se a resposta indica que não há opções
+            if (is_array($data) && isset($data['mensagem'])) {
+                \Log::warning('Resposta Havan obter-opcoes-parcelamento: ' . $data['mensagem']);
+                return false;
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            \Log::error('Erro ao obter opções de parcelamento Havan: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**
