@@ -28,6 +28,8 @@ Route::prefix('whatsapp')->group(function () {
         Route::post('atualizaStep', [\App\Http\Controllers\WhatsappController::class, 'atualizaStepWebhook']);
         Route::post('verificaContratos', [\App\Http\Controllers\WhatsappController::class, 'verificaContratos']);
         Route::post('obterDocumentosAbertos', [\App\Http\Controllers\WhatsappController::class, 'obterDocumentosAbertos']);
+        Route::post('obterContagemErros', [\App\Http\Controllers\WhatsappController::class, 'obterContagemErros']);
+        Route::post('adicionarErroSessao', [\App\Http\Controllers\WhatsappController::class, 'adicionarErroSessao']);
     });
 });
 

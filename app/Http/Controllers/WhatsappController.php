@@ -175,6 +175,92 @@ class WhatsappController extends Controller
     }
 
     /**
+     * Obtém a contagem de erros da sessão
+     * @param string $wa_id
+     * @return int
+     */
+    private function obterContagemErros($wa_id)
+    {
+        if (empty($wa_id)) {
+            return 0;
+        }
+
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return 0;
+        }
+
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return 0;
+        }
+
+        $context = $session->context ?? [];
+        return $context['error_count'] ?? 0;
+    }
+
+    /**
+     * Adiciona um erro ao contexto da sessão
+     * @param string $wa_id
+     * @param string $mensagemErro
+     * @param string $step
+     * @return int - Retorna a nova contagem de erros
+     */
+    private function adicionarErroSessao($wa_id, $mensagemErro, $step)
+    {
+        if (empty($wa_id)) {
+            return 0;
+        }
+
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return 0;
+        }
+
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return 0;
+        }
+
+        $context = $session->context ?? [];
+
+        // Incrementa contagem de erros
+        $context['error_count'] = ($context['error_count'] ?? 0) + 1;
+
+        // Armazena último erro
+        $context['last_error'] = [
+            'message' => $mensagemErro,
+            'timestamp' => now()->toIso8601String(),
+            'step' => $step
+        ];
+
+        // Mantém histórico dos últimos 5 erros
+        if (!isset($context['errors'])) {
+            $context['errors'] = [];
+        }
+        $context['errors'][] = $context['last_error'];
+        $context['errors'] = array_slice($context['errors'], -5);
+
+        // Atualiza a sessão
+        $session->update(['context' => $context]);
+
+        // Atualiza também no contato (histórico lifetime)
+        $contact->update([
+            'last_message' => 'Erro: ' . $mensagemErro,
+            'last_message_at' => now()
+        ]);
+
+        \Log::warning('[FLUXO-DADOS] Erro registrado na sessão', [
+            'wa_id' => $wa_id,
+            'error_message' => $mensagemErro,
+            'step' => $step,
+            'error_count' => $context['error_count']
+        ]);
+
+        return $context['error_count'];
+    }
+
+    /**
      * Rota para atualizar o step da sessão via n8n
      * Exemplo de chamada: POST /api/whatsapp/atualiza-step
      * Body: { "wa_id": "...", "step": "verifica_cpf" }
@@ -477,16 +563,16 @@ class WhatsappController extends Controller
         $erros = [];
 
         foreach ($contratos as $contrato) {
-            $codigoCarteira = $contrato->carteira ;
-            $pessoaCodigo = $contrato->cod_cliente ;
+            $codigoCarteira = $contrato->carteira;
+            $pessoaCodigo = $contrato->cod_cliente;
 
-           
+
 
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
                 $codigoCarteira,
                 $pessoaCodigo
             );
-            
+
             if ($parcelamentos) {
                 $parcelamentosResultados[] = [
                     'contrato' => $contrato->toArray(),
@@ -534,7 +620,7 @@ class WhatsappController extends Controller
     private function obterOpcoesParcelamentoHavan($codigoCarteira, $pessoaCodigo)
     {
         // Determina codigoUsuarioCarteiraCobranca baseado no codigoCarteira
-        $codigoCarteira = (int)$codigoCarteira;
+        $codigoCarteira = (int) $codigoCarteira;
         switch ($codigoCarteira) {
             case 870:
             case 871:
@@ -557,7 +643,7 @@ class WhatsappController extends Controller
         $body = json_encode([
             'codigoUsuarioCarteiraCobranca' => $codigoUsuarioCarteiraCobranca,
             'codigoCarteiraCobranca' => $codigoCarteira,
-            'pessoaCodigo' => (string)$pessoaCodigo,
+            'pessoaCodigo' => (string) $pessoaCodigo,
             'dataPrimeiraParcela' => now()->format('Y-m-d')
         ]);
 
@@ -599,8 +685,8 @@ class WhatsappController extends Controller
             'Content-Type' => 'application/json',
         ];
         $body = json_encode([
-            'codigoCliente' => (string)$codigoCliente,
-            'codigoCarteiraCobranca' => (string)$codigoCarteira
+            'codigoCliente' => (string) $codigoCliente,
+            'codigoCarteiraCobranca' => (string) $codigoCarteira
         ]);
 
         $request = new \GuzzleHttp\Psr7\Request(
