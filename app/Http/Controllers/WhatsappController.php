@@ -142,26 +142,33 @@ class WhatsappController extends Controller
         return true;
     }
 
+   
     /**
-     * Atualiza o context e o current_step da sessão por wa_id
-     * @param string $wa_id
-     * @param array $contextData - dados a serem adicionados/atualizados no context
-     * @param string $currentStep - novo valor para current_step
+     * Endpoint POST para atualizar contexto e step da sessão
+     * POST /api/whatsapp/atualizar-contexto-e-step { "wa_id": "...", "contextData": {...}, "currentStep": "..." }
      */
-    private function atualizarContextoEStepSessao($wa_id, $contextData, $currentStep)
+    public function atualizarContextoEStepSessao(Request $request)
     {
+        $wa_id = $request->input('wa_id');
+        $contextData = $request->input('contextData', []);
+        $currentStep = $request->input('currentStep');
+
         if (empty($wa_id)) {
-            return false;
+            return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
+        }
+
+        if (empty($currentStep)) {
+            return response()->json(['error' => 'currentStep é obrigatório', 'success' => false], 400);
         }
 
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if (!$contact) {
-            return false;
+            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
         $session = WhatsappSession::where('contact_id', $contact->id)->first();
         if (!$session) {
-            return false;
+            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
 
         $context = $session->context ?? [];
@@ -171,45 +178,78 @@ class WhatsappController extends Controller
             'context' => $context,
             'current_step' => $currentStep
         ]);
-        return true;
+
+        return response()->json([
+            'success' => true,
+            'wa_id' => $wa_id,
+            'current_step' => $currentStep,
+            'context' => $context
+        ]);
     }
 
-    
-    public function obterContagemErros($wa_id)
+    /**
+     * Endpoint POST para obter contagem de erros
+     * POST /api/whatsapp/obter-contagem-erros { "wa_id": "..." }
+     */
+    public function obterContagemErros(Request $request)
     {
+        $wa_id = $request->input('wa_id');
+
         if (empty($wa_id)) {
-            return 0;
+            return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
         }
 
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if (!$contact) {
-            return 0;
+            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
         $session = WhatsappSession::where('contact_id', $contact->id)->first();
         if (!$session) {
-            return 0;
+            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
 
         $context = $session->context ?? [];
-        return $context['error_count'] ?? 0;
+        $errorCount = $context['error_count'] ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'wa_id' => $wa_id,
+            'error_count' => $errorCount,
+            'last_error' => $context['last_error'] ?? null
+        ]);
     }
 
-  
-    public function adicionarErroSessao($wa_id, $mensagemErro, $step)
+    /**
+     * Endpoint POST para adicionar erro à sessão
+     * POST /api/whatsapp/adicionar-erro { "wa_id": "...", "mensagemErro": "...", "step": "..." }
+     */
+    public function adicionarErroSessao(Request $request)
     {
+        $wa_id = $request->input('wa_id');
+        $mensagemErro = $request->input('mensagemErro');
+        $step = $request->input('step');
+
         if (empty($wa_id)) {
-            return 0;
+            return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
+        }
+
+        if (empty($mensagemErro)) {
+            return response()->json(['error' => 'mensagemErro é obrigatório', 'success' => false], 400);
+        }
+
+        if (empty($step)) {
+            return response()->json(['error' => 'step é obrigatório', 'success' => false], 400);
         }
 
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if (!$contact) {
-            return 0;
+            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
         $session = WhatsappSession::where('contact_id', $contact->id)->first();
         if (!$session) {
-            return 0;
+            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
 
         $context = $session->context ?? [];
@@ -247,7 +287,13 @@ class WhatsappController extends Controller
             'error_count' => $context['error_count']
         ]);
 
-        return $context['error_count'];
+        return response()->json([
+            'success' => true,
+            'wa_id' => $wa_id,
+            'error_count' => $context['error_count'],
+            'last_error' => $context['last_error'],
+            'escalated' => $context['error_count'] >= 3
+        ]);
     }
 
     /**
