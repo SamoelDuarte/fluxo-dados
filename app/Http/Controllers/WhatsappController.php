@@ -174,12 +174,8 @@ class WhatsappController extends Controller
         return true;
     }
 
-    /**
-     * Obtém a contagem de erros da sessão
-     * @param string $wa_id
-     * @return int
-     */
-    private function obterContagemErros($wa_id)
+    
+    public function obterContagemErros($wa_id)
     {
         if (empty($wa_id)) {
             return 0;
@@ -199,14 +195,8 @@ class WhatsappController extends Controller
         return $context['error_count'] ?? 0;
     }
 
-    /**
-     * Adiciona um erro ao contexto da sessão
-     * @param string $wa_id
-     * @param string $mensagemErro
-     * @param string $step
-     * @return int - Retorna a nova contagem de erros
-     */
-    private function adicionarErroSessao($wa_id, $mensagemErro, $step)
+  
+    public function adicionarErroSessao($wa_id, $mensagemErro, $step)
     {
         if (empty($wa_id)) {
             return 0;
