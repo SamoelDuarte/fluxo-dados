@@ -477,9 +477,8 @@ class WhatsappController extends Controller
         $erros = [];
 
         foreach ($contratos as $contrato) {
-            $codigoUsuarioCarteira = $contrato->cod_cliente ?? null;
-            $codigoCarteira = $contrato->codigo_da_carteira ?? $contrato->carteira ?? null;
-            $pessoaCodigo = $contrato->numero_contrato ?? $contrato->cod_cliente ?? null;
+            $codigoCarteira = $contrato->carteira ;
+            $pessoaCodigo = $contrato->cod_cliente ;
 
             if (empty($codigoUsuarioCarteira) || empty($codigoCarteira)) {
                 $erros[] = [
@@ -490,17 +489,14 @@ class WhatsappController extends Controller
             }
 
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
-                $codigoUsuarioCarteira,
                 $codigoCarteira,
-                $pessoaCodigo,
-                now()->format('Y-m-d')
+                $pessoaCodigo
             );
             
             if ($parcelamentos) {
                 $parcelamentosResultados[] = [
                     'contrato' => $contrato->toArray(),
                     'parcelamentos' => $parcelamentos,
-                    'codigo_usuario_carteira' => $codigoUsuarioCarteira,
                     'codigo_carteira' => $codigoCarteira,
                     'pessoa_codigo' => $pessoaCodigo
                 ];
@@ -542,17 +538,34 @@ class WhatsappController extends Controller
      * @param string $dataPrimeiraParcela
      * @return array|false
      */
-    private function obterOpcoesParcelamentoHavan($codigoUsuarioCarteira, $codigoCarteira, $pessoaCodigo, $dataPrimeiraParcela)
+    private function obterOpcoesParcelamentoHavan($codigoCarteira, $pessoaCodigo)
     {
+        // Determina codigoUsuarioCarteiraCobranca baseado no codigoCarteira
+        $codigoCarteira = (int)$codigoCarteira;
+        switch ($codigoCarteira) {
+            case 870:
+            case 871:
+            case 872:
+            case 873:
+            case 874:
+                $codigoUsuarioCarteiraCobranca = 24;
+                break;
+            case 875:
+                $codigoUsuarioCarteiraCobranca = 30;
+                break;
+            default:
+                $codigoUsuarioCarteiraCobranca = 24; // valor padrão
+        }
+
         $client = new \GuzzleHttp\Client();
         $headers = [
             'Content-Type' => 'application/json',
         ];
         $body = json_encode([
-            'codigoUsuarioCarteiraCobranca' => (int)$codigoUsuarioCarteira,
-            'codigoCarteiraCobranca' => (int)$codigoCarteira,
+            'codigoUsuarioCarteiraCobranca' => $codigoUsuarioCarteiraCobranca,
+            'codigoCarteiraCobranca' => $codigoCarteira,
             'pessoaCodigo' => (string)$pessoaCodigo,
-            'dataPrimeiraParcela' => $dataPrimeiraParcela
+            'dataPrimeiraParcela' => now()->format('Y-m-d')
         ]);
 
         $request = new \GuzzleHttp\Psr7\Request(
