@@ -480,13 +480,7 @@ class WhatsappController extends Controller
             $codigoCarteira = $contrato->carteira ;
             $pessoaCodigo = $contrato->cod_cliente ;
 
-            if (empty($codigoUsuarioCarteira) || empty($codigoCarteira)) {
-                $erros[] = [
-                    'contrato_id' => $contrato->id,
-                    'erro' => 'Faltam dados: codigoUsuarioCarteira ou codigoCarteira'
-                ];
-                continue;
-            }
+           
 
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
                 $codigoCarteira,
@@ -503,7 +497,6 @@ class WhatsappController extends Controller
             } else {
                 $erros[] = [
                     'contrato_id' => $contrato->id,
-                    'codigo_usuario_carteira' => $codigoUsuarioCarteira,
                     'codigo_carteira' => $codigoCarteira,
                     'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
