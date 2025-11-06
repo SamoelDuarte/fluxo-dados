@@ -23,7 +23,7 @@
 @endsection
 
 @section('content')
-    <div class="container mt-5">
+    {{-- <div class="container mt-5">
         <h1>Envio de Arquivos com Barra de Progresso</h1>
 
         <!-- Mensagem de Sucesso -->
@@ -95,7 +95,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
 @endsection
 
 @section('scripts')

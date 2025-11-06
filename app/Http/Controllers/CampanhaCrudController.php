@@ -29,9 +29,14 @@ class CampanhaCrudController extends Controller
             'mensagem' => 'nullable|string',
             'contatos' => 'array',
             'telefones' => 'array',
+            'img_campanha' => 'nullable|integer|exists:imagens_campanha,id',
         ]);
 
-        $campanha = Campanha::create(['name' => $data['name'], 'mensagem' => $data['mensagem']]);
+        $campanha = Campanha::create([
+            'name' => $data['name'],
+            'mensagem' => $data['mensagem'],
+            'img_campanha' => $data['img_campanha'] ?? null,
+        ]);
 
         if (!empty($data['contatos'])) $campanha->contatos()->sync($data['contatos']);
         if (!empty($data['telefones'])) $campanha->telefones()->sync($data['telefones']);
@@ -53,9 +58,14 @@ class CampanhaCrudController extends Controller
             'mensagem' => 'nullable|string',
             'contatos' => 'array',
             'telefones' => 'array',
+            'img_campanha' => 'nullable|integer|exists:imagens_campanha,id',
         ]);
 
-        $campanha->update(['name' => $data['name'], 'mensagem' => $data['mensagem']]);
+        $campanha->update([
+            'name' => $data['name'],
+            'mensagem' => $data['mensagem'],
+            'img_campanha' => $data['img_campanha'] ?? null,
+        ]);
         $campanha->contatos()->sync($data['contatos'] ?? []);
         $campanha->telefones()->sync($data['telefones'] ?? []);
 

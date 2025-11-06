@@ -13,6 +13,7 @@
                 <thead>
                 <tr>
                     <th>#</th>
+                    <th>Imagem</th>
                     <th>Nome</th>
                     <th>Status</th>
                     <th>Contatos</th>
@@ -24,6 +25,13 @@
                 @foreach($campanhas as $campanha)
                     <tr>
                         <td>{{ $campanha->id }}</td>
+                        <td>
+                            @if($campanha->imagemPrincipal)
+                                <img src="{{ asset('storage/' . $campanha->imagemPrincipal->caminho_imagem) }}" alt="Imagem" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td>{{ $campanha->name }}</td>
                         <td>{{ $campanha->status === 'paused' ? 'Pausado' : 'Rodando' }}</td>
                         <td>{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 0)->count() }}</td>

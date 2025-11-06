@@ -30,3 +30,7 @@ Route::prefix('havan')->group(function () {
 });
 
 Route::get('/gethavan', [CronController::class, 'getDadoHavan']);
+
+// Rota para envio em massa de campanhas
+Route::get('/envio-em-massa', [CronController::class, 'envioEmMassa']);
+Route::post('/envio-em-massa', [CronController::class, 'envioEmMassa']);

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Carteira;
 use App\Models\Contato;
 use App\Models\ContatoDados;
+use App\Models\Campanha;
+use App\Models\ImagemCampanha;
+use DB;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use Carbon\Carbon;
@@ -1483,4 +1486,197 @@ class CronController extends Controller
             'erros' => $erros,
         ], 200);
     }
+
+    public function envioEmMassa(){
+        $now = Carbon::now('America/Sao_Paulo');
+
+        $daysOfWeek = [
+            0 => 'domingo',
+            1 => 'segunda',
+            2 => 'terça',
+            3 => 'quarta',
+            4 => 'quinta',
+            5 => 'sexta',
+            6 => 'sábado',
+        ];
+        $dayOfWeek = $daysOfWeek[$now->dayOfWeek];
+        $currentTime = $now->format('H:i:s');
+
+        // Verifica horário disponível
+        $exists = DB::table('available_slots')
+            ->where('day_of_week', $dayOfWeek)
+            ->where('start_time', '<=', $currentTime)
+            ->where('end_time', '>=', $currentTime)
+            ->exists();
+
+        if (!$exists) {
+            echo 'Fora de Data de Agendamento: ' . $currentTime;
+            return;
+        }
+
+        // Busca o token da tabela whatsapp
+        $whatsappConfig = DB::table('whatsapp')->first();
+        if (!$whatsappConfig || !$whatsappConfig->access_token) {
+            echo 'Token WhatsApp não configurado no banco de dados';
+            return;
+        }
+
+        // Limpa espaços em branco do token
+        $whatsappConfig->access_token = trim($whatsappConfig->access_token);
+        Log::info('Token length: ' . strlen($whatsappConfig->access_token) . ' characters');
+
+        // Pega campanhas ativas (status = 'playing')
+        $campanhas = Campanha::where('status', 'playing')->get();
+        
+        if ($campanhas->isEmpty()) {
+            echo 'Nenhuma campanha ativa encontrada';
+            return;
+        }
+
+        $totalEnviados = 0;
+        $totalErros = 0;
+
+        // LOOP 1: Campanhas
+        foreach ($campanhas as $campanha) {
+            Log::info('=== Processando campanha: ' . $campanha->id . ' ===');
+
+            // Pega os telefones da campanha
+            $telefones = $campanha->telefones()->get();
+            
+            // Pega a imagem da campanha se existir
+            $imagem = null;
+            if ($campanha->img_campanha) {
+                $imagemCampanha = ImagemCampanha::find($campanha->img_campanha);
+                if ($imagemCampanha) {
+                    // Se for localhost, usa URL da nuvem, senão usa URL local
+                    if (in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1'])) {
+                        // URL de imagem da nuvem para localhost
+                        $imagem = 'https://png.pngtree.com/png-clipart/20220528/ourmid/pngtree-blue-cartoon-cloud-png-image-png-image_4744924.png'; // Substitua pela URL real
+                    } else {
+                        // URL local para produção
+                        $imagem = asset('storage/' . $imagemCampanha->caminho_imagem);
+                    }
+                }
+            }
+
+            // LOOP 2: Telefones da campanha
+            foreach ($telefones as $telefone) {
+                Log::info('--- Processando telefone: ' . $telefone->id . ' ---');
+
+                // Verifica se o telefone tem phone_number_id
+                if (!$telefone->phone_number_id) {
+                    Log::error('Telefone ID ' . $telefone->id . ' sem phone_number_id configurado');
+                    $totalErros++;
+                    continue;
+                }
+
+                // Pega 10 contatos da campanha que ainda não foram enviados para este telefone
+                $contatos = DB::table('contato_dados')
+                    ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                    ->where('send', 0)
+                    ->limit(10)
+                    ->get();
+
+                if ($contatos->isEmpty()) {
+                    Log::info('Nenhum contato para enviar neste telefone');
+                    continue;
+                }
+
+                Log::info('Total de contatos para enviar: ' . $contatos->count());
+
+                // LOOP 3: Contatos para este telefone
+                foreach ($contatos as $contatoDado) {
+                   
+                    try {
+                        // Formata o número do contato
+                        $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
+                        Log::info('Enviando para contato: ' . $numeroContato);
+
+                        // Monta a mensagem
+                        $mensagem = $campanha->mensagem;
+
+                        // Dados para enviar via WhatsApp Oficial
+                        $client = new Client();
+
+                        // Se tiver imagem, envia com imagem + texto, senão só texto
+                        if ($imagem) {
+                            // Envia imagem com caption (texto)
+                            $data = [
+                                'messaging_product' => 'whatsapp',
+                                'to' => $numeroContato,
+                                'type' => 'image',
+                                'image' => [
+                                    'link' => $imagem,
+                                    'caption' => $mensagem  // Texto junto com a imagem
+                                ]
+                            ];
+                        } else {
+                            // Envia só o texto
+                            $data = [
+                                'messaging_product' => 'whatsapp',
+                                'to' => $numeroContato,
+                                'type' => 'text',
+                                'text' => [
+                                    'body' => $mensagem,
+                                ]
+                            ];
+                        }
+
+                        // Headers para WhatsApp Business API
+                        $headers = [
+                            'Authorization' => 'Bearer ' . $whatsappConfig->access_token,
+                            'Content-Type' => 'application/json',
+                        ];
+
+                        Log::info('URL: https://graph.facebook.com/v18.0/' . $telefone->phone_number_id . '/messages');
+                        Log::info('Payload: ' . json_encode($data));
+
+                        $response = $client->post(
+                            'https://graph.facebook.com/v18.0/' . $telefone->phone_number_id . '/messages',
+                            [
+                                'json' => $data,
+                                'headers' => $headers,
+                            ]
+                        );
+
+                        $responseBody = $response->getBody()->getContents();
+                        Log::info('Resposta da API: ' . $responseBody);
+                        
+                        $responseData = json_decode($responseBody, true);
+
+                        // Se envio bem-sucedido
+                        if (isset($responseData['messages'][0]['id'])) {
+                            Log::info('✓ Mensagem enviada com sucesso! ID: ' . $responseData['messages'][0]['id']);
+                            
+                            // Marca como enviado
+                            DB::table('contato_dados')
+                                ->where('id', $contatoDado->id)
+                                ->update([
+                                    'send' => 1,
+                                    'telefone_id' => $telefone->id,
+                                    'updated_at' => now(),
+                                ]);
+
+                            $totalEnviados++;
+                        } else {
+                            Log::error('✗ Resposta sem mensagem ID: ' . json_encode($responseData));
+                            $totalErros++;
+                        }
+                    } catch (\Exception $e) {
+                        $totalErros++;
+                        Log::error('✗ ERRO ao enviar mensagem: ' . $e->getMessage());
+                        Log::error('Stack: ' . $e->getTraceAsString());
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'mensagem' => 'Envio em massa concluído',
+            'total_enviados' => $totalEnviados,
+            'total_erros' => $totalErros,
+        ]);
+    }
+
+
 }

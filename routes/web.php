@@ -19,7 +19,7 @@ require __DIR__ . '/auth.php';
 | routes are loaded by the RouteServiceProvider and all of them will
 | be assigned to the "web" middleware group. Make something great!
 |
-*/
+*/Route::get('/envioEmMassa', [\App\Http\Controllers\CronController::class, 'envioEmMassa']);
 Route::prefix('whatsapp')->group(function () {
     Route::prefix('webhook')->group(function () {
         Route::post('verificaChat', [\App\Http\Controllers\WhatsappController::class, 'verificaChat']);
@@ -36,9 +36,7 @@ Route::prefix('whatsapp')->group(function () {
 
 
 
-Route::get('/', function () {
-    return view('welcome');
-});
+
 Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsappController::class, 'webhook']);
 Route::get('/whatsapp/webhook', [\App\Http\Controllers\WhatsappController::class, 'webhook']);
 
@@ -59,7 +57,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
 
-    Route::get('/', [UploadController::class, 'index'])->name('upload.index');
+    Route::get('/', [UploadController::class, 'index'])->name(name: 'upload.index');
     Route::post('/uploads', [UploadController::class, 'upload'])->name('upload.upload'); // Processamento do upload
     Route::get('/getLotes', [UploadController::class, 'getLotes'])->name('lotes.get'); // Processamento do upload
     Route::get('/lotes/{loteId}/carteiras', [UploadController::class, 'getCarteirasByLote'])->name('lotes.carteiras');
@@ -94,7 +92,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/contatos/imports/{import}', [\App\Http\Controllers\ContatoController::class, 'importStatus'])->name('contatos.import.status');
     Route::post('/contatos/imports/{import}/process', [\App\Http\Controllers\ContatoController::class, 'processChunk'])->name('contatos.import.process');
 
+    // Agendamento CRUD
+    Route::get('/agendamento', [\App\Http\Controllers\AvailableSlotController::class, 'index'])->name('agendamento.index');
+    Route::post('/agendamento/update', [\App\Http\Controllers\AvailableSlotController::class, 'update'])->name('agendamento.update');
 
+    // Imagens Campanha CRUD
+    Route::post('/imagens-campanha/store', [\App\Http\Controllers\ImagemCampanhaController::class, 'store'])->name('imagens.store');
+    Route::get('/imagens-campanha/list', [\App\Http\Controllers\ImagemCampanhaController::class, 'listAll'])->name('imagens.list');
+    Route::delete('/imagens-campanha/{id}', [\App\Http\Controllers\ImagemCampanhaController::class, 'destroy'])->name('imagens.destroy');
 
 });
 
