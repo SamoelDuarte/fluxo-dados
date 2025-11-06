@@ -149,7 +149,7 @@ class WhatsappController extends Controller
      * @param string $currentStep
      * @return bool
      */
-    private function _atualizarContextoEStepSessao($wa_id, $contextData, $currentStep)
+    private function atualizarContextoEStepSessaoInterno($wa_id, $contextData, $currentStep)
     {
         if (empty($wa_id)) {
             return false;
@@ -402,7 +402,7 @@ class WhatsappController extends Controller
 
     public function verificaDividaOuAcordo(Request $request)
     {
-        $cpfCnpj = $request->input('cpfCnpj');
+        $cpfCnpj = $request->input( 'cpfCnpj');
         $idGrupo = $request->input('idGrupo');
         $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
@@ -435,7 +435,7 @@ class WhatsappController extends Controller
 
                     if (is_array($acordoData) && isset($acordoData['mensagem']) && strtolower($acordoData['mensagem']) === 'nenhumacordo encontrado') {
                         // Tem dívida, mas não tem acordo
-                        $this->atualizarContextoEStepSessao($wa_id, [
+                        $this->atualizarContextoEStepSessaoInterno($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
@@ -445,7 +445,7 @@ class WhatsappController extends Controller
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                     } elseif (is_array($acordoData) && isset($acordoData[0]['codigoAcordo'])) {
                         // Tem acordo
-                        $this->atualizarContextoEStepSessao($wa_id, [
+                        $this->atualizarContextoEStepSessaoInterno($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'acordo',
                             'acordo_data' => $acordoData,
@@ -456,7 +456,7 @@ class WhatsappController extends Controller
                         return response()->json(['tipo' => 'acordo', 'acordo' => $acordoData]);
                     } else {
                         // Não encontrou acordo, retorna dívida
-                        $this->atualizarContextoEStepSessao($wa_id, [
+                        $this->atualizarContextoEStepSessaoInterno($wa_id, [
                             'divida_verificada' => true,
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
@@ -467,7 +467,7 @@ class WhatsappController extends Controller
                     }
                 } else {
                     // Não tem códigoCliente, retorna dívida
-                    $this->atualizarContextoEStepSessao($wa_id, [
+                    $this->atualizarContextoEStepSessaoInterno($wa_id, [
                         'divida_verificada' => true,
                         'tipo_resultado' => 'divida',
                         'divida_data' => $dividaData,
@@ -477,7 +477,7 @@ class WhatsappController extends Controller
                 }
             } else {
                 // Não tem dívida
-                $this->atualizarContextoEStepSessao($wa_id, [
+                $this->atualizarContextoEStepSessaoInterno($wa_id, [
                     'divida_verificada' => true,
                     'tipo_resultado' => 'sem_divida',
                     'divida_data' => $dividaData,
