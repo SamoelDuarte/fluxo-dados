@@ -403,7 +403,7 @@ class WhatsappController extends Controller
     public function verificaDividaOuAcordo(Request $request)
     {
         $cpfCnpj = $request->input( 'cpfCnpj');
-        $idGrupo = $request->input('idGrupo');
+        $idGrupo = "1589";
         $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (empty($cpfCnpj) || empty($idGrupo)) {
