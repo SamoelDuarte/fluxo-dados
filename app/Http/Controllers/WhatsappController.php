@@ -403,7 +403,7 @@ class WhatsappController extends Controller
     public function verificaDividaOuAcordo(Request $request)
     {
         $cpfCnpj = $request->input( 'cpfCnpj');
-        $idGrupo = "1589";
+        $idGrupo = "1582";
         $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
         if (empty($cpfCnpj) || empty($idGrupo)) {
@@ -413,7 +413,7 @@ class WhatsappController extends Controller
         if (!$token) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
-        $client = new \GuzzleHttp\Client(['verify' => false]);
+        $client = new \GuzzleHttp\Client(config: ['verify' => false]);
         $headers = [
             'apiKey' => env('NEOCOBE_APIKEY'),
             'Authorization' => 'Bearer ' . $token
