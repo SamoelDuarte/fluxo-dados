@@ -18,6 +18,90 @@ use Carbon\Carbon;
 class WhatsappController extends Controller
 {
 
+    public function verificaChat(Request $request)
+    {
+        $data = $request->all();
+
+        // Extrai os dados recebidos em variáveis
+        $name = $data['nome'] ?? null;
+        $wa_id = $data['numero'] ?? null;
+        $phoneNumberId = $data['phone_number_id'] ?? null;
+        $messageData = $data['messageData'] ?? null;
+
+        // Extrai dados da mensagem se existir
+        $messageId = $messageData['id'] ?? null;
+        $messageText = $messageData['text']['body'] ?? null;
+        $messageType = $messageData['type'] ?? 'text';
+        $messageTimestamp = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now();
+
+        // Variável fixa para simular dia útil
+        $isDiaUtil = true;
+
+        // 1️⃣ Verifica se o contato já existe
+        $contact = WhatsappContact::firstOrCreate(
+            ['wa_id' => $wa_id],
+            ['name' => $name]
+        );
+
+        // 2️⃣ Salva a mensagem recebida (se houver texto)
+        if ($messageId && $messageText) {
+            WhatsappMessage::create([
+                'contact_id' => $contact->id,
+                'message_id' => $messageId,
+                'direction' => 'in',
+                'content' => $messageText,
+                'type' => $messageType,
+                'timestamp' => $messageTimestamp,
+                'raw' => $messageData,
+            ]);
+        }
+
+        // 3️⃣ Verifica sessão do usuário
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+
+        // Resposta para o n8n
+        $responseN8N = [];
+
+        if (!$isDiaUtil) {
+            echo 'fora_do_dia_util';
+        } else {
+            if (!$session) {
+                // Primeira mensagem: cria a sessão com contexto inicial
+                $initialContext = [
+                    'created_at' => now()->toIso8601String(),
+                    'contact_name' => $name,
+                    'wa_id' => $wa_id,
+                    'messages_count' => 1,
+                    'last_message' => $messageText,
+                ];
+                $session = WhatsappSession::create([
+                    'contact_id' => $contact->id,
+                    'phone_number_id' => $phoneNumberId ?? null,
+                    'context' => $initialContext,
+                ]);
+                // Atualiza para o próximo step (exemplo: verifica_cpf)
+                $step = $this->atualizaStep($session, 'verifica_cpf');
+                echo json_encode([
+                    'status' => 'primeira_mensagem',
+                    'step' => ''
+                ]);
+            } else {
+                // Atualiza contexto da sessão existente
+                $context = $session->context ?? [];
+                $context['messages_count'] = ($context['messages_count'] ?? 0) + 1;
+                $context['last_message'] = $messageText;
+                $context['last_update_at'] = now()->toIso8601String();
+
+                $session->update(['context' => $context]);
+
+                echo json_encode([
+                    'status' => 'chat_existente',
+                    'step' => $session->current_step
+                ]);
+            }
+        }
+
+    }
     /**
      * Atualiza o step da sessão e retorna o step atualizado
      */
@@ -30,7 +114,11 @@ class WhatsappController extends Controller
 
     }
 
-   
+    /**
+     * Atualiza o context da sessão por wa_id
+     * @param string $wa_id
+     * @param array $contextData - dados a serem adicionados/atualizados no context
+     */
     private function atualizarContextoSessao($wa_id, $contextData)
     {
         if (empty($wa_id)) {
@@ -54,7 +142,13 @@ class WhatsappController extends Controller
         return true;
     }
 
- 
+    /**
+     * Helper privado para atualizar contexto e step (chamado internamente)
+     * @param string $wa_id
+     * @param array $contextData
+     * @param string $currentStep
+     * @return bool
+     */
     private function _atualizarContextoEStepSessao($wa_id, $contextData, $currentStep)
     {
         if (empty($wa_id)) {
