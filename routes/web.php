@@ -30,6 +30,7 @@ Route::prefix('whatsapp')->group(function () {
         Route::post('obterDocumentosAbertos', [\App\Http\Controllers\WhatsappController::class, 'obterDocumentosAbertos']);
         Route::post('obterContagemErros', [\App\Http\Controllers\WhatsappController::class, 'obterContagemErros']);
         Route::post('adicionarErroSessao', [\App\Http\Controllers\WhatsappController::class, 'adicionarErroSessao']);
+        Route::post('atualizarContextoEStepSessao', [\App\Http\Controllers\WhatsappController::class, 'atualizarContextoEStepSessao']);
     });
 });
 

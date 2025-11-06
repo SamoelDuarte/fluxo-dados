@@ -142,7 +142,39 @@ class WhatsappController extends Controller
         return true;
     }
 
-   
+    /**
+     * Helper privado para atualizar contexto e step (chamado internamente)
+     * @param string $wa_id
+     * @param array $contextData
+     * @param string $currentStep
+     * @return bool
+     */
+    private function _atualizarContextoEStepSessao($wa_id, $contextData, $currentStep)
+    {
+        if (empty($wa_id)) {
+            return false;
+        }
+
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if (!$contact) {
+            return false;
+        }
+
+        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        if (!$session) {
+            return false;
+        }
+
+        $context = $session->context ?? [];
+        // Mescla os dados novos com o contexto existente
+        $context = array_merge($context, $contextData);
+        $session->update([
+            'context' => $context,
+            'current_step' => $currentStep
+        ]);
+        return true;
+    }
+
     /**
      * Endpoint POST para atualizar contexto e step da sessão
      * POST /api/whatsapp/atualizar-contexto-e-step { "wa_id": "...", "contextData": {...}, "currentStep": "..." }
@@ -440,7 +472,7 @@ class WhatsappController extends Controller
                         'tipo_resultado' => 'divida',
                         'divida_data' => $dividaData,
                         'verificacao_divida_at' => now()->toIso8601String(),
-                    ], currentStep: 'divida_verificada');
+                    ], 'divida_verificada');
                     return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
                 }
             } else {
