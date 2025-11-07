@@ -1589,7 +1589,7 @@ class CronController extends Controller
                                 'header' => [
                                     'type' => 'image',
                                     'image' => [
-                                        'link' => url('storage/app/campaign-images/campanha.png'),
+                                        'link' => url('storage/app/campaign-images/campanha.jpg'),
                                     ],
                                 ],
                                 'body' => [
