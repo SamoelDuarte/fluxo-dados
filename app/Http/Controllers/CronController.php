@@ -1589,7 +1589,7 @@ class CronController extends Controller
                                 'header' => [
                                     'type' => 'image',
                                     'image' => [
-                                        'link' => url('storage/app/campaign-images/campanha.jpg'),
+                                        'link' => 'https://www.gstatic.com/webp/gallery/1.png',
                                     ],
                                 ],
                                 'body' => [
@@ -1689,6 +1689,20 @@ Entre em contato conosco para encontrarmos a melhor solução para você.👇',
             'total_enviados' => $totalEnviados,
             'total_erros' => $totalErros,
         ]);
+    }
+
+    private function getImageUrl()
+    {
+        // Se for localhost, usa URL de nuvem; caso contrário, usa URL local
+        $isLocal = \Str::contains(config('app.url'), ['localhost', '127.0.0.1']);
+        
+        if ($isLocal) {
+            // URL de nuvem (altere conforme sua URL de produção)
+            return 'https://www.gstatic.com/webp/gallery/1.png';
+        }
+        
+        // URL local em produção
+        return url('storage/app/campaign-images/campanha.jpg');
     }
 
 
