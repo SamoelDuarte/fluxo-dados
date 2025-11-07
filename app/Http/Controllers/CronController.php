@@ -1702,7 +1702,7 @@ Entre em contato conosco para encontrarmos a melhor solução para você.👇',
         }
         
         // URL local em produção - caminho correto do storage público
-        return asset('storage/campaign-images/campanha.jpg');
+        return asset('storage/campaign-images/campanha.png');
     }
 
 
