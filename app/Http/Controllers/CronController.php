@@ -1701,8 +1701,8 @@ Entre em contato conosco para encontrarmos a melhor solução para você.👇',
             return 'https://www.gstatic.com/webp/gallery/1.png';
         }
         
-        // URL local em produção
-        return url('storage/app/campaign-images/campanha.jpg');
+        // URL local em produção - caminho correto do storage público
+        return asset('storage/campaign-images/campanha.jpg');
     }
 
 
