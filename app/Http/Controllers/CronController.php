@@ -70,8 +70,8 @@ class CronController extends Controller
 
         // Dados da requisição POST com as informações do contrato
         $data = [
-            "codigoUsuarioCarteiraCobranca" => (string)$codigoUsuarioCarteiraCobranca, // Utilizando o relacionamento com a carteira
-            "codigoCarteiraCobranca" => (string)$contato->carteira, // Obtendo o id da carteira associada ao contrato
+            "codigoUsuarioCarteiraCobranca" => (string) $codigoUsuarioCarteiraCobranca, // Utilizando o relacionamento com a carteira
+            "codigoCarteiraCobranca" => (string) $contato->carteira, // Obtendo o id da carteira associada ao contrato
             "pessoaCodigo" => $pessoaCodigo, // Documento do contrato (ajuste conforme necessário)
             "dataPrimeiraParcela" => Carbon::today()->toDateString(), // Utilizando a data de hoje
             "valorEntrada" => 0, // Defina o valor conforme necessário
@@ -1487,7 +1487,8 @@ class CronController extends Controller
         ], 200);
     }
 
-    public function envioEmMassa(){
+    public function envioEmMassa()
+    {
         $now = Carbon::now('America/Sao_Paulo');
 
         $daysOfWeek = [
@@ -1527,7 +1528,7 @@ class CronController extends Controller
 
         // Pega campanhas ativas (status = 'playing')
         $campanhas = Campanha::where('status', 'playing')->get();
-        
+
         if ($campanhas->isEmpty()) {
             echo 'Nenhuma campanha ativa encontrada';
             return;
@@ -1542,22 +1543,6 @@ class CronController extends Controller
 
             // Pega os telefones da campanha
             $telefones = $campanha->telefones()->get();
-            
-            // Pega a imagem da campanha se existir
-            $imagem = null;
-            if ($campanha->img_campanha) {
-                $imagemCampanha = ImagemCampanha::find($campanha->img_campanha);
-                if ($imagemCampanha) {
-                    // Se for localhost, usa URL da nuvem, senão usa URL local
-                    if (in_array(request()->getHost(), ['localhost', '127.0.0.1', '::1'])) {
-                        // URL de imagem da nuvem para localhost
-                        $imagem = 'https://png.pngtree.com/png-clipart/20220528/ourmid/pngtree-blue-cartoon-cloud-png-image-png-image_4744924.png'; // Substitua pela URL real
-                    } else {
-                        // URL local para produção
-                        $imagem = asset('storage/' . $imagemCampanha->caminho_imagem);
-                    }
-                }
-            }
 
             // LOOP 2: Telefones da campanha
             foreach ($telefones as $telefone) {
@@ -1586,41 +1571,69 @@ class CronController extends Controller
 
                 // LOOP 3: Contatos para este telefone
                 foreach ($contatos as $contatoDado) {
-                   
+
                     try {
                         // Formata o número do contato
                         $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
                         Log::info('Enviando para contato: ' . $numeroContato);
 
-                        // Monta a mensagem
-                        $mensagem = $campanha->mensagem;
-
-                        // Dados para enviar via WhatsApp Oficial
+                        // Enviar imagem com botões interativos
                         $client = new Client();
 
-                        // Se tiver imagem, envia com imagem + texto, senão só texto
-                        if ($imagem) {
-                            // Envia imagem com caption (texto)
-                            $data = [
-                                'messaging_product' => 'whatsapp',
-                                'to' => $numeroContato,
-                                'type' => 'image',
-                                'image' => [
-                                    'link' => $imagem,
-                                    'caption' => $mensagem  // Texto junto com a imagem
-                                ]
-                            ];
-                        } else {
-                            // Envia só o texto
-                            $data = [
-                                'messaging_product' => 'whatsapp',
-                                'to' => $numeroContato,
-                                'type' => 'text',
-                                'text' => [
-                                    'body' => $mensagem,
-                                ]
-                            ];
-                        }
+                        $data = [
+                            'messaging_product' => 'whatsapp',
+                            'to' => $numeroContato,
+                            'type' => 'interactive',
+                            'interactive' => [
+                                'type' => 'button',
+                                'header' => [
+                                    'type' => 'image',
+                                    'image' => [
+                                        'link' => url('storage/app/campaign-images/campanha.png'),
+                                    ],
+                                ],
+                                'body' => [
+                                    'text' => 'Olá, @primeironome!😊
+
+
+
+Aqui é da Neocob, e gostaríamos de te lembrar que seu contrato referente ao Cartão Havan💳 está em atraso.
+
+
+
+Entendemos que imprevistos podem acontecer, e por isso estamos abertos a negociar as condições de pagamento.
+
+
+
+Entre em contato conosco para encontrarmos a melhor solução para você.👇',
+                                ],
+                                'action' => [
+                                    'buttons' => [
+                                        [
+                                            'type' => 'reply',
+                                            'reply' => [
+                                                'id' => '1',
+                                                'title' => 'Conferir agora',
+                                            ],
+                                        ],
+                                        [
+                                            'type' => 'reply',
+                                            'reply' => [
+                                                'id' => '2',
+                                                'title' => 'Não sou eu',
+                                            ],
+                                        ],
+                                        [
+                                            'type' => 'reply',
+                                            'reply' => [
+                                                'id' => '3',
+                                                'title' => 'Bloquear empresa',
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ];
 
                         // Headers para WhatsApp Business API
                         $headers = [
@@ -1641,13 +1654,13 @@ class CronController extends Controller
 
                         $responseBody = $response->getBody()->getContents();
                         Log::info('Resposta da API: ' . $responseBody);
-                        
+
                         $responseData = json_decode($responseBody, true);
 
                         // Se envio bem-sucedido
                         if (isset($responseData['messages'][0]['id'])) {
-                            Log::info('✓ Mensagem enviada com sucesso! ID: ' . $responseData['messages'][0]['id']);
-                            
+                            Log::info('✓ Mensagem interativa enviada com sucesso! ID: ' . $responseData['messages'][0]['id']);
+
                             // Marca como enviado
                             DB::table('contato_dados')
                                 ->where('id', $contatoDado->id)
@@ -1664,7 +1677,7 @@ class CronController extends Controller
                         }
                     } catch (\Exception $e) {
                         $totalErros++;
-                        Log::error('✗ ERRO ao enviar mensagem: ' . $e->getMessage());
+                        Log::error('✗ ERRO ao enviar mensagem interativa: ' . $e->getMessage());
                         Log::error('Stack: ' . $e->getTraceAsString());
                     }
                 }
