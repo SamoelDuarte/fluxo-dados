@@ -1575,7 +1575,7 @@ class CronController extends Controller
                     try {
                         // Formata o número do contato
                         $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
-                        Log::info('Enviando para contato: ' . $numeroContato);
+                        Log::info('Enviando para contato: ' . $numeroContato." url img: ".$this->getImageUrl());
 
                         // Enviar imagem com botões interativos
                         $client = new Client();
@@ -1589,7 +1589,7 @@ class CronController extends Controller
                                 'header' => [
                                     'type' => 'image',
                                     'image' => [
-                                        'link' => 'https://www.gstatic.com/webp/gallery/1.png',
+                                        'link' => $this->getImageUrl(),
                                     ],
                                 ],
                                 'body' => [
