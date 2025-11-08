@@ -1575,7 +1575,12 @@ class CronController extends Controller
                     try {
                         // Formata o número do contato
                         $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
-                        Log::info('Enviando para contato: ' . $numeroContato." url img: ".$this->getImageUrl());
+                        
+                        // Extrai primeiro nome do contato
+                        $nomeCompleto = $contatoDado->nome ?? 'Cliente';
+                        $primeiroNome = explode(' ', trim($nomeCompleto))[0];
+                        
+                        Log::info('Enviando para contato: ' . $numeroContato . ' (' . $primeiroNome . ') url img: ' . $this->getImageUrl());
 
                         // Enviar imagem com botões interativos
                         $client = new Client();
@@ -1593,17 +1598,11 @@ class CronController extends Controller
                                     ],
                                 ],
                                 'body' => [
-                                    'text' => 'Olá, @primeironome!😊
-
-
+                                    'text' => 'Olá, ' . $primeiroNome . '!😊
 
 Aqui é da Neocob, e gostaríamos de te lembrar que seu contrato referente ao Cartão Havan💳 está em atraso.
 
-
-
 Entendemos que imprevistos podem acontecer, e por isso estamos abertos a negociar as condições de pagamento.
-
-
 
 Entre em contato conosco para encontrarmos a melhor solução para você.👇',
                                 ],
