@@ -1191,7 +1191,7 @@ class WhatsappController extends Controller
                 'nome' => $nomeCliente,
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
-                'status' => 'pedido_de_acordo',
+                'status' => 'pendente',
                 'texto' => $textoFormatado
             ];
 
