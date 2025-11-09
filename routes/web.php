@@ -31,6 +31,7 @@ Route::prefix('whatsapp')->group(function () {
         Route::post('obterContagemErros', [\App\Http\Controllers\WhatsappController::class, 'obterContagemErros']);
         Route::post('adicionarErroSessao', [\App\Http\Controllers\WhatsappController::class, 'adicionarErroSessao']);
         Route::post('atualizarContextoEStepSessao', [\App\Http\Controllers\WhatsappController::class, 'atualizarContextoEStepSessao']);
+        Route::post('storeAcordo', [\App\Http\Controllers\WhatsappController::class, 'storeAcordo']);
     });
 });
 

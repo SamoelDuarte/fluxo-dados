@@ -12,6 +12,7 @@ use App\Models\WhatsappFlow;
 use App\Models\WhatsappFlowStep;
 use App\Models\Carteira;
 use App\Models\ContatoDados;
+use App\Models\Acordo;
 use GuzzleHttp\Client;
 use Carbon\Carbon;
 
@@ -402,7 +403,7 @@ class WhatsappController extends Controller
 
     public function verificaDividaOuAcordo(Request $request)
     {
-        $cpfCnpj = $request->input( 'cpfCnpj');
+        $cpfCnpj = $request->input('cpfCnpj');
         $idGrupo = "1582";
         $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
         $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
@@ -862,7 +863,7 @@ class WhatsappController extends Controller
         return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
-   
+
     private function getStepFluxo($id)
     {
         Log::info('getStepFluxo debug', [
@@ -969,7 +970,7 @@ class WhatsappController extends Controller
             "text" => ["body" => $body]
         ];
 
-        $response = Http::withToken($token)
+        $response = Http::withToken(token: $token)
             ->post("https://graph.facebook.com/v18.0/{$phoneNumberId}/messages", $data);
 
         return true;
@@ -1074,6 +1075,115 @@ class WhatsappController extends Controller
     {
         $data = DB::table('whatsapp')->first();
         return view('whatsapp.connect', compact('data'));
+    }
+
+    /**
+     * Armazenar acordo via WhatsApp
+     * POST /api/whatsapp/store-acordo
+     * 
+     * Exemplo de requisição:
+     * {
+     *   "wa_id": "551186123660",
+     *   "texto": "Acordo de negociação de dívida no Cartão Havan"
+     * }
+     */
+    public function storeAcordo(Request $request)
+    {
+        try {
+            $wa_id = $request->input('wa_id');
+
+            // Valida wa_id obrigatório
+            if (empty($wa_id)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'wa_id é obrigatório'
+                ], 400);
+            }
+
+            // Busca o contato WhatsApp pelo wa_id
+            $whatsappContact = WhatsappContact::where('wa_id', $wa_id)->first();
+            if (!$whatsappContact) {
+                Log::warning(message: 'Contato WhatsApp não encontrado para wa_id: ' . $wa_id);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Contato WhatsApp não encontrado'
+                ], 404);
+            }
+
+            // Busca os dados do contato em contato_dados pelo telefone ou nome
+            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->first();
+            
+            if (!$contatoDados) {
+                Log::warning('Dados do contato não encontrados para wa_id: ' . $wa_id);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Dados do contato não encontrados'
+                ], 404);
+            }
+
+            // Remove caracteres especiais do documento
+            $documentoLimpo = preg_replace('/\D/', '', $contatoDados->document);
+            
+            // Verifica se já existe acordo com este documento
+            $acordoExistente = Acordo::where('documento', $documentoLimpo)->first();
+            if ($acordoExistente) {
+                Log::warning('Tentativa de criar acordo com documento duplicado: ' . $documentoLimpo);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Já existe um acordo cadastrado para este documento',
+                    'acordo_existente' => $acordoExistente
+                ], 409);
+            }
+
+            // Prepara dados validados para criar o acordo
+            $validated = [
+                'documento' => $documentoLimpo,
+                'nome' => $contatoDados->nome,
+                'telefone' => $contatoDados->telefone,
+                'phone_number_id' => $request->input('phone_number_id'),
+                'status' => 'pendente',
+                'texto' => $request->input('texto', 'Acordo de negociação de dívida no Cartão Havan')
+            ];
+
+            // Cria o novo acordo
+            $acordo = Acordo::create($validated);
+
+            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ')');
+
+            // Atualiza contexto da sessão do WhatsApp
+            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->first();
+            if ($session) {
+                $context = $session->context ?? [];
+                $context['acordo_criado'] = true;
+                $context['acordo_id'] = $acordo->id;
+                $context['acordo_status'] = $acordo->status;
+                $context['acordo_data'] = now()->toIso8601String();
+                $session->update(['context' => $context]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Acordo criado com sucesso',
+                'data' => $acordo,
+                'id' => $acordo->id
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validação falhou ao criar acordo: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'error' => 'Erro de validação',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('✗ Erro ao criar acordo via WhatsApp: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Erro ao criar acordo',
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     public function authFacebook()

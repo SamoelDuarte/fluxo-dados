@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\HavanController;
 use App\Http\Controllers\CronController;
+use App\Http\Controllers\AcordoController;
+use App\Http\Controllers\WhatsappController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +36,22 @@ Route::get('/gethavan', [CronController::class, 'getDadoHavan']);
 // Rota para envio em massa de campanhas
 Route::get('/envio-em-massa', [CronController::class, 'envioEmMassa']);
 Route::post('/envio-em-massa', [CronController::class, 'envioEmMassa']);
+
+// Rotas de Acordos
+Route::prefix('acordos')->group(function () {
+    Route::get('/', [AcordoController::class, 'index']); // Listar todos
+    Route::post('/', [AcordoController::class, 'store']); // Criar novo
+    Route::post('/store', [AcordoController::class, 'storeAcordo']); // Criar novo (alias)
+    Route::get('/ativos', [AcordoController::class, 'ativos']); // Listar ativos
+    Route::get('/pendentes', [AcordoController::class, 'pendentes']); // Listar pendentes
+    Route::get('/documento/{documento}', [AcordoController::class, 'porDocumento']); // Buscar por documento
+    Route::get('/{id}', [AcordoController::class, 'show']); // Buscar por ID
+    Route::put('/{id}', [AcordoController::class, 'update']); // Atualizar
+    Route::patch('/{id}/status', [AcordoController::class, 'atualizarStatus']); // Atualizar status
+    Route::delete('/{id}', [AcordoController::class, 'destroy']); // Deletar
+});
+
+// Rotas do WhatsApp
+Route::prefix('whatsapp')->group(function () {
+    Route::post('/store-acordo', [WhatsappController::class, 'storeAcordo']); // Criar acordo via WhatsApp
+});
