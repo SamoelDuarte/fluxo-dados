@@ -1119,7 +1119,7 @@ class WhatsappController extends Controller
 
             // Busca os dados do contato em contato_dados pelo telefone ou nome
             $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->first();
-            
+
             if (!$contatoDados) {
                 Log::warning('Dados do contato não encontrados para wa_id: ' . $wa_id);
                 return response()->json([
@@ -1130,7 +1130,7 @@ class WhatsappController extends Controller
 
             // Remove caracteres especiais do documento
             $documentoLimpo = preg_replace('/\D/', '', $contatoDados->document);
-            
+
             // Verifica se já existe acordo com este documento
             $acordoExistente = Acordo::where('documento', $documentoLimpo)->first();
             if ($acordoExistente) {
@@ -1158,7 +1158,7 @@ class WhatsappController extends Controller
                 if (!empty($dividaData['NegociacaoDto']) && is_array($dividaData['NegociacaoDto'])) {
                     $negociacao = $dividaData['NegociacaoDto'][0] ?? [];
                     $valorDivida = $negociacao['VlDivida'] ?? 0;
-                    
+
                     // Tenta extrair data de vencimento e atraso
                     if (!empty($negociacao['Parcelas']) && is_array($negociacao['Parcelas'])) {
                         $parcela = $negociacao['Parcelas'][0] ?? [];
@@ -1170,8 +1170,115 @@ class WhatsappController extends Controller
 
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
-           
-           
+
+
+            // Prepara dados validados para criar o acordo
+            $validated = [
+                'documento' => $documentoLimpo,
+                'nome' => $nomeCliente,
+                'telefone' => $contatoDados->telefone,
+                'phone_number_id' => $request->input('phone_number_id'),
+                'status' => 'pendente',
+                'texto' => $textoFormatado
+            ];
+
+            // Cria o novo acordo
+            $acordo = Acordo::create($validated);
+
+            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
+
+            // Atualiza contexto da sessão do WhatsApp
+            if ($session) {
+                $context['acordo_criado'] = true;
+                $context['acordo_id'] = $acordo->id;
+                $context['acordo_status'] = $acordo->status;
+                $context['acordo_data'] = now()->toIso8601String();
+                $context['acordo_valor'] = $valorDivida;
+                $session->update(['context' => $context]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Acordo criado com sucesso',
+                'data' => $acordo,
+                'id' => $acordo->id,
+                'valor_divida' => $valorDivida,
+                'atraso_dias' => $atrasoDias
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validação falhou ao criar acordo: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'error' => 'Erro de validação',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('✗ Erro ao criar acordo via WhatsApp: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Erro ao criar acordo',
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+    public function storeAcordoParcelado(Request $request)
+    {
+        try {
+            $wa_id = $request->input('wa_id');
+
+            // Valida wa_id obrigatório
+            if (empty($wa_id)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'wa_id é obrigatório'
+                ], 400);
+            }
+
+            // Busca o contato WhatsApp pelo wa_id
+            $whatsappContact = WhatsappContact::where('wa_id', $wa_id)->first();
+            if (!$whatsappContact) {
+                Log::warning(message: 'Contato WhatsApp não encontrado para wa_id: ' . $wa_id);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Contato WhatsApp não encontrado'
+                ], 404);
+            }
+
+            // Busca os dados do contato em contato_dados pelo telefone ou nome
+            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->first();
+
+            if (!$contatoDados) {
+                Log::warning('Dados do contato não encontrados para wa_id: ' . $wa_id);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Dados do contato não encontrados'
+                ], 404);
+            }
+
+            // Remove caracteres especiais do documento
+            $documentoLimpo = preg_replace('/\D/', '', $contatoDados->document);
+
+            // Verifica se já existe acordo com este documento
+            $acordoExistente = Acordo::where('documento', $documentoLimpo)->first();
+            if ($acordoExistente) {
+                Log::warning('Tentativa de criar acordo com documento duplicado: ' . $documentoLimpo);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Já existe um acordo cadastrado para este documento',
+                    'acordo_existente' => $acordoExistente
+                ], 409);
+            }
+
+            
+            $nomeCliente = $contatoDados->nome;
+
+
+            // Monta texto automaticamente com dados do contexto
+            $textoFormatado = $request->input('texto');
+
+
             // Prepara dados validados para criar o acordo
             $validated = [
                 'documento' => $documentoLimpo,
