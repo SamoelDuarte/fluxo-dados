@@ -1084,8 +1084,15 @@ class WhatsappController extends Controller
      * Exemplo de requisição:
      * {
      *   "wa_id": "551186123660",
-     *   "texto": "Acordo de negociação de dívida no Cartão Havan"
+     *   "texto": "Acordo de negociação de dívida no Cartão Havan. Valor da dívida: {{valor_divida}}"
      * }
+     * 
+     * Placeholders disponíveis no texto:
+     * {{valor_divida}} - Valor total da dívida (VlDivida)
+     * {{cpf_cnpj}} - CPF/CNPJ do cliente
+     * {{nome_cliente}} - Nome do cliente
+     * {{atraso_dias}} - Dias de atraso
+     * {{data_vencimento}} - Data de vencimento
      */
     public function storeAcordo(Request $request)
     {
@@ -1135,29 +1142,68 @@ class WhatsappController extends Controller
                 ], 409);
             }
 
+            // Obtém contexto da sessão para extrair dados
+            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->first();
+            $context = $session ? ($session->context ?? []) : [];
+
+            // Extrai dados do contexto para substituir placeholders
+            $valorDivida = 0;
+            $atrasoDias = 0;
+            $dataVencimento = '';
+            $nomeCliente = $contatoDados->nome;
+
+            // Tenta extrair valor da dívida e outros dados da divida_data
+            if (!empty($context['divida_data']) && is_array($context['divida_data'])) {
+                $dividaData = $context['divida_data'];
+                if (!empty($dividaData['NegociacaoDto']) && is_array($dividaData['NegociacaoDto'])) {
+                    $negociacao = $dividaData['NegociacaoDto'][0] ?? [];
+                    $valorDivida = $negociacao['VlDivida'] ?? 0;
+                    
+                    // Tenta extrair data de vencimento e atraso
+                    if (!empty($negociacao['Parcelas']) && is_array($negociacao['Parcelas'])) {
+                        $parcela = $negociacao['Parcelas'][0] ?? [];
+                        $atrasoDias = $parcela['Atraso'] ?? 0;
+                        $dataVencimento = $parcela['DtVencimento'] ?? '';
+                    }
+                }
+            }
+
+            // Prepara texto com placeholders substituídos
+            $textoOriginal = $request->input('texto', 'Acordo de negociação de dívida no Cartão Havan');
+            $textoFormatado = str_replace(
+                ['{{valor_divida}}', '{{cpf_cnpj}}', '{{nome_cliente}}', '{{atraso_dias}}', '{{data_vencimento}}'],
+                [
+                    'R$ ' . number_format($valorDivida, 2, ',', '.'),
+                    $context['cpf_cnpj'] ?? $documentoLimpo,
+                    $nomeCliente,
+                    $atrasoDias . ' dias',
+                    !empty($dataVencimento) ? date('d/m/Y', strtotime($dataVencimento)) : 'N/A'
+                ],
+                $textoOriginal
+            );
+
             // Prepara dados validados para criar o acordo
             $validated = [
                 'documento' => $documentoLimpo,
-                'nome' => $contatoDados->nome,
+                'nome' => $nomeCliente,
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
-                'texto' => $request->input('texto', 'Acordo de negociação de dívida no Cartão Havan')
+                'texto' => $textoFormatado
             ];
 
             // Cria o novo acordo
             $acordo = Acordo::create($validated);
 
-            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ')');
+            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
 
             // Atualiza contexto da sessão do WhatsApp
-            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->first();
             if ($session) {
-                $context = $session->context ?? [];
                 $context['acordo_criado'] = true;
                 $context['acordo_id'] = $acordo->id;
                 $context['acordo_status'] = $acordo->status;
                 $context['acordo_data'] = now()->toIso8601String();
+                $context['acordo_valor'] = $valorDivida;
                 $session->update(['context' => $context]);
             }
 
@@ -1165,7 +1211,9 @@ class WhatsappController extends Controller
                 'success' => true,
                 'message' => 'Acordo criado com sucesso',
                 'data' => $acordo,
-                'id' => $acordo->id
+                'id' => $acordo->id,
+                'valor_divida' => $valorDivida,
+                'atraso_dias' => $atrasoDias
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
