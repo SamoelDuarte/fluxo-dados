@@ -98,6 +98,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/agendamento', [\App\Http\Controllers\AvailableSlotController::class, 'index'])->name('agendamento.index');
     Route::post('/agendamento/update', [\App\Http\Controllers\AvailableSlotController::class, 'update'])->name('agendamento.update');
 
+    // Acordos CRUD
+    Route::get('/acordos', [\App\Http\Controllers\AcordoCrudController::class, 'index'])->name('acordos.index');
+    Route::get('/acordos/create', [\App\Http\Controllers\AcordoCrudController::class, 'create'])->name('acordos.create');
+    Route::post('/acordos', [\App\Http\Controllers\AcordoCrudController::class, 'store'])->name('acordos.store');
+    Route::get('/acordos/{acordo}', [\App\Http\Controllers\AcordoCrudController::class, 'show'])->name('acordos.show');
+    Route::get('/acordos/{acordo}/edit', [\App\Http\Controllers\AcordoCrudController::class, 'edit'])->name('acordos.edit');
+    Route::put('/acordos/{acordo}', [\App\Http\Controllers\AcordoCrudController::class, 'update'])->name('acordos.update');
+    Route::delete('/acordos/{acordo}', [\App\Http\Controllers\AcordoCrudController::class, 'destroy'])->name('acordos.destroy');
+
     // Imagens Campanha CRUD
     Route::post('/imagens-campanha/store', [\App\Http\Controllers\ImagemCampanhaController::class, 'store'])->name('imagens.store');
     Route::get('/imagens-campanha/list', [\App\Http\Controllers\ImagemCampanhaController::class, 'listAll'])->name('imagens.list');

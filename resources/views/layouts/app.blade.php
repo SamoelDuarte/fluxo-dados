@@ -107,6 +107,8 @@
                                 style="color: #858796;"></i> Relatório de envio</a>
                         <a class="collapse-item" href="{{ route('agendamento.index') }}"><i class="fas fa-calendar-alt"
                                 style="color: #36b9cc;"></i> Agendamentos</a>
+                        <a class="collapse-item" href="{{ route('acordos.index') }}"><i class="fas fa-handshake"
+                                style="color: #858796;"></i> Acordos</a>
                     </div>
                 </div>
             </li>
