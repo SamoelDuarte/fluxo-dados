@@ -1168,19 +1168,22 @@ class WhatsappController extends Controller
                 }
             }
 
-            // Prepara texto com placeholders substituídos
-            $textoOriginal = $request->input('texto', 'Acordo de negociação de dívida no Cartão Havan');
-            $textoFormatado = str_replace(
-                ['{{valor_divida}}', '{{cpf_cnpj}}', '{{nome_cliente}}', '{{atraso_dias}}', '{{data_vencimento}}'],
-                [
-                    'R$ ' . number_format($valorDivida, 2, ',', '.'),
-                    $context['cpf_cnpj'] ?? $documentoLimpo,
-                    $nomeCliente,
-                    $atrasoDias . ' dias',
-                    !empty($dataVencimento) ? date('d/m/Y', strtotime($dataVencimento)) : 'N/A'
-                ],
-                $textoOriginal
-            );
+            // Monta texto automaticamente com dados do contexto
+            $textoFormatado = "Acordo de negociação de dívida no Cartão Havan\n\n";
+            $textoFormatado .= "Cliente: " . $nomeCliente . "\n";
+            $textoFormatado .= "CPF/CNPJ: " . ($context['cpf_cnpj'] ?? $documentoLimpo) . "\n";
+            $textoFormatado .= "Valor da dívida: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
+            $textoFormatado .= "Dias de atraso: " . $atrasoDias . " dias\n";
+            if (!empty($dataVencimento)) {
+                $textoFormatado .= "Data de vencimento: " . date('d/m/Y', strtotime($dataVencimento)) . "\n";
+            }
+            $textoFormatado .= "\nPor favor, confirme o acordo proposto.";
+            
+            // Se o usuário fornecer um texto customizado, usa ele como adicional
+            $textoCustomizado = $request->input('texto');
+            if (!empty($textoCustomizado)) {
+                $textoFormatado .= "\n\nObservações: " . $textoCustomizado;
+            }
 
             // Prepara dados validados para criar o acordo
             $validated = [
@@ -1188,7 +1191,7 @@ class WhatsappController extends Controller
                 'nome' => $nomeCliente,
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
-                'status' => 'pendente',
+                'status' => 'pedido_de_acordo',
                 'texto' => $textoFormatado
             ];
 
