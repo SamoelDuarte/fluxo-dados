@@ -1292,25 +1292,13 @@ class WhatsappController extends Controller
             // Cria o novo acordo
             $acordo = Acordo::create($validated);
 
-            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
-
-            // Atualiza contexto da sessão do WhatsApp
-            if ($session) {
-                $context['acordo_criado'] = true;
-                $context['acordo_id'] = $acordo->id;
-                $context['acordo_status'] = $acordo->status;
-                $context['acordo_data'] = now()->toIso8601String();
-                $context['acordo_valor'] = $valorDivida;
-                $session->update(['context' => $context]);
-            }
+        
 
             return response()->json([
                 'success' => true,
                 'message' => 'Acordo criado com sucesso',
                 'data' => $acordo,
-                'id' => $acordo->id,
-                'valor_divida' => $valorDivida,
-                'atraso_dias' => $atrasoDias
+                'id' => $acordo->id
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
