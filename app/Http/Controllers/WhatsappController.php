@@ -1169,22 +1169,9 @@ class WhatsappController extends Controller
             }
 
             // Monta texto automaticamente com dados do contexto
-            $textoFormatado = "Acordo de negociação de dívida no Cartão Havan\n\n";
-            $textoFormatado .= "Cliente: " . $nomeCliente . "\n";
-            $textoFormatado .= "CPF/CNPJ: " . ($context['cpf_cnpj'] ?? $documentoLimpo) . "\n";
-            $textoFormatado .= "Valor da dívida: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
-            $textoFormatado .= "Dias de atraso: " . $atrasoDias . " dias\n";
-            if (!empty($dataVencimento)) {
-                $textoFormatado .= "Data de vencimento: " . date('d/m/Y', strtotime($dataVencimento)) . "\n";
-            }
-            $textoFormatado .= "\nPor favor, confirme o acordo proposto.";
-            
-            // Se o usuário fornecer um texto customizado, usa ele como adicional
-            $textoCustomizado = $request->input('texto');
-            if (!empty($textoCustomizado)) {
-                $textoFormatado .= "\n\nObservações: " . $textoCustomizado;
-            }
-
+            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
+           
+           
             // Prepara dados validados para criar o acordo
             $validated = [
                 'documento' => $documentoLimpo,
