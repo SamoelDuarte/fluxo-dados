@@ -1598,7 +1598,7 @@ class CronController extends Controller
                                     [
                                         'type' => 'body',
                                         'parameters' => [
-                                            ['type' => 'text', 'text' => $primeiroNome],
+                                            (object)['type' => 'text', 'text' => $primeiroNome],
                                         ],
                                     ],
                                 ],
