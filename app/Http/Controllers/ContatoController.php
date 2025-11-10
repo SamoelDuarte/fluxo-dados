@@ -177,6 +177,12 @@ class ContatoController extends Controller
 
             // Limpa dados de string
             $document = !empty($document) ? preg_replace('/\D/', '', $document) : null;
+            
+            // Se for CPF (11 dígitos), garante zeros à esquerda
+            if (!empty($document) && strlen($document) <= 11) {
+                $document = str_pad($document, 11, '0', STR_PAD_LEFT);
+            }
+            
             $telefone = !empty($telefone) ? preg_replace('/\D/', '', $telefone) : null;
             $nome = !empty($nome) ? trim($nome) : null;
             $carteira = !empty($carteira) ? trim($carteira) : null;
