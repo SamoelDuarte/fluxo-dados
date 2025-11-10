@@ -1640,11 +1640,11 @@ Entre em contato conosco para encontrarmos a melhor solução para você.👇',
                             'Content-Type' => 'application/json',
                         ];
 
-                        Log::info('URL: https://graph.facebook.com/v18.0/' . $telefone->phone_number_id . '/messages');
+                        Log::info('URL: https://graph.facebook.com/v23.0/' . $telefone->phone_number_id . '/messages');
                         Log::info('Payload: ' . json_encode($data));
 
                         $response = $client->post(
-                            'https://graph.facebook.com/v18.0/' . $telefone->phone_number_id . '/messages',
+                            'https://graph.facebook.com/v23.0/' . $telefone->phone_number_id . '/messages',
                             [
                                 'json' => $data,
                                 'headers' => $headers,
