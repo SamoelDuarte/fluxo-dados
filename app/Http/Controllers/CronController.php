@@ -1596,12 +1596,6 @@ class CronController extends Controller
                                 ],
                                 'components' => [
                                     [
-                                        'type' => 'header',
-                                        'parameters' => [
-                                            (object)['type' => 'image', 'image' => (object)['link' => $this->getImageUrl()]],
-                                        ],
-                                    ],
-                                    [
                                         'type' => 'body',
                                         'parameters' => [
                                             (object)['type' => 'text', 'text' => $primeiroNome],
