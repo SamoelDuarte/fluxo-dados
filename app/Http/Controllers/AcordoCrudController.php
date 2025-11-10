@@ -174,8 +174,8 @@ class AcordoCrudController extends Controller
             $sheet->setTitle('Acordos');
 
             // Define as colunas e estilos do cabeçalho
-            $columns = ['ID', 'Nome', 'Documento', 'Telefone', 'Phone Number ID', 'Status', 'Criado em', 'Atualizado em'];
-            $columnLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            $columns = ['ID', 'Nome', 'Documento', 'Telefone', 'Phone Number ID', 'Texto', 'Status', 'Criado em', 'Atualizado em'];
+            $columnLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 
             foreach ($columnLetters as $index => $letter) {
                 $cell = $sheet->getCell($letter . '1');
@@ -194,9 +194,10 @@ class AcordoCrudController extends Controller
                 $sheet->setCellValue('C' . $row, $acordo->documento);
                 $sheet->setCellValue('D' . $row, $acordo->telefone);
                 $sheet->setCellValue('E' . $row, $acordo->phone_number_id ?? '-');
-                $sheet->setCellValue('F' . $row, ucfirst($acordo->status));
-                $sheet->setCellValue('G' . $row, $acordo->created_at->format('d/m/Y H:i'));
-                $sheet->setCellValue('H' . $row, $acordo->updated_at->format('d/m/Y H:i'));
+                $sheet->setCellValue('F' . $row, $acordo->texto ?? '-');
+                $sheet->setCellValue('G' . $row, ucfirst($acordo->status));
+                $sheet->setCellValue('H' . $row, $acordo->created_at->format('d/m/Y H:i'));
+                $sheet->setCellValue('I' . $row, $acordo->updated_at->format('d/m/Y H:i'));
                 
                 $row++;
             }
