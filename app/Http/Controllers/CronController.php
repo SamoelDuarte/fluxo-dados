@@ -1591,9 +1591,7 @@ class CronController extends Controller
                             'type' => 'template',
                             'template' => [
                                 'name' => 'robo8',
-                                'language' => [
-                                    'code' => 'en',
-                                ],
+                                'language' => 'en',
                                 'components' => [
                                     [
                                         'type' => 'body',
