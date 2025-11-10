@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/acordos/{acordo}/edit', [\App\Http\Controllers\AcordoCrudController::class, 'edit'])->name('acordos.edit');
     Route::put('/acordos/{acordo}', [\App\Http\Controllers\AcordoCrudController::class, 'update'])->name('acordos.update');
     Route::delete('/acordos/{acordo}', [\App\Http\Controllers\AcordoCrudController::class, 'destroy'])->name('acordos.destroy');
+    Route::get('/acordos/export/excel', [\App\Http\Controllers\AcordoCrudController::class, 'exportExcel'])->name('acordos.export');
 
     // Imagens Campanha CRUD
     Route::post('/imagens-campanha/store', [\App\Http\Controllers\ImagemCampanhaController::class, 'store'])->name('imagens.store');

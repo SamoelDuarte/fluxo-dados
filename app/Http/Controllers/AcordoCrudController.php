@@ -5,15 +5,45 @@ namespace App\Http\Controllers;
 use App\Models\Acordo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class AcordoCrudController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $acordos = Acordo::paginate(15);
+        $query = Acordo::query();
+
+        // Filtro por status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filtro por data inicial
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('created_at', '>=', $request->data_inicio);
+        }
+
+        // Filtro por data final
+        if ($request->filled('data_fim')) {
+            $query->whereDate('created_at', '<=', $request->data_fim);
+        }
+
+        // Filtro por documento
+        if ($request->filled('documento')) {
+            $query->where('documento', 'LIKE', '%' . $request->documento . '%');
+        }
+
+        // Ordenação
+        $query->orderBy('created_at', 'DESC');
+
+        $acordos = $query->paginate(15);
+        
         return view('acordos.index', compact('acordos'));
     }
 
@@ -107,6 +137,90 @@ class AcordoCrudController extends Controller
         } catch (\Exception $e) {
             Log::error('✗ Erro ao deletar acordo: ' . $e->getMessage());
             return back()->with('error', 'Erro ao deletar acordo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Exportar acordos em Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        try {
+            $query = Acordo::query();
+
+            // Aplicar os mesmos filtros
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('data_inicio')) {
+                $query->whereDate('created_at', '>=', $request->data_inicio);
+            }
+
+            if ($request->filled('data_fim')) {
+                $query->whereDate('created_at', '<=', $request->data_fim);
+            }
+
+            if ($request->filled('documento')) {
+                $query->where('documento', 'LIKE', '%' . $request->documento . '%');
+            }
+
+            $query->orderBy('created_at', 'DESC');
+            $acordos = $query->get();
+
+            // Cria novo spreadsheet
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Acordos');
+
+            // Define as colunas e estilos do cabeçalho
+            $columns = ['ID', 'Nome', 'Documento', 'Telefone', 'Phone Number ID', 'Status', 'Criado em', 'Atualizado em'];
+            $columnLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+            foreach ($columnLetters as $index => $letter) {
+                $cell = $sheet->getCell($letter . '1');
+                $cell->setValue($columns[$index]);
+                
+                // Estilo do cabeçalho
+                $cell->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF4472C4');
+                $cell->getStyle()->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'))->setBold(true);
+            }
+
+            // Adiciona dados
+            $row = 2;
+            foreach ($acordos as $acordo) {
+                $sheet->setCellValue('A' . $row, $acordo->id);
+                $sheet->setCellValue('B' . $row, $acordo->nome);
+                $sheet->setCellValue('C' . $row, $acordo->documento);
+                $sheet->setCellValue('D' . $row, $acordo->telefone);
+                $sheet->setCellValue('E' . $row, $acordo->phone_number_id ?? '-');
+                $sheet->setCellValue('F' . $row, ucfirst($acordo->status));
+                $sheet->setCellValue('G' . $row, $acordo->created_at->format('d/m/Y H:i'));
+                $sheet->setCellValue('H' . $row, $acordo->updated_at->format('d/m/Y H:i'));
+                
+                $row++;
+            }
+
+            // Auto size das colunas
+            foreach ($columnLetters as $letter) {
+                $sheet->getColumnDimension($letter)->setAutoSize(true);
+            }
+
+            // Cria o arquivo
+            $fileName = 'acordos_' . date('d_m_Y_H_i_s') . '.xlsx';
+            $writer = new Xlsx($spreadsheet);
+
+            // Headers para download
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment; filename="' . $fileName . '"');
+            header('Cache-Control: max-age=0');
+
+            $writer->save('php://output');
+            exit;
+
+        } catch (\Exception $e) {
+            Log::error('✗ Erro ao exportar acordos: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao exportar: ' . $e->getMessage());
         }
     }
 }
