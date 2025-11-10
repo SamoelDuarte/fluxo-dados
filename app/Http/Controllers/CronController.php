@@ -1596,7 +1596,10 @@ class CronController extends Controller
                                 ],
                                 'components' => [
                                     [
-                                        'type' => 'body'
+                                        'type' => 'body',
+                                        'parameters' => [
+                                            (object)['type' => 'text', 'text' => $primeiroNome],
+                                        ],
                                     ],
                                 ],
                             ],
