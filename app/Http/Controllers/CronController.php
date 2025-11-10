@@ -1582,52 +1582,23 @@ class CronController extends Controller
                         
                         Log::info('Enviando para contato: ' . $numeroContato . ' (' . $primeiroNome . ') url img: ' . $this->getImageUrl());
 
-                        // Enviar imagem com botões interativos
+                        // Enviar template
                         $client = new Client();
 
                         $data = [
                             'messaging_product' => 'whatsapp',
                             'to' => $numeroContato,
-                            'type' => 'interactive',
-                            'interactive' => [
-                                'type' => 'button',
-                                'header' => [
-                                    'type' => 'image',
-                                    'image' => [
-                                        'link' => $this->getImageUrl(),
-                                    ],
+                            'type' => 'template',
+                            'template' => [
+                                'name' => 'robo8',
+                                'language' => [
+                                    'code' => 'pt_BR',
                                 ],
-                                'body' => [
-                                    'text' => 'Olá, ' . $primeiroNome . '!😊
-
-Aqui é da Neocob, e gostaríamos de te lembrar que seu contrato referente ao Cartão Havan💳 está em atraso.
-
-Entendemos que imprevistos podem acontecer, e por isso estamos abertos a negociar as condições de pagamento.
-
-Entre em contato conosco para encontrarmos a melhor solução para você.👇',
-                                ],
-                                'action' => [
-                                    'buttons' => [
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => '1',
-                                                'title' => 'Conferir agora',
-                                            ],
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => '2',
-                                                'title' => 'Não sou eu',
-                                            ],
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => '3',
-                                                'title' => 'Bloquear empresa',
-                                            ],
+                                'components' => [
+                                    [
+                                        'type' => 'body',
+                                        'parameters' => [
+                                            ['type' => 'text', 'text' => $primeiroNome],
                                         ],
                                     ],
                                 ],
