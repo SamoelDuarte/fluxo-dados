@@ -1575,11 +1575,11 @@ class CronController extends Controller
                     try {
                         // Formata o número do contato
                         $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
-                        
+
                         // Extrai primeiro nome do contato
                         $nomeCompleto = $contatoDado->nome ?? 'Cliente';
                         $primeiroNome = explode(' ', trim($nomeCompleto))[0];
-                        
+
                         Log::info('Enviando para contato: ' . $numeroContato . ' (' . $primeiroNome . ') url img: ' . $this->getImageUrl());
 
                         // Enviar template
@@ -1591,18 +1591,32 @@ class CronController extends Controller
                             'type' => 'template',
                             'template' => [
                                 'name' => 'robo8',
-                                'language' => (object)[
-                                    'code' => 'en',
+                                'language' => [
+                                    'code' => 'en', // ou "pt_BR" se o template foi criado assim
                                 ],
                                 'components' => [
                                     [
+                                        'type' => 'header',
+                                        'parameters' => [
+                                            [
+                                                'type' => 'image',
+                                                'image' => [
+                                                    'link' => 'https://scontent.whatsapp.net/v/t61.29466-34/577865809_835489428840965_3994952417606526824_n.jpg?...'
+                                                ]
+                                            ]
+                                        ]
+                                    ],
+                                    [
                                         'type' => 'body',
                                         'parameters' => [
-                                            (object)['type' => 'text', 'text' => $primeiroNome],
-                                        ],
-                                    ],
-                                ],
-                            ],
+                                            [
+                                                'type' => 'text',
+                                                'text' => $primeiroNome
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
                         ];
 
                         // Headers para WhatsApp Business API
@@ -1665,12 +1679,12 @@ class CronController extends Controller
     {
         // Se for localhost, usa URL de nuvem; caso contrário, usa URL local
         $isLocal = \Str::contains(config('app.url'), ['localhost', '127.0.0.1']);
-        
+
         if ($isLocal) {
             // URL de nuvem (altere conforme sua URL de produção)
             return 'https://www.gstatic.com/webp/gallery/1.png';
         }
-        
+
         // URL local em produção - caminho correto do storage público
         return asset('storage/campaign-images/campanha.png');
     }
