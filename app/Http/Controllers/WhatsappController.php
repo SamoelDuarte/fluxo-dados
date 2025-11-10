@@ -1169,7 +1169,7 @@ class WhatsappController extends Controller
             }
 
             // Monta texto automaticamente com dados do contexto
-            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
+            $textoFormatado = "acordo a vista: R$ " . number_format($contatoDados->valor, 2, ',', '.') . "\n";
 
 
             // Prepara dados validados para criar o acordo
