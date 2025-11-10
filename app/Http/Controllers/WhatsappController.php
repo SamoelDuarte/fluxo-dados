@@ -630,12 +630,11 @@ class WhatsappController extends Controller
         // Obtém opções de parcelamento para cada contrato
         $parcelamentosResultados = [];
         $erros = [];
+        $valorAVista = 0; // Valor da primeira parcela (à vista)
 
         foreach ($contratos as $contrato) {
             $codigoCarteira = $contrato->carteira;
             $pessoaCodigo = $contrato->cod_cliente;
-
-
 
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
                 $codigoCarteira,
@@ -649,6 +648,11 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'pessoa_codigo' => $pessoaCodigo
                 ];
+                
+                // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
+                if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
+                    $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
+                }
             } else {
                 $erros[] = [
                     'contrato_id' => $contrato->id,
@@ -662,6 +666,7 @@ class WhatsappController extends Controller
         $context['parcelamentos_verificados'] = true;
         $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
         $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
+        $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
         if (!empty($erros)) {
             $context['parcelamentos_erros'] = $erros;
         }
@@ -1152,12 +1157,14 @@ class WhatsappController extends Controller
             $dataVencimento = '';
             $nomeCliente = $contatoDados->nome;
 
-            // Tenta extrair valor da dívida e outros dados da divida_data
+            // Tenta extrair valor da dívida do contexto (já calculado no obterDocumentosAbertos)
+            $valorDivida = $context['valor-atual-da-divida-a-vista'] ?? 0;
+
+            // Tenta extrair data de vencimento e atraso da divida_data
             if (!empty($context['divida_data']) && is_array($context['divida_data'])) {
                 $dividaData = $context['divida_data'];
                 if (!empty($dividaData['NegociacaoDto']) && is_array($dividaData['NegociacaoDto'])) {
                     $negociacao = $dividaData['NegociacaoDto'][0] ?? [];
-                    $valorDivida = $negociacao['VlDivida'] ?? 0;
 
                     // Tenta extrair data de vencimento e atraso
                     if (!empty($negociacao['Parcelas']) && is_array($negociacao['Parcelas'])) {
