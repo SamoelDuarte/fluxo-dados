@@ -993,7 +993,7 @@ class WhatsappController extends Controller
 
     /**
      * Formata e mascara o CPF mostrando apenas os 3 últimos dígitos
-     * Exemplo: 37785652345 → 377.856.52X-XX
+     * Exemplo: 37785652345 → XXX.XXX.XX-X45
      * @param string $cpf - CPF com ou sem formatação
      * @return string - CPF formatado e mascarado
      */
@@ -1011,27 +1011,12 @@ class WhatsappController extends Controller
             return '';
         }
 
-        // Formata: XXX.XXX.XX[2 últimos dígitos são visíveis]
-        // Estrutura: 3 dígitos . 3 dígitos . 2 últimos dígitos (X se < posição 8) - 2 últimos dígitos
-        $mascara = 'XXX.XXX.';
-        $mascara .= 'XX' . substr($cpf, -2);
-        // Melhor: XXX.XXX.XX[pos8][pos9]-[pos10][pos11]
-        // pos 0-2: XXX
-        // pos 3-5: XXX  
-        // pos 6-7: XX
-        // pos 8-9: mostrar
-        // pos 10: X
-        // pos 11: mostrar último
+        // Pega os 3 últimos dígitos e mascara o resto
+        $ultimosTres = substr($cpf, -3); // Últimos 3 dígitos
+        $mascarado = 'XXXXXXXX' . $ultimosTres; // 8 X + 3 últimos dígitos
 
-        $partes = [
-            'XXX',
-            'XXX',
-            'XX',
-            substr($cpf, 8, 2), // 2 dígitos visíveis
-            'X' . substr($cpf, -1) // Último dígito visível
-        ];
-
-        return implode('.', array_slice($partes, 0, 3)) . '-' . implode('', array_slice($partes, 3));
+        // Formata no padrão CPF: XXX.XXX.XX-XXX
+        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 2) . '-' . substr($mascarado, 8, 3);
     }
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
