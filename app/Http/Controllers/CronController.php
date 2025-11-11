@@ -1601,7 +1601,7 @@ class CronController extends Controller
                                             [
                                                 'type' => 'image',
                                                 'image' => [
-                                                    'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campanha-2.jpg'
+                                                    'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campaha-2.jpg'
                                                 ]
                                             ]
                                         ]
