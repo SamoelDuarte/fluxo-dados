@@ -1011,12 +1011,12 @@ class WhatsappController extends Controller
             return '';
         }
 
-        // Pega os 9 primeiros dígitos visíveis e mascara os 2 últimos
-        $primeirosNove = substr($cpf, 0, 9); // Primeiros 9 dígitos
-        $mascarado = $primeirosNove . 'XX'; // 9 primeiros + 2 X
+        // Pega os 8 primeiros dígitos visíveis e mascara os 3 últimos
+        $primeirosOito = substr($cpf, 0, 8); // Primeiros 8 dígitos
+        $mascarado = $primeirosOito . 'XXX'; // 8 primeiros + 3 X
 
         // Formata no padrão CPF: XXX.XXX.XXX-XX
-        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 3) . '-' . substr($mascarado, 9, 2);
+        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 2) . 'X-XX';
     }
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
