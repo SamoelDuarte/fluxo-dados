@@ -672,6 +672,9 @@ class WhatsappController extends Controller
         }
         $session->update(['context' => $context]);
 
+        // Calcula data de vencimento com lógica de dias úteis
+        $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
+
         return response()->json([
             'success' => true,
             'cpf_cnpj' => $cpfCnpj,
@@ -679,8 +682,40 @@ class WhatsappController extends Controller
             'parcelamentos_encontrados' => count($parcelamentosResultados),
             'parcelamentos' => $parcelamentosResultados,
             'erros' => $erros,
+            'data_vencimento' => $dataVencimento,
             'context_atualizado' => $context
         ], 200);
+    }
+
+    /**
+     * Calcula data de vencimento com 5 dias úteis a partir de hoje
+     * Se cair no fim de semana (sábado 4 ou domingo 5), adiciona dias até segunda
+     */
+    private function calcularDataVencimentoComDiasUteis()
+    {
+        $data = now();
+        $diasAdicionados = 0;
+        $diasUteis = 0;
+
+        // Adiciona dias até completar 5 dias úteis
+        while ($diasUteis < 5) {
+            $data = $data->addDay();
+            $diasAdicionados++;
+            
+            // Verifica se é dia útil (segunda a sexta = 1 a 5)
+            if ($data->dayOfWeek >= 1 && $data->dayOfWeek <= 5) {
+                $diasUteis++;
+            }
+        }
+
+        // Verifica se caiu em sábado (6) ou domingo (0)
+        if ($data->dayOfWeek == 6) { // Sábado
+            $data = $data->addDays(2); // Pula para segunda
+        } elseif ($data->dayOfWeek == 0) { // Domingo
+            $data = $data->addDay(); // Pula para segunda
+        }
+
+        return $data->format('d/m/Y');
     }
 
     private function obterOpcoesParcelamentoHavan($codigoCarteira, $pessoaCodigo)
