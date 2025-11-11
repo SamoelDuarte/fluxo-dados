@@ -34,7 +34,7 @@ class WhatsappController extends Controller
         $messageText = $messageData['text']['body'] ?? null;
         $messageType = $messageData['type'] ?? 'text';
         $messageTimestamp = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now();
-
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
         // Variável fixa para simular dia útil
         $isDiaUtil = true;
 
@@ -84,7 +84,8 @@ class WhatsappController extends Controller
                 $step = $this->atualizaStep($session, 'verifica_cpf');
                 echo json_encode([
                     'status' => 'primeira_mensagem',
-                    'step' => ''
+                    'step' => '',
+                    'cpf' => $this->formatarCpfMascarado($contatoDados->document ?? '')
                 ]);
             } else {
                 // Atualiza contexto da sessão existente
@@ -988,6 +989,49 @@ class WhatsappController extends Controller
             return $this->isValidCnpj($document);
         }
         return false;
+    }
+
+    /**
+     * Formata e mascara o CPF mostrando apenas os 3 últimos dígitos
+     * Exemplo: 37785652345 → 377.856.52X-XX
+     * @param string $cpf - CPF com ou sem formatação
+     * @return string - CPF formatado e mascarado
+     */
+    private function formatarCpfMascarado($cpf)
+    {
+        if (empty($cpf)) {
+            return '';
+        }
+
+        // Remove caracteres especiais
+        $cpf = preg_replace('/\D/', '', $cpf);
+
+        // Se não tiver 11 dígitos, retorna vazio
+        if (strlen($cpf) != 11) {
+            return '';
+        }
+
+        // Formata: XXX.XXX.XX[2 últimos dígitos são visíveis]
+        // Estrutura: 3 dígitos . 3 dígitos . 2 últimos dígitos (X se < posição 8) - 2 últimos dígitos
+        $mascara = 'XXX.XXX.';
+        $mascara .= 'XX' . substr($cpf, -2);
+        // Melhor: XXX.XXX.XX[pos8][pos9]-[pos10][pos11]
+        // pos 0-2: XXX
+        // pos 3-5: XXX  
+        // pos 6-7: XX
+        // pos 8-9: mostrar
+        // pos 10: X
+        // pos 11: mostrar último
+
+        $partes = [
+            'XXX',
+            'XXX',
+            'XX',
+            substr($cpf, 8, 2), // 2 dígitos visíveis
+            'X' . substr($cpf, -1) // Último dígito visível
+        ];
+
+        return implode('.', array_slice($partes, 0, 3)) . '-' . implode('', array_slice($partes, 3));
     }
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
