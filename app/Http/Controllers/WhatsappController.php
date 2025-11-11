@@ -811,46 +811,62 @@ class WhatsappController extends Controller
 
     public function verificaCliente(Request $request)
     {
-        $cpfCnpj = $request->input('cpfCnpj');
-        $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
-        $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
-        if (!(strlen($cpfCnpj) === 11 || strlen($cpfCnpj) === 14)) {
+        $cpfCnpjDigitado = $request->input('cpfCnpj');
+        $wa_id = $request->input('wa_id');
+
+        if (empty($wa_id)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
-        $token = $this->gerarTokenNeocobe();
-        if (!$token) {
+
+        // Busca o contato em contatoDados onde telefone == wa_id
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+
+        if (!$contatoDados || empty($contatoDados->document)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
-        $data = $this->consultaDadosCadastrais($cpfCnpj, $token);
-        if (is_string($data)) {
-            // Se o texto contém "Nenhum resultado encontrado", retorna false
-            if (strpos($data, 'Nenhum resultado encontrado') !== false) {
-                return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+
+        // Limpa o CPF digitado (remove - e .)
+        $cpfCnpjLimpo = preg_replace('/[-.]/', '', $cpfCnpjDigitado);
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpjLimpo); // Remove qualquer outro caractere especial
+
+        // Pega o document do contato e extrai os 3 últimos dígitos
+        $documentoArmazenado = preg_replace('/\D/', '', $contatoDados->document);
+        $ultimosTresDigitos = substr($documentoArmazenado, -3);
+
+        // Pega os 3 últimos dígitos do CPF digitado
+        $ultimosTresDigitadosDigitados = substr($cpfCnpjLimpo, -3);
+
+        // Compara os 3 últimos dígitos
+        if ($ultimosTresDigitadosDigitados !== $ultimosTresDigitos) {
+            \Log::warning('CPF digitado não corresponde ao cadastro', [
+                'wa_id' => $wa_id,
+                'ultimos_3_digitados' => $ultimosTresDigitadosDigitados,
+                'ultimos_3_armazenados' => $ultimosTresDigitos
+            ]);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        // CPF validado! Atualiza o contexto da sessão
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if ($contact) {
+            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            if ($session) {
+                $context = $session->context ?? [];
+                $context['cliente_verificado'] = true;
+                $context['cpf_cnpj'] = $cpfCnpjLimpo;
+                $context['documento_banco'] = $documentoArmazenado;
+                $context['verificacao_at'] = now()->toIso8601String();
+                $session->update(['context' => $context]);
             }
-            // Qualquer outro erro, retorna false
-            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
-        if (is_array($data) && isset($data[0]) && is_array($data[0]) && isset($data[0]['CpfCnpj'])) {
-            // Atualiza o context da sessão se wa_id foi fornecido
-            if (!empty($wa_id)) {
-                $contact = WhatsappContact::where('wa_id', $wa_id)->first();
-                if ($contact) {
-                    $session = WhatsappSession::where('contact_id', $contact->id)->first();
-                    if ($session) {
-                        $context = $session->context ?? [];
-                        $context['cliente_verificado'] = true;
-                        $context['cpf_cnpj'] = $cpfCnpj;
-                        $context['dados_cadastrais'] = $data[0]; // Armazena os dados do cliente
-                        $context['verificacao_at'] = now()->toIso8601String();
-                        $session->update(['context' => $context]);
-                    }
-                }
-            }
-            // Retorna todos os dados para n8n acessar as variáveis
-            return response()->json(['success' => true, 'data' => $data]);
-        }
-        // Se não for nenhum dos casos acima, retorna false
-        return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+
+        // Retorna sucesso
+        return response()->json([
+            'success' => true,
+            'cliente_verificado' => true,
+            'documento' => $documentoArmazenado,
+            'nome' => $contatoDados->nome ?? ''
+        ]);
     }
 
     private function obterAcordosPorCliente($codigoCliente)
