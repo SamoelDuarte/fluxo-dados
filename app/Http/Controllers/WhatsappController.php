@@ -672,6 +672,7 @@ class WhatsappController extends Controller
                 $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
                 $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
                 $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
+                $context['nome'] = $contrato->nome; // Salva no contexto
                 if (!empty($erros)) {
                     $context['parcelamentos_erros'] = $erros;
                 }
