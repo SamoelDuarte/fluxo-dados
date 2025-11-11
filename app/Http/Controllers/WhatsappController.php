@@ -992,8 +992,8 @@ class WhatsappController extends Controller
     }
 
     /**
-     * Formata e mascara o CPF mostrando apenas os 3 últimos dígitos
-     * Exemplo: 37785652345 → XXX.XXX.XX-X45
+     * Formata e mascara o CPF mostrando apenas os 8 primeiros dígitos
+     * Exemplo: 37785652345 → 377.856.52X-XX
      * @param string $cpf - CPF com ou sem formatação
      * @return string - CPF formatado e mascarado
      */
@@ -1011,9 +1011,9 @@ class WhatsappController extends Controller
             return '';
         }
 
-        // Pega os 3 últimos dígitos e mascara o resto
-        $ultimosTres = substr($cpf, -3); // Últimos 3 dígitos
-        $mascarado = 'XXXXXXXX' . $ultimosTres; // 8 X + 3 últimos dígitos
+        // Pega os 8 primeiros dígitos visíveis e mascara os 3 últimos
+        $primeirosOito = substr($cpf, 0, 8); // Primeiros 8 dígitos
+        $mascarado = $primeirosOito . 'XXX'; // 8 primeiros + 3 X
 
         // Formata no padrão CPF: XXX.XXX.XX-XXX
         return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 2) . '-' . substr($mascarado, 8, 3);
