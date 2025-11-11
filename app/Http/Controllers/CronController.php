@@ -1686,7 +1686,7 @@ class CronController extends Controller
         }
 
         // URL local em produção - caminho correto do storage público
-        return asset('storage/campaign-images/campanha.png');
+        return asset('storage/campaign-images/campanha-2.jpg');
     }
 
 
