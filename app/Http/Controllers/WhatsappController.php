@@ -693,16 +693,35 @@ class WhatsappController extends Controller
             $session = WhatsappSession::where('contact_id', $contact->id)->first();
             if ($session) {
                 $context = $session->context ?? [];
+                
+                \Log::info('DEBUG ANTES DE SALVAR - Context state', [
+                    'valor_antes' => $context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE',
+                    'valorAVista_variavel' => $valorAVista
+                ]);
+                
                 $context['parcelamentos_verificados'] = true;
                 $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
                 $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
                 $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
                 $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
                 $context['nome'] = $contrato->nome; // Salva no contexto
+                
+                \Log::info('DEBUG DEPOIS DE ATRIBUIR - Context array', [
+                    'valor_no_array' => $context['valor-atual-da-divida-a-vista'],
+                    'array_completo' => json_encode($context)
+                ]);
+                
                 if (!empty($erros)) {
                     $context['parcelamentos_erros'] = $erros;
                 }
+                
                 $session->update(['context' => $context]);
+                
+                \Log::info('DEBUG DEPOIS DE SALVAR - Verificando sessão', [
+                    'session_id' => $session->id,
+                    'context_salvo' => json_encode($session->context),
+                    'valor_no_db' => $session->context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE'
+                ]);
             }
         }
 
