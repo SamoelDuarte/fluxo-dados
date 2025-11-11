@@ -550,53 +550,45 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
         }
 
-        // Busca o contato pelo wa_id
-        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
-        if (!$contact) {
-            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
-        }
+        // Busca o contato em contatoDados onde telefone == wa_id
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
 
-        // Busca a sessão do contato
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
-        if (!$session) {
-            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
-        }
-
-        // Extrai o CPF/CNPJ do contexto
-        $context = $session->context ?? [];
-        $cpfCnpj = $context['cpf_cnpj'] ?? null;
-
-        if (empty($cpfCnpj)) {
+        if (!$contatoDados || empty($contatoDados->document)) {
             return response()->json([
-                'error' => 'CPF/CNPJ não encontrado no contexto da sessão',
-                'success' => false,
-                'context_disponivel' => $context
-            ], 400);
+                'error' => 'Contato não encontrado em contatoDados',
+                'success' => false
+            ], 404);
         }
 
-        // Remove caracteres especiais do CPF/CNPJ para comparação
-        $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpj);
+        // Pega o document do contatoDados e limpa
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $contatoDados->document);
 
-        // Busca os contratos na tabela contato_dados (tenta com e sem formatação)
+        // Busca os contratos na tabela contato_dados
         $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
-            ->orWhere('document', $cpfCnpj)
+            ->orWhere('document', $contatoDados->document)
             ->get();
 
         $quantidade = $contratos->count();
 
-        // Atualiza o contexto com os dados encontrados
-        $context['contratos_verificados'] = true;
-        $context['quantidade_contratos'] = $quantidade;
-        $context['verificacao_contratos_at'] = now()->toIso8601String();
-        $context['cpf_cnpj_buscado'] = $cpfCnpj;
-
-        $session->update(['context' => $context]);
+        // Busca o contato WhatsApp e atualiza o contexto com os dados encontrados
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if ($contact) {
+            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            if ($session) {
+                $context = $session->context ?? [];
+                $context['contratos_verificados'] = true;
+                $context['quantidade_contratos'] = $quantidade;
+                $context['verificacao_contratos_at'] = now()->toIso8601String();
+                $context['cpf_cnpj'] = $cpfCnpjLimpo;
+                $session->update(['context' => $context]);
+            }
+        }
 
         return response()->json([
             'success' => true,
             'quantidade' => $quantidade,
             'contratos' => $contratos,
-            'context' => $context
+            'cpf_cnpj' => $cpfCnpjLimpo
         ]);
     }
 
@@ -608,43 +600,29 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
         }
 
-        // Busca o contato pelo wa_id
-        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
-        if (!$contact) {
-            return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
-        }
+        // Busca o contato em contatoDados onde telefone == wa_id
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
 
-        // Busca a sessão do contato
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
-        if (!$session) {
-            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
-        }
-
-        // Extrai o CPF/CNPJ do contexto
-        $context = $session->context ?? [];
-        $cpfCnpj = $context['cpf_cnpj'] ?? null;
-
-        if (empty($cpfCnpj)) {
+        if (!$contatoDados || empty($contatoDados->document)) {
             return response()->json([
-                'error' => 'CPF/CNPJ não encontrado no contexto da sessão',
-                'success' => false,
-                'context_disponivel' => $context
-            ], 400);
+                'error' => 'Contato não encontrado em contatoDados',
+                'success' => false
+            ], 404);
         }
 
-        // Remove caracteres especiais do CPF/CNPJ para comparação
-        $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpj);
+        // Pega o document do contatoDados e limpa
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $contatoDados->document);
 
-        // Busca os contratos na tabela contato_dados (tenta com e sem formatação)
+        // Busca os contratos na tabela contato_dados
         $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
-            ->orWhere('document', $cpfCnpj)
+            ->orWhere('document', $contatoDados->document)
             ->get();
 
         if ($contratos->isEmpty()) {
             return response()->json([
                 'error' => 'Nenhum contrato encontrado para este cliente',
                 'success' => false,
-                'cpf_cnpj_buscado' => $cpfCnpj
+                'cpf_cnpj_buscado' => $cpfCnpjLimpo
             ], 404);
         }
 
@@ -683,28 +661,35 @@ class WhatsappController extends Controller
             }
         }
 
-        // Atualiza o contexto da sessão
-        $context['parcelamentos_verificados'] = true;
-        $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
-        $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
-        $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
-        if (!empty($erros)) {
-            $context['parcelamentos_erros'] = $erros;
+        // Busca o contato WhatsApp e atualiza o contexto da sessão
+        $contact = WhatsappContact::where('wa_id', $wa_id)->first();
+        if ($contact) {
+            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            if ($session) {
+                $context = $session->context ?? [];
+                $context['parcelamentos_verificados'] = true;
+                $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
+                $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
+                $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
+                $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
+                if (!empty($erros)) {
+                    $context['parcelamentos_erros'] = $erros;
+                }
+                $session->update(['context' => $context]);
+            }
         }
-        $session->update(['context' => $context]);
 
         // Calcula data de vencimento com lógica de dias úteis
         $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
 
         return response()->json([
             'success' => true,
-            'cpf_cnpj' => $cpfCnpj,
+            'cpf_cnpj' => $cpfCnpjLimpo,
             'quantidade_contratos' => $contratos->count(),
             'parcelamentos_encontrados' => count($parcelamentosResultados),
             'parcelamentos' => $parcelamentosResultados,
             'erros' => $erros,
-            'data_vencimento' => $dataVencimento,
-            'context_atualizado' => $context
+            'data_vencimento' => $dataVencimento
         ], 200);
     }
 
