@@ -993,7 +993,7 @@ class WhatsappController extends Controller
 
     /**
      * Formata e mascara o CPF mostrando apenas os 8 primeiros dígitos
-     * Exemplo: 37785652345 → 377.856.52X-XX
+     * Exemplo: 02919023918 → 029.190.23X-XX
      * @param string $cpf - CPF com ou sem formatação
      * @return string - CPF formatado e mascarado
      */
@@ -1011,12 +1011,12 @@ class WhatsappController extends Controller
             return '';
         }
 
-        // Pega os 8 primeiros dígitos visíveis e mascara os 3 últimos
-        $primeirosOito = substr($cpf, 0, 8); // Primeiros 8 dígitos
-        $mascarado = $primeirosOito . 'XXX'; // 8 primeiros + 3 X
+        // Pega os 9 primeiros dígitos visíveis e mascara os 2 últimos
+        $primeirosNove = substr($cpf, 0, 9); // Primeiros 9 dígitos
+        $mascarado = $primeirosNove . 'XX'; // 9 primeiros + 2 X
 
-        // Formata no padrão CPF: XXX.XXX.XX-XXX
-        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 2) . '-' . substr($mascarado, 8, 3);
+        // Formata no padrão CPF: XXX.XXX.XXX-XX
+        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 3) . '-' . substr($mascarado, 9, 2);
     }
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
