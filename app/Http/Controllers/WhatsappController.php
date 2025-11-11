@@ -649,8 +649,25 @@ class WhatsappController extends Controller
                 ];
                 
                 // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
+                \Log::info('DEBUG obterDocumentosAbertos - Verificando parcelamentos', [
+                    'parcelamentos_keys' => array_keys($parcelamentos),
+                    'parcelamentos_data_existe' => isset($parcelamentos['data']),
+                    'parcelamentos_completo' => json_encode($parcelamentos)
+                ]);
+
                 if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
                     $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
+                    \Log::info('DEBUG obterDocumentosAbertos - Valor à vista encontrado', [
+                        'valorAVista' => $valorAVista
+                    ]);
+                } else {
+                    \Log::warning('DEBUG obterDocumentosAbertos - Valor à vista NÃO encontrado', [
+                        'valorAVista_atual' => $valorAVista,
+                        'data_existe' => isset($parcelamentos['data']),
+                        'data_0_existe' => isset($parcelamentos['data'][0]) ?? false,
+                        'parcelamento_existe' => isset($parcelamentos['data'][0]['parcelamento']) ?? false,
+                        'valorTotal_existe' => isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal']) ?? false
+                    ]);
                 }
             } else {
                 $erros[] = [
@@ -658,8 +675,17 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
+                \Log::error('DEBUG obterDocumentosAbertos - Parcelamentos vazios', [
+                    'contrato_id' => $contrato->id,
+                    'codigo_carteira' => $codigoCarteira
+                ]);
             }
         }
+
+        \Log::info('DEBUG obterDocumentosAbertos - Após loop de contratos', [
+            'valorAVista_final' => $valorAVista,
+            'parcelamentosResultados_count' => count($parcelamentosResultados)
+        ]);
 
         // Busca o contato WhatsApp e atualiza o contexto da sessão
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
