@@ -404,17 +404,32 @@ class WhatsappController extends Controller
 
     public function verificaDividaOuAcordo(Request $request)
     {
-        $cpfCnpj = $request->input('cpfCnpj');
+        $wa_id = $request->input('wa_id');
         $idGrupo = "1582";
-        $wa_id = $request->input('wa_id'); // Opcional: pode vir do n8n
-        $cpfCnpj = preg_replace('/\D/', '', $cpfCnpj);
+
+        if (empty($wa_id)) {
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        // Busca o contato em contatoDados onde telefone == wa_id
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+
+        if (!$contatoDados || empty($contatoDados->document)) {
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        // Pega o document do contatoDados e limpa
+        $cpfCnpj = preg_replace('/\D/', '', $contatoDados->document);
+
         if (empty($cpfCnpj) || empty($idGrupo)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
+
         $token = $this->gerarTokenNeocobe();
         if (!$token) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
+
         $client = new \GuzzleHttp\Client(config: ['verify' => false]);
         $headers = [
             'apiKey' => env('NEOCOBE_APIKEY'),
@@ -442,6 +457,7 @@ class WhatsappController extends Controller
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
                             'codigo_cliente' => $codigoCliente,
+                            'cpf_cnpj' => $cpfCnpj,
                             'verificacao_divida_at' => now()->toIso8601String(),
                         ], 'divida_verificada');
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
@@ -452,6 +468,7 @@ class WhatsappController extends Controller
                             'tipo_resultado' => 'acordo',
                             'acordo_data' => $acordoData,
                             'codigo_cliente' => $codigoCliente,
+                            'cpf_cnpj' => $cpfCnpj,
                             'quantidade_acordos' => count($acordoData),
                             'verificacao_divida_at' => now()->toIso8601String(),
                         ], 'acordo_verificado');
@@ -463,6 +480,7 @@ class WhatsappController extends Controller
                             'tipo_resultado' => 'divida',
                             'divida_data' => $dividaData,
                             'codigo_cliente' => $codigoCliente,
+                            'cpf_cnpj' => $cpfCnpj,
                             'verificacao_divida_at' => now()->toIso8601String(),
                         ], 'divida_verificada');
                         return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
@@ -473,6 +491,7 @@ class WhatsappController extends Controller
                         'divida_verificada' => true,
                         'tipo_resultado' => 'divida',
                         'divida_data' => $dividaData,
+                        'cpf_cnpj' => $cpfCnpj,
                         'verificacao_divida_at' => now()->toIso8601String(),
                     ], 'divida_verificada');
                     return response()->json(['tipo' => 'divida', 'divida' => $dividaData]);
@@ -483,6 +502,7 @@ class WhatsappController extends Controller
                     'divida_verificada' => true,
                     'tipo_resultado' => 'sem_divida',
                     'divida_data' => $dividaData,
+                    'cpf_cnpj' => $cpfCnpj,
                     'verificacao_divida_at' => now()->toIso8601String(),
                 ], 'sem_divida');
                 return response()->json(['tipo' => 'sem_divida', 'divida' => $dividaData]);
