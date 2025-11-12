@@ -793,11 +793,17 @@ class WhatsappController extends Controller
         $headers = [
             'Content-Type' => 'application/json',
         ];
+        
+        // Calcula data da primeira parcela com 5 dias úteis a partir de hoje
+        $dataPrimeiraParcela = $this->calcularDataVencimentoComDiasUteis();
+        // Converte de d/m/Y para Y-m-d
+        $dataPrimeiraParcelaFormatada = \DateTime::createFromFormat('d/m/Y', $dataPrimeiraParcela)->format('Y-m-d');
+        
         $body = json_encode([
             'codigoUsuarioCarteiraCobranca' => $codigoUsuarioCarteiraCobranca,
             'codigoCarteiraCobranca' => $codigoCarteira,
             'pessoaCodigo' => (string) $pessoaCodigo,
-            'dataPrimeiraParcela' => now()->format('Y-m-d')
+            'dataPrimeiraParcela' => $dataPrimeiraParcelaFormatada
         ]);
 
         $request = new \GuzzleHttp\Psr7\Request(
