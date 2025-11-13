@@ -221,9 +221,6 @@ class WhatsappController extends Controller
             'current_step' => $currentStep
         ];
         
-        if (!empty($phone_number_id)) {
-            $updateData['phone_number_id'] = $phone_number_id;
-        }
         
         $session->update($updateData);
 
