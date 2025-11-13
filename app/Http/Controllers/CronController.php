@@ -8,6 +8,7 @@ use App\Models\ContatoDados;
 use App\Models\Campanha;
 use App\Models\ImagemCampanha;
 use App\Models\WhatsappSession;
+use App\Models\WhatsappContact;
 use DB;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -1828,12 +1829,25 @@ class CronController extends Controller
     private function enviarMensagemAlerta($wa_id, $texto, $opcoes)
     {
         try {
+            // Busca o contato e sua sessão para pegar phone_number_id
+            $contato = WhatsappContact::where('wa_id', $wa_id)->first();
+            if (!$contato) {
+                Log::error('Contato não encontrado: ' . $wa_id);
+                return false;
+            }
+
+            $sessao = WhatsappSession::where('contact_id', $contato->id)->where('current_step', '!=', 'encerrada')->first();
+            if (!$sessao || !$sessao->phone_number_id) {
+                Log::error('Sessão ou phone_number_id não encontrado para contato: ' . $wa_id);
+                return false;
+            }
+
             $config = DB::table('whatsapp')->first();
             $token = $config->access_token ?? env('WHATSAPP_TOKEN');
-            $phoneNumberId = $config->phone_number_id ?? env('WHATSAPP_PHONE_ID');
+            $phoneNumberId = $sessao->phone_number_id; // ✅ Usar phone_number_id da sessão
 
             if (empty($token) || empty($phoneNumberId)) {
-                Log::error('Configurações WhatsApp não encontradas');
+                Log::error('Token WhatsApp ou phone_number_id não encontrados');
                 return false;
             }
 
@@ -1900,12 +1914,25 @@ class CronController extends Controller
     private function enviarMensagemTexto($wa_id, $texto)
     {
         try {
+            // Busca o contato e sua sessão para pegar phone_number_id
+            $contato = WhatsappContact::where('wa_id', $wa_id)->first();
+            if (!$contato) {
+                Log::error('Contato não encontrado: ' . $wa_id);
+                return false;
+            }
+
+            $sessao = WhatsappSession::where('contact_id', $contato->id)->where('current_step', '!=', 'encerrada')->first();
+            if (!$sessao || !$sessao->phone_number_id) {
+                Log::error('Sessão ou phone_number_id não encontrado para contato: ' . $wa_id);
+                return false;
+            }
+
             $config = DB::table('whatsapp')->first();
             $token = $config->access_token ?? env('WHATSAPP_TOKEN');
-            $phoneNumberId = $config->phone_number_id ?? env('WHATSAPP_PHONE_ID');
+            $phoneNumberId = $sessao->phone_number_id; // ✅ Usar phone_number_id da sessão
 
             if (empty($token) || empty($phoneNumberId)) {
-                Log::error('Configurações WhatsApp não encontradas');
+                Log::error('Token WhatsApp ou phone_number_id não encontrados');
                 return false;
             }
 
