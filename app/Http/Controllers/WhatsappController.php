@@ -85,7 +85,8 @@ class WhatsappController extends Controller
                 echo json_encode([
                     'status' => 'primeira_mensagem',
                     'step' => '',
-                    'cpf' => $this->formatarCpfMascarado($contatoDados->document ?? '')
+                    'cpf' => $this->formatarCpfMascarado($contatoDados->document ?? ''),
+                    'phone_number_id' => $phoneNumberId
                 ]);
             } else {
                 // Atualiza contexto da sessão existente
