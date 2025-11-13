@@ -99,7 +99,7 @@
 
                 <div id="campanhasMenu" class="collapse" aria-labelledby="headingCampanhas" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-            <a class="collapse-item" href="{{ route('contatos.index') }}"><i class="fas fa-address-book"
+            <a class="collapse-item" href="{{ route(name: 'contatos.index') }}"><i class="fas fa-address-book"
                 style="color: #1cc88a;"></i> Contatos</a>
             <a class="collapse-item" href="{{ route(name: 'campanhas.crud.index') }}"><i class="fas fa-bullhorn"
                 style="color: #f6c23e;"></i> Campanhas</a>
@@ -111,6 +111,18 @@
                                 style="color: #858796;"></i> Acordos</a>
                     </div>
                 </div>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider">
+
+            <!-- Heading -->
+            <div class="sidebar-heading">
+                Gestão
+            </div>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('usuarios.index') }}"><i class="fas fa-users" style="color: #36b9cc;"></i><span>Usuários</span></a>
             </li>
 
 

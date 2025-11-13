@@ -115,6 +115,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/imagens-campanha/list', [\App\Http\Controllers\ImagemCampanhaController::class, 'listAll'])->name('imagens.list');
     Route::delete('/imagens-campanha/{id}', [\App\Http\Controllers\ImagemCampanhaController::class, 'destroy'])->name('imagens.destroy');
 
+    // Usuários CRUD
+    Route::get('/usuarios', [\App\Http\Controllers\UsuarioController::class, 'index'])->name('usuarios.index');
+    Route::get('/usuarios/listar', [\App\Http\Controllers\UsuarioController::class, 'listar'])->name('usuarios.listar');
+    Route::post('/usuarios/salvar', [\App\Http\Controllers\UsuarioController::class, 'salvar'])->name('usuarios.salvar');
+    Route::get('/usuarios/editar/{id}', [\App\Http\Controllers\UsuarioController::class, 'editar'])->name('usuarios.editar');
+    Route::delete('/usuarios/deletar/{id}', [\App\Http\Controllers\UsuarioController::class, 'deletar'])->name('usuarios.deletar');
+
 });
 
 Route::get('/parcelamento', [CronController::class, 'obterOpcoesParcelamento']); // Processamento do upload
