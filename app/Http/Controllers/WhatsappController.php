@@ -58,7 +58,7 @@ class WhatsappController extends Controller
         }
 
         // 3️⃣ Verifica sessão do usuário
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
 
         // Resposta para o n8n
         $responseN8N = [];
@@ -132,7 +132,7 @@ class WhatsappController extends Controller
             return false;
         }
 
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
             return false;
         }
@@ -162,7 +162,7 @@ class WhatsappController extends Controller
             return false;
         }
 
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
             return false;
         }
@@ -200,7 +200,7 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
             return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
@@ -238,7 +238,7 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
             return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
@@ -281,7 +281,7 @@ class WhatsappController extends Controller
             return response()->json(['error' => 'Contato não encontrado', 'success' => false], 404);
         }
 
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
             return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
         }
@@ -343,7 +343,7 @@ class WhatsappController extends Controller
         if (!$contact) {
             return response()->json(['error' => 'Contato não encontrado'], 404);
         }
-        $session = WhatsappSession::where('contact_id', $contact->id)->first();
+        $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
 
         $session->current_step = $stepName;
         $session->save();
@@ -573,7 +573,7 @@ class WhatsappController extends Controller
         // Busca o contato WhatsApp e atualiza o contexto com os dados encontrados
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if ($contact) {
-            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
             if ($session) {
                 $context = $session->context ?? [];
                 $context['contratos_verificados'] = true;
@@ -690,7 +690,7 @@ class WhatsappController extends Controller
         // Busca o contato WhatsApp e atualiza o contexto da sessão
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if ($contact) {
-            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
             if ($session) {
                 $context = $session->context ?? [];
                 
@@ -906,7 +906,7 @@ class WhatsappController extends Controller
         // CPF validado! Atualiza o contexto da sessão
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if ($contact) {
-            $session = WhatsappSession::where('contact_id', $contact->id)->first();
+            $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
             if ($session) {
                 $context = $session->context ?? [];
                 $context['cliente_verificado'] = true;
@@ -1285,7 +1285,7 @@ class WhatsappController extends Controller
             }
 
             // Obtém contexto da sessão para extrair dados
-            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->first();
+            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->where('current_step', '!=', 'encerrada')->first();
             $context = $session ? ($session->context ?? []) : [];
 
             // Extrai dados do contexto para substituir placeholders
