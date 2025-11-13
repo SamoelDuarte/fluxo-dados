@@ -171,10 +171,13 @@ class WhatsappController extends Controller
         $context = $session->context ?? [];
         // Mescla os dados novos com o contexto existente
         $context = array_merge($context, $contextData);
-        $session->update([
+        // IMPORTANTE: Nunca sobrescrever phone_number_id após a criação inicial
+        $updateData = [
             'context' => $context,
             'current_step' => $currentStep
-        ]);
+        ];
+        // Não atualizar phone_number_id aqui para preservar o valor original
+        $session->update($updateData);
         return true;
     }
 
@@ -204,23 +207,32 @@ class WhatsappController extends Controller
 
         $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
         if (!$session) {
-            return response()->json(['error' => 'Sessão não encontrada', 'success' => false], 404);
+            return response()->json(['error' => 'Sessão não encontrado', 'success' => false], 404);
         }
 
         $context = $session->context ?? [];
         // Mescla os dados novos com o contexto existente
         $context = array_merge($context, $contextData);
-        $session->update([
+        
+        // IMPORTANTE: Preservar phone_number_id após criação inicial
+        // Só atualizar se o novo valor não for vazio
+        $updateData = [
             'context' => $context,
-            'current_step' => $currentStep,
-            'phone_number_id' => $phone_number_id
-        ]);
+            'current_step' => $currentStep
+        ];
+        
+        if (!empty($phone_number_id)) {
+            $updateData['phone_number_id'] = $phone_number_id;
+        }
+        
+        $session->update($updateData);
 
         return response()->json([
             'success' => true,
             'wa_id' => $wa_id,
             'current_step' => $currentStep,
-            'context' => $context
+            'context' => $context,
+            'phone_number_id' => $session->phone_number_id
         ]);
     }
 
