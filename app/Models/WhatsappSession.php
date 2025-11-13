@@ -12,7 +12,10 @@ class WhatsappSession extends Model
     protected $fillable = [
         'contact_id',
         'current_step_id',
+        'current_step',
+        'phone_number_id',
         'context',
+        'qtde_alerta',
     ];
 
     protected $casts = [

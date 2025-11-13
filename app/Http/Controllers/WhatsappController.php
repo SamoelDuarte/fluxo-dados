@@ -79,12 +79,11 @@ class WhatsappController extends Controller
                     'contact_id' => $contact->id,
                     'phone_number_id' => $phoneNumberId ?? null,
                     'context' => $initialContext,
+                    "current_step" => 'verifica_cpf',
                 ]);
-                // Atualiza para o próximo step (exemplo: verifica_cpf)
-                $step = $this->atualizaStep($session, 'verifica_cpf');
+                
                 echo json_encode([
                     'status' => 'primeira_mensagem',
-                    'step' => '',
                     'cpf' => $this->formatarCpfMascarado($contatoDados->document ?? ''),
                     'phone_number_id' => $phoneNumberId
                 ]);
@@ -229,7 +228,7 @@ class WhatsappController extends Controller
             'wa_id' => $wa_id,
             'current_step' => $currentStep,
             'context' => $context,
-            'phone_number_id' => $session->phone_number_id
+            'phone_number_id' => $phone_number_id
         ]);
     }
 
