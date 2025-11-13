@@ -7,6 +7,7 @@ use App\Models\Contato;
 use App\Models\ContatoDados;
 use App\Models\Campanha;
 use App\Models\ImagemCampanha;
+use App\Models\WhatsappSession;
 use DB;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -15,7 +16,9 @@ use App\Models\Contrato;
 use App\Models\Planilha;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Http\Request as HttpRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class CronController extends Controller
 {
@@ -1687,6 +1690,247 @@ class CronController extends Controller
 
         // URL local em produção - caminho correto do storage público
         return asset('storage/campaign-images/campanha-2.jpg');
+    }
+
+    /**
+     * Verifica inatividade nas sessões e envia alertas automáticos
+     * - Alerta 1: Após 10 minutos de inatividade - "Percebemos que você está ocupado..."
+     * - Alerta 2: Após 20 minutos de inatividade - "Ainda está por aí?..."
+     * - Alerta 3: Após 30 minutos de inatividade - "Muito obrigado..." e encerra sessão
+     */
+    public function verificarInatividade()
+    {
+        try {
+            // Busca todas as sessões que não estão encerradas
+            $sessoes = WhatsappSession::where('current_step', '!=', 'encerrada')
+                ->get();
+
+            if ($sessoes->isEmpty()) {
+                Log::info('Nenhuma sessão ativa encontrada para verificar inatividade');
+                return response()->json([
+                    'mensagem' => 'Nenhuma sessão para verificar',
+                    'processadas' => 0,
+                    'alertas_enviados' => 0
+                ]);
+            }
+
+            $processadas = 0;
+            $alertasEnviados = 0;
+            $erros = [];
+
+            foreach ($sessoes as $sessao) {
+                $processadas++;
+                
+                $ultimaAtualizacao = $sessao->updated_at;
+                $agora = now();
+                $minutosInativo = $ultimaAtualizacao->diffInMinutes($agora);
+
+                Log::info("Sessão ID {$sessao->id} - Minutos inativo: {$minutosInativo}");
+
+                // Verifica se tem mais de 10 minutos de inatividade
+                if ($minutosInativo >= 10) {
+                    $contato = $sessao->contact;
+                    $qtdeAlerta = $sessao->qtde_alerta ?? 0;
+
+                    if ($qtdeAlerta == 0 && $minutosInativo >= 10) {
+                        // PRIMEIRO ALERTA (10 minutos)
+                        $this->enviarMensagemAlerta(
+                            $contato->wa_id,
+                            $contato->name.", percebemos que você está ocupado neste momento.\n\nVocê deseja continuar o seu atendimento?",
+                            [
+                                ['id' => 'btn_nao', 'title' => 'Não'],
+                                ['id' => 'btn_sim', 'title' => 'Sim']
+                            ]
+                        );
+
+                        $sessao->update([
+                            'qtde_alerta' => 1,
+                            'updated_at' => now()
+                        ]);
+
+                        $alertasEnviados++;
+                        Log::info("✓ Primeiro alerta enviado para sessão {$sessao->id}");
+
+                    } elseif ($qtdeAlerta == 1 && $minutosInativo >= 20) {
+                        // SEGUNDO ALERTA (20 minutos)
+                        $this->enviarMensagemAlerta(
+                            $contato->wa_id,
+                            "Olá novamente! Ainda está aí? 👋\n\nEntendo que você ainda pode estar ocupado.\n\nVocê deseja continuar o seu atendimento?",
+                            [
+                                ['id' => 'btn_nao', 'title' => 'Não'],
+                                ['id' => 'btn_sim', 'title' => 'Sim']
+                            ]
+                        );
+
+                        $sessao->update([
+                            'qtde_alerta' => 2,
+                            'updated_at' => now()
+                        ]);
+
+                        $alertasEnviados++;
+                        Log::info("✓ Segundo alerta enviado para sessão {$sessao->id}");
+
+                    } elseif ($qtdeAlerta == 2 && $minutosInativo >= 30) {
+                        // TERCEIRO ALERTA (30 minutos) - Finaliza
+                        $nomeContato = $contato->name ?? 'Cliente';
+                        $primeiroNome = explode(' ', trim($nomeContato))[0];
+
+                        // Mensagem intermediária antes de finalizar
+                        $this->enviarMensagemTexto(
+                            $contato->wa_id, 
+                            "Percebi que você não pode me responder agora. 😔\n\nSeu atendimento será finalizado. Quando desejar retomar o atendimento, basta mandar um \"Oi\"."
+                        );
+
+                        // Aguarda um pouco antes de enviar a mensagem final
+                        sleep(2);
+
+                        // Mensagem final de encerramento
+                        $mensagemFinal = "Muito obrigado {$primeiroNome}!\n\n";
+                        $mensagemFinal .= "Lojas Havan está sempre à disposição quando precisar.\n\n";
+                        $mensagemFinal .= "Horário de atendimento:\n";
+                        $mensagemFinal .= "Segunda a Sexta de 08:00 às 18:00";
+
+                        $this->enviarMensagemTexto($contato->wa_id, $mensagemFinal);
+
+                        $sessao->update([
+                            'qtde_alerta' => 3,
+                            'current_step' => 'encerrada',
+                            'updated_at' => now()
+                        ]);
+
+                        $alertasEnviados++;
+                        Log::info("✓ Terceiro alerta e finalização enviados para sessão {$sessao->id}");
+                    }
+                }
+            }
+
+            Log::info("Verificação de inatividade concluída: {$processadas} sessões processadas, {$alertasEnviados} alertas enviados");
+
+            return response()->json([
+                'mensagem' => 'Verificação de inatividade concluída',
+                'sessoes_processadas' => $processadas,
+                'alertas_enviados' => $alertasEnviados,
+                'erros' => $erros
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao verificar inatividade: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Erro ao verificar inatividade',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Envia mensagem com botões de alerta
+     */
+    private function enviarMensagemAlerta($wa_id, $texto, $opcoes)
+    {
+        try {
+            $config = DB::table('whatsapp')->first();
+            $token = $config->access_token ?? env('WHATSAPP_TOKEN');
+            $phoneNumberId = $config->phone_number_id ?? env('WHATSAPP_PHONE_ID');
+
+            if (empty($token) || empty($phoneNumberId)) {
+                Log::error('Configurações WhatsApp não encontradas');
+                return false;
+            }
+
+            // Normaliza options
+            $normalized = array_map(function ($o) {
+                if (is_array($o)) return $o;
+                return ['id' => (string) $o, 'title' => (string) $o];
+            }, $opcoes);
+
+            $rows = [];
+            foreach ($normalized as $opt) {
+                $rows[] = [
+                    'id' => $opt['id'],
+                    'title' => $opt['title'],
+                    'description' => ''
+                ];
+            }
+
+            $section = [
+                'title' => 'Escolha uma opção',
+                'rows' => $rows
+            ];
+
+            $body = [
+                'messaging_product' => 'whatsapp',
+                'to' => $wa_id,
+                'type' => 'interactive',
+                'interactive' => [
+                    'type' => 'list',
+                    'header' => [
+                        'type' => 'text',
+                        'text' => ''
+                    ],
+                    'body' => [
+                        'text' => $texto
+                    ],
+                    'action' => [
+                        'button' => 'Responder',
+                        'sections' => [$section]
+                    ]
+                ]
+            ];
+
+            $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
+            $res = Http::withToken(token: $token)->post($url, $body);
+
+            if ($res->successful()) {
+                Log::info('✓ Mensagem de alerta enviada para ' . $wa_id);
+                return true;
+            } else {
+                Log::error('Erro ao enviar mensagem de alerta: ' . $res->body());
+                return false;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Exceção ao enviar mensagem de alerta: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Envia mensagem de texto simples
+     */
+    private function enviarMensagemTexto($wa_id, $texto)
+    {
+        try {
+            $config = DB::table('whatsapp')->first();
+            $token = $config->access_token ?? env('WHATSAPP_TOKEN');
+            $phoneNumberId = $config->phone_number_id ?? env('WHATSAPP_PHONE_ID');
+
+            if (empty($token) || empty($phoneNumberId)) {
+                Log::error('Configurações WhatsApp não encontradas');
+                return false;
+            }
+
+            $data = [
+                "messaging_product" => "whatsapp",
+                "to" => $wa_id,
+                "type" => "text",
+                "text" => ["body" => $texto]
+            ];
+
+            $res = Http::withToken(token: $token)
+                ->post("https://graph.facebook.com/v18.0/{$phoneNumberId}/messages", $data);
+
+            if ($res->successful()) {
+                Log::info('✓ Mensagem de texto enviada para ' . $wa_id);
+                return true;
+            } else {
+                Log::error('Erro ao enviar mensagem de texto: ' . $res->body());
+                return false;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Exceção ao enviar mensagem de texto: ' . $e->getMessage());
+            return false;
+        }
     }
 
 
