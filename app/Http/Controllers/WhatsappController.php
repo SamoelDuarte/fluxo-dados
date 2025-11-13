@@ -186,6 +186,7 @@ class WhatsappController extends Controller
         $wa_id = $request->input('wa_id');
         $contextData = $request->input('contextData', []);
         $currentStep = $request->input('currentStep');
+        $phone_number_id = $request->input('phone_number_id');
 
         if (empty($wa_id)) {
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
@@ -210,7 +211,8 @@ class WhatsappController extends Controller
         $context = array_merge($context, $contextData);
         $session->update([
             'context' => $context,
-            'current_step' => $currentStep
+            'current_step' => $currentStep,
+            'phone_number_id' => $phone_number_id
         ]);
 
         return response()->json([
