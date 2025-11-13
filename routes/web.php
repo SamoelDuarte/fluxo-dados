@@ -19,8 +19,9 @@ require __DIR__ . '/auth.php';
 | routes are loaded by the RouteServiceProvider and all of them will
 | be assigned to the "web" middleware group. Make something great!
 |
-*/Route::get('/envioEmMassa', [\App\Http\Controllers\CronController::class, 'envioEmMassa']);
-*/Route::get('/verificarInatividade', [\App\Http\Controllers\CronController::class, 'verificarInatividade']);
+*/
+Route::get('/envioEmMassa', [\App\Http\Controllers\CronController::class, 'envioEmMassa']);
+Route::get('/verificarInatividade', [\App\Http\Controllers\CronController::class, 'verificarInatividade']);
 Route::prefix('whatsapp')->group(function () {
     Route::prefix('webhook')->group(function () {
         Route::post('verificaChat', [\App\Http\Controllers\WhatsappController::class, 'verificaChat']);
