@@ -208,10 +208,13 @@
                                     Configurações
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="/login/sair">
-                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Sair
-                                </a>
+                                <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item" style="background: none; border: none; cursor: pointer; text-align: left;">
+                                        <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                        Sair
+                                    </button>
+                                </form>
                             </div>
                         </li>
 

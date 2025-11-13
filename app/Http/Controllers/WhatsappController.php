@@ -1342,14 +1342,17 @@ class WhatsappController extends Controller
 
             Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
 
-            // Atualiza contexto da sessão do WhatsApp
+            // Atualiza contexto da sessão do WhatsApp e define como encerrada
             if ($session) {
                 $context['acordo_criado'] = true;
                 $context['acordo_id'] = $acordo->id;
                 $context['acordo_status'] = $acordo->status;
                 $context['acordo_data'] = now()->toIso8601String();
                 $context['acordo_valor'] = $valorDivida;
-                $session->update(['context' => $context]);
+                $session->update([
+                    'context' => $context,
+                    'current_step' => 'encerrada'
+                ]);
             }
 
             return response()->json([
@@ -1447,7 +1450,11 @@ class WhatsappController extends Controller
             // Cria o novo acordo
             $acordo = Acordo::create($validated);
 
-        
+            // Obtém a sessão para atualizar current_step como encerrada
+            $session = WhatsappSession::where('contact_id', $whatsappContact->id)->where('current_step', '!=', 'encerrada')->first();
+            if ($session) {
+                $session->update(['current_step' => 'encerrada']);
+            }
 
             return response()->json([
                 'success' => true,
