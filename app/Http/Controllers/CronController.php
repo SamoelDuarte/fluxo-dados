@@ -1695,9 +1695,9 @@ class CronController extends Controller
 
     /**
      * Verifica inatividade nas sessões e envia alertas automáticos
-     * - Alerta 1: Após 10 minutos de inatividade - "Percebemos que você está ocupado..."
-     * - Alerta 2: Após 20 minutos de inatividade - "Ainda está por aí?..."
-     * - Alerta 3: Após 30 minutos de inatividade - "Muito obrigado..." e encerra sessão
+     * - Alerta 1: Após 60 minutos (1 hora) de inatividade - "Percebemos que você está ocupado..."
+     * - Alerta 2: Após 120 minutos (2 horas) de inatividade - "Ainda está por aí?..."
+     * - Alerta 3: Após 180 minutos (3 horas) de inatividade - "Muito obrigado..." e encerra sessão
      */
     public function verificarInatividade()
     {
@@ -1728,13 +1728,13 @@ class CronController extends Controller
 
                 Log::info("Sessão ID {$sessao->id} - Minutos inativo: {$minutosInativo}");
 
-                // Verifica se tem mais de 10 minutos de inatividade
-                if ($minutosInativo >= 10) {
+                // Verifica se tem mais de 60 minutos de inatividade
+                if ($minutosInativo >= 60) {
                     $contato = $sessao->contact;
                     $qtdeAlerta = $sessao->qtde_alerta ?? 0;
 
-                    if ($qtdeAlerta == 0 && $minutosInativo >= 10) {
-                        // PRIMEIRO ALERTA (10 minutos)
+                    if ($qtdeAlerta == 0 && $minutosInativo >= 60) {
+                        // PRIMEIRO ALERTA (60 minutos / 1 hora)
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
                             $contato->name.", percebemos que você está ocupado neste momento.\n\nVocê deseja continuar o seu atendimento?",
@@ -1752,8 +1752,8 @@ class CronController extends Controller
                         $alertasEnviados++;
                         Log::info("✓ Primeiro alerta enviado para sessão {$sessao->id}");
 
-                    } elseif ($qtdeAlerta == 1 && $minutosInativo >= 20) {
-                        // SEGUNDO ALERTA (20 minutos)
+                    } elseif ($qtdeAlerta == 1 && $minutosInativo >= 120) {
+                        // SEGUNDO ALERTA (120 minutos / 2 horas)
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
                             "Olá novamente! Ainda está aí? 👋\n\nEntendo que você ainda pode estar ocupado.\n\nVocê deseja continuar o seu atendimento?",
@@ -1771,8 +1771,8 @@ class CronController extends Controller
                         $alertasEnviados++;
                         Log::info("✓ Segundo alerta enviado para sessão {$sessao->id}");
 
-                    } elseif ($qtdeAlerta == 2 && $minutosInativo >= 30) {
-                        // TERCEIRO ALERTA (30 minutos) - Finaliza
+                    } elseif ($qtdeAlerta == 2 && $minutosInativo >= 180) {
+                        // TERCEIRO ALERTA (180 minutos / 3 horas) - Finaliza
                         $nomeContato = $contato->name ?? 'Cliente';
                         $primeiroNome = explode(' ', trim($nomeContato))[0];
 
