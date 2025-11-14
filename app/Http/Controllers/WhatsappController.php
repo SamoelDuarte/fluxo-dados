@@ -739,6 +739,9 @@ class WhatsappController extends Controller
         // Calcula data de vencimento com lógica de dias úteis
         $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
 
+        // Formata o valor à vista para padrão brasileiro (ponto para milhar, vírgula para decimal)
+        $valorAVistaFormatado = number_format($valorAVista, 2, ',', '.');
+
         return response()->json([
             'success' => true,
             'cpf_cnpj' => $cpfCnpjLimpo,
@@ -746,7 +749,8 @@ class WhatsappController extends Controller
             'parcelamentos_encontrados' => count($parcelamentosResultados),
             'parcelamentos' => $parcelamentosResultados,
             'erros' => $erros,
-            'data_vencimento' => $dataVencimento
+            'data_vencimento' => $dataVencimento,
+            'valor_a_vista_formatado' => $valorAVistaFormatado
         ], 200);
     }
 
