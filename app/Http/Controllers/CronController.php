@@ -1594,7 +1594,7 @@ class CronController extends Controller
                             'to' => $numeroContato,
                             'type' => 'template',
                             'template' => [
-                                'name' => 'inicio114',
+                                'name' => 'inicio117',
                                 'language' => [
                                     'code' => 'pt_BR', // ou "pt_BR" se o template foi criado assim
                                 ],
