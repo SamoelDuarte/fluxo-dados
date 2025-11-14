@@ -897,19 +897,19 @@ class WhatsappController extends Controller
         $cpfCnpjLimpo = preg_replace('/[-.]/', '', $cpfCnpjDigitado);
         $cpfCnpjLimpo = preg_replace('/\D/', '', $cpfCnpjLimpo); // Remove qualquer outro caractere especial
 
-        // Pega o document do contato e extrai os 3 últimos dígitos
+        // Pega o document do contato e extrai os 3 primeiros dígitos
         $documentoArmazenado = preg_replace('/\D/', '', $contatoDados->document);
-        $ultimosTresDigitos = substr($documentoArmazenado, -3);
+        $primeirosTresDigitos = substr($documentoArmazenado, 0, 3);
 
-        // Pega os 3 últimos dígitos do CPF digitado
-        $ultimosTresDigitadosDigitados = substr($cpfCnpjLimpo, -3);
+        // Pega os 3 primeiros dígitos do CPF digitado
+        $primeirosTresDigitadosDigitados = substr($cpfCnpjLimpo, 0, 3);
 
-        // Compara os 3 últimos dígitos
-        if ($ultimosTresDigitadosDigitados !== $ultimosTresDigitos) {
+        // Compara os 3 primeiros dígitos
+        if ($primeirosTresDigitadosDigitados !== $primeirosTresDigitos) {
             \Log::warning('CPF digitado não corresponde ao cadastro', [
                 'wa_id' => $wa_id,
-                'ultimos_3_digitados' => $ultimosTresDigitadosDigitados,
-                'ultimos_3_armazenados' => $ultimosTresDigitos
+                'primeiros_3_digitados' => $primeirosTresDigitadosDigitados,
+                'primeiros_3_armazenados' => $primeirosTresDigitos
             ]);
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
@@ -1076,8 +1076,8 @@ class WhatsappController extends Controller
     }
 
     /**
-     * Formata e mascara o CPF mostrando apenas os 8 primeiros dígitos
-     * Exemplo: 02919023918 → 029.190.23X-XX
+     * Formata e mascara o CPF mostrando apenas os 3 últimos dígitos antes do hífen
+     * Exemplo: 02919023918 → XXX.XXX.239-18
      * @param string $cpf - CPF com ou sem formatação
      * @return string - CPF formatado e mascarado
      */
@@ -1095,12 +1095,12 @@ class WhatsappController extends Controller
             return '';
         }
 
-        // Pega os 8 primeiros dígitos visíveis e mascara os 3 últimos
-        $primeirosOito = substr($cpf, 0, 8); // Primeiros 8 dígitos
-        $mascarado = $primeirosOito . 'XXX'; // 8 primeiros + 3 X
-
-        // Formata no padrão CPF: XXX.XXX.XXX-XX
-        return substr($mascarado, 0, 3) . '.' . substr($mascarado, 3, 3) . '.' . substr($mascarado, 6, 2) . 'X-XX';
+        // Mascara os primeiros 8 dígitos e mantém os 3 últimos antes do hífen visíveis
+        $ultimos3Antes = substr($cpf, 8, 2); // 9º e 10º dígitos
+        $ultimos2 = substr($cpf, 9, 2);     // 10º e 11º dígitos
+        
+        // Formata no padrão CPF: XXX.XXX.###-##
+        return 'XXX.XXX.' . $ultimos3Antes . '-' . $ultimos2;
     }
     // Função para enviar mensagem via WhatsApp Cloud API
     private function sendMessage($to, $body, $overridePhoneNumberId = null)
