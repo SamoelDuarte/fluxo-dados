@@ -1594,22 +1594,11 @@ class CronController extends Controller
                             'to' => $numeroContato,
                             'type' => 'template',
                             'template' => [
-                                'name' => 'inicio240',
+                                'name' => 'inicio240', // nome do template sem imagem
                                 'language' => [
-                                    'code' => 'pt_BR', // ou "pt_BR" se o template foi criado assim
+                                    'code' => 'pt_BR',
                                 ],
                                 'components' => [
-                                    [
-                                        'type' => 'header',
-                                        'parameters' => [
-                                            [
-                                                'type' => 'image',
-                                                'image' => [
-                                                    'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campaha-2.jpg'
-                                                ]
-                                            ]
-                                        ]
-                                    ],
                                     [
                                         'type' => 'body',
                                         'parameters' => [
@@ -1622,6 +1611,7 @@ class CronController extends Controller
                                 ]
                             ]
                         ];
+
 
                         // Headers para WhatsApp Business API
                         $headers = [
@@ -1721,7 +1711,7 @@ class CronController extends Controller
 
             foreach ($sessoes as $sessao) {
                 $processadas++;
-                
+
                 $ultimaAtualizacao = $sessao->updated_at;
                 $agora = now();
                 $minutosInativo = $ultimaAtualizacao->diffInMinutes($agora);
@@ -1737,7 +1727,7 @@ class CronController extends Controller
                         // PRIMEIRO ALERTA (60 minutos / 1 hora)
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
-                            $contato->name.", percebemos que você está ocupado neste momento.\n\nVocê deseja continuar o seu atendimento?",
+                            $contato->name . ", percebemos que você está ocupado neste momento.\n\nVocê deseja continuar o seu atendimento?",
                             [
                                 ['id' => 'btn_nao', 'title' => 'Não'],
                                 ['id' => 'btn_sim', 'title' => 'Sim']
@@ -1778,7 +1768,7 @@ class CronController extends Controller
 
                         // Mensagem intermediária antes de finalizar
                         $this->enviarMensagemTexto(
-                            $contato->wa_id, 
+                            $contato->wa_id,
                             "Percebi que você não pode me responder agora. 😔\n\nSeu atendimento será finalizado. Quando desejar retomar o atendimento, basta mandar um \"Oi\"."
                         );
 
@@ -1853,7 +1843,8 @@ class CronController extends Controller
 
             // Normaliza options
             $normalized = array_map(function ($o) {
-                if (is_array($o)) return $o;
+                if (is_array($o))
+                    return $o;
                 return ['id' => (string) $o, 'title' => (string) $o];
             }, $opcoes);
 

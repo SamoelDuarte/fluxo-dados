@@ -283,7 +283,7 @@
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="{{ asset('/assets/admin/js/scripts.min.js') }}"></script>
     <script src="{{ asset('/assets/admin/js/main.js') }}"></script>
-    <script src="{{ asset('/assets/utils.js') }}"></script>
+    {{-- <script src="{{ asset('/assets/utils.js') }}"></script> --}}
 
 
     @yield('scripts')
