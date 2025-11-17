@@ -11,10 +11,31 @@ class AcordoController extends Controller
     /**
      * Listar todos os acordos
      */
-    public function index()
+    public function index(Request $request)
     {
-        $acordos = Acordo::all();
-        return response()->json($acordos);
+        $query = Acordo::query();
+
+        // Filtros opcionais
+        if ($request->filled('documento')) {
+            $query->where('documento', 'like', '%' . $request->documento . '%');
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('created_at', '>=', $request->data_inicio);
+        }
+
+        if ($request->filled('data_fim')) {
+            $query->whereDate('created_at', '<=', $request->data_fim);
+        }
+
+        // Ordenar por desc (mais recentes primeiro)
+        $acordos = $query->orderBy('id', 'desc')->paginate(15);
+
+        return view('acordos.index', compact('acordos'));
     }
 
     /**
