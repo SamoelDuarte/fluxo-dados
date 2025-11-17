@@ -25,8 +25,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="phone_number_id">Phone Number ID</label>
-                    <input type="text" class="form-control" id="phone_number_id" name="phone_number_id" value="{{ old('phone_number_id', $data->phone_number_id ?? '') }}">
+                    <label for="business_id">Business ID</label>
+                    <input type="text" class="form-control" id="business_id" name="business_id" value="{{ old('business_id', $data->business_id ?? '') }}">
                 </div>
 
                 @if(!empty($data->access_token))

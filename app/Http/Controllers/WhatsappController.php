@@ -1508,7 +1508,7 @@ class WhatsappController extends Controller
             'app_secret' => 'nullable|string',
             'redirect_uri' => 'nullable|string',
             'access_token' => 'nullable|string',
-            'phone_number_id' => 'nullable|string',
+            'business_id' => 'nullable|string',
             // 'refresh_token' => 'nullable|string',
             // 'token_expires_at' => 'nullable|date',
             'is_connected' => 'boolean',

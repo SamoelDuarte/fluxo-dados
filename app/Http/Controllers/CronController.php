@@ -1545,19 +1545,24 @@ class CronController extends Controller
         foreach ($campanhas as $campanha) {
             Log::info('=== Processando campanha: ' . $campanha->id . ' ===');
 
-            // Pega os telefones da campanha
-            $telefones = $campanha->telefones()->get();
+            // Verifica se a campanha tem template_name configurado
+            if (!$campanha->template_name) {
+                Log::error('Campanha ID ' . $campanha->id . ' sem template_name configurado');
+                $totalErros++;
+                continue;
+            }
 
-            // LOOP 2: Telefones da campanha
-            foreach ($telefones as $telefone) {
-                Log::info('--- Processando telefone: ' . $telefone->id . ' ---');
+            // Pega os phone_number_ids da campanha (nova estrutura)
+            $phoneNumberIds = $campanha->phoneNumbers();
 
-                // Verifica se o telefone tem phone_number_id
-                if (!$telefone->phone_number_id) {
-                    Log::error('Telefone ID ' . $telefone->id . ' sem phone_number_id configurado');
-                    $totalErros++;
-                    continue;
-                }
+            if ($phoneNumberIds->isEmpty()) {
+                Log::warning('Campanha ID ' . $campanha->id . ' sem phone_number_ids configurados');
+                continue;
+            }
+
+            // LOOP 2: Phone Numbers da campanha
+            foreach ($phoneNumberIds as $phoneNumberId) {
+                Log::info('--- Processando phone_number_id: ' . $phoneNumberId . ' ---');
 
                 // Pega 10 contatos da campanha que ainda não foram enviados para este telefone
                 $contatos = DB::table('contato_dados')
@@ -1567,13 +1572,13 @@ class CronController extends Controller
                     ->get();
 
                 if ($contatos->isEmpty()) {
-                    Log::info('Nenhum contato para enviar neste telefone');
+                    Log::info('Nenhum contato para enviar neste phone_number_id');
                     continue;
                 }
 
                 Log::info('Total de contatos para enviar: ' . $contatos->count());
 
-                // LOOP 3: Contatos para este telefone
+                // LOOP 3: Contatos para este phone_number_id
                 foreach ($contatos as $contatoDado) {
 
                     try {
@@ -1594,7 +1599,7 @@ class CronController extends Controller
                             'to' => $numeroContato,
                             'type' => 'template',
                             'template' => [
-                                'name' => 'inicio240', // nome do template sem imagem
+                                'name' => $campanha->template_name, // Usar o nome do template da campanha
                                 'language' => [
                                     'code' => 'pt_BR',
                                 ],
@@ -1619,11 +1624,11 @@ class CronController extends Controller
                             'Content-Type' => 'application/json',
                         ];
 
-                        Log::info('URL: https://graph.facebook.com/v23.0/' . $telefone->phone_number_id . '/messages');
+                        Log::info('URL: https://graph.facebook.com/v23.0/' . $phoneNumberId . '/messages');
                         Log::info('Payload: ' . json_encode($data));
 
                         $response = $client->post(
-                            'https://graph.facebook.com/v23.0/' . $telefone->phone_number_id . '/messages',
+                            'https://graph.facebook.com/v23.0/' . $phoneNumberId . '/messages',
                             [
                                 'json' => $data,
                                 'headers' => $headers,
@@ -1644,7 +1649,7 @@ class CronController extends Controller
                                 ->where('id', $contatoDado->id)
                                 ->update([
                                     'send' => 1,
-                                    'telefone_id' => $telefone->id,
+                                    'telefone_id' => null,
                                     'updated_at' => now(),
                                 ]);
 
