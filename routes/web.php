@@ -81,6 +81,8 @@ Route::middleware('auth')->group(function () {
     // Campanha CRUD
     Route::get('/campanhas/crud', [\App\Http\Controllers\CampanhaCrudController::class, 'index'])->name('campanhas.crud.index');
     Route::get('/campanhas/crud/create', [\App\Http\Controllers\CampanhaCrudController::class, 'create'])->name('campanhas.crud.create');
+    Route::get('/campanhas/crud/templates', [\App\Http\Controllers\CampanhaCrudController::class, 'getTemplates'])->name('campanhas.crud.templates');
+    Route::get('/campanhas/crud/phone-numbers', [\App\Http\Controllers\CampanhaCrudController::class, 'getPhoneNumbers'])->name('campanhas.crud.phone-numbers');
     Route::post('/campanhas/crud', [\App\Http\Controllers\CampanhaCrudController::class, 'store'])->name('campanhas.crud.store');
     Route::get('/campanhas/crud/{campanha}/edit', [\App\Http\Controllers\CampanhaCrudController::class, 'edit'])->name('campanhas.crud.edit');
     Route::put('/campanhas/crud/{campanha}', [\App\Http\Controllers\CampanhaCrudController::class, 'update'])->name('campanhas.crud.update');
