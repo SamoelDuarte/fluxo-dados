@@ -138,3 +138,55 @@ Route::get('/teste', [CronController::class, 'obterparcelamento']); // Processam
 Route::get('/whatsapp/auth-facebook', [WhatsappController::class, 'authFacebook'])->name('whatsapp.authFacebook');
 Route::get('/whatsapp/callback', [WhatsappController::class, 'callback'])->name('whatsapp.callback');
 
+// Deletar todos os WhatsApp templates
+Route::get('/delete-all-templates', function () {
+    $filePath = base_path('whatsapp_template_names.txt');
+    
+    if (!file_exists($filePath)) {
+        return response()->json(['error' => 'Arquivo de templates não encontrado'], 404);
+    }
+
+    $templateNames = array_filter(array_map('trim', file($filePath)));
+    $client = new \GuzzleHttp\Client();
+    $token = 'EAAYOoqZC6d8sBPy91b3fXASkYQHbBScdIlZBlKttfWJql8v01SMwHCOFd6OWwW4EwZAu1Y8fCo8USr7H1nPpZAQhyS8gLByd2kRzIJhXoEXIVaMZBSceqKzEstvkDt9ZA4aqZC6Pg96M4DrZAy3tOL6BnknMRVwK93XcTZAlgySQfjMrSZA6XCS6ZB7L0hziMMKegZDZD';
+    $businessId ='1349302486596641';
+    
+    $results = [
+        'deleted' => [],
+        'failed' => [],
+        'total' => count($templateNames)
+    ];
+
+    foreach ($templateNames as $templateName) {
+        try {
+            $headers = [
+                'Authorization' => "Bearer {$token}"
+            ];
+            $request = new \GuzzleHttp\Psr7\Request(
+                'DELETE',
+                "https://graph.facebook.com/v22.0/{$businessId}/message_templates?name={$templateName}",
+                $headers
+            );
+            $res = $client->sendAsync($request)->wait();
+            $statusCode = $res->getStatusCode();
+            
+            if ($statusCode == 200) {
+                $results['deleted'][] = $templateName;
+            } else {
+                $results['failed'][] = [
+                    'name' => $templateName,
+                    'status' => $statusCode,
+                    'response' => $res->getBody()->getContents()
+                ];
+            }
+        } catch (\Exception $e) {
+            $results['failed'][] = [
+                'name' => $templateName,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    return response()->json($results);
+});
+
