@@ -1341,7 +1341,8 @@ class WhatsappController extends Controller
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
-                'texto' => $textoFormatado
+                'texto' => $textoFormatado,
+                'contato_dado_id' => $contatoDados->id
             ];
 
             // Cria o novo acordo
@@ -1451,7 +1452,8 @@ class WhatsappController extends Controller
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
-                'texto' => $textoFormatado
+                'texto' => $textoFormatado,
+                'contato_dado_id' => $contatoDados->id
             ];
 
             // Cria o novo acordo

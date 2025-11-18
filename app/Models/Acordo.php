@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Acordo extends Model
 {
@@ -12,6 +13,7 @@ class Acordo extends Model
     protected $table = 'acordos';
 
     protected $fillable = [
+        'contato_dado_id',
         'nome',
         'documento',
         'telefone',
@@ -24,6 +26,25 @@ class Acordo extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    /**
+     * Acordo pertence a um ContatoDados
+     */
+    public function contatoDado(): BelongsTo
+    {
+        return $this->belongsTo(ContatoDados::class, 'contato_dado_id');
+    }
+
+    /**
+     * Acessar a campanha através do contato_dados
+     */
+    public function getCampanha()
+    {
+        if ($this->contatoDado && $this->contatoDado->contato) {
+            return $this->contatoDado->contato->campanhas()->first();
+        }
+        return null;
+    }
 
     /**
      * Scopes para filtros comuns
