@@ -1568,6 +1568,17 @@ class CronController extends Controller
                 continue;
             }
 
+            // Verifica se já há contatos em processamento (send=2)
+            $contatosEmFila = DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 2)
+                ->count();
+
+            if ($contatosEmFila > 0) {
+                Log::info('⏳ Campanha ' . $campanha->id . ' já tem ' . $contatosEmFila . ' contatos na fila, aguardando conclusão');
+                continue;
+            }
+
             // Pega TODOS os contatos que NÃO foram enviados (send=0)
             $contatos = DB::table('contato_dados')
                 ->whereIn('contato_id', $campanha->contatos->pluck('id'))

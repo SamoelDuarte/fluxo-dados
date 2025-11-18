@@ -45,6 +45,18 @@ class SendWhatsappMessageQueue implements ShouldQueue
     public function handle()
     {
         try {
+            // Verifica se há flag de pausa
+            if (file_exists(storage_path('app/queue-pause.flag'))) {
+                Log::warning("⏸️ Worker pausado detectado - Job cancelado");
+                // Reverte o contato para send=0 para tentar depois
+                DB::table('contato_dados')
+                    ->where('id', $this->contatoDadoId)
+                    ->update(['send' => 0]);
+                // Deleta o arquivo de pausa
+                @unlink(storage_path('app/queue-pause.flag'));
+                return;
+            }
+
             // Busca o contato pelo ID
             $contatoDado = DB::table('contato_dados')->find($this->contatoDadoId);
 
