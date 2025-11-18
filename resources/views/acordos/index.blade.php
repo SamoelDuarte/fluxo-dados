@@ -130,7 +130,7 @@
 @endsection
 
 @section('scripts')
-<script>
+{{-- <script>
 $(function() {
     $('#acordosTable').DataTable({
         language: {
@@ -140,5 +140,5 @@ $(function() {
         info: false
     });
 });
-</script>
+</script> --}}
 @endsection
