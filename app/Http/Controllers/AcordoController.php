@@ -35,6 +35,28 @@ class AcordoController extends Controller
         // Ordenar por desc (mais recentes primeiro)
         $acordos = $query->orderBy('id', 'desc')->paginate(15);
 
+        // Adicionar informação da campanha para cada acordo
+        foreach ($acordos as $acordo) {
+            $contato_dado = \DB::table('contato_dados')
+                ->where('document', $acordo->documento)
+                ->orWhere('telefone', $acordo->telefone)
+                ->first();
+            
+            if ($contato_dado) {
+                $campanha_info = \DB::table('campanha_contato')
+                    ->select('campanhas.name', 'campanhas.id')
+                    ->join('campanhas', 'campanha_contato.campanha_id', '=', 'campanhas.id')
+                    ->where('campanha_contato.contato_id', $contato_dado->contato_id)
+                    ->first();
+                
+                $acordo->campanha_name = $campanha_info ? $campanha_info->name : 'N/A';
+                $acordo->campanha_id = $campanha_info ? $campanha_info->id : null;
+            } else {
+                $acordo->campanha_name = 'N/A';
+                $acordo->campanha_id = null;
+            }
+        }
+
         return view('acordos.index', compact('acordos'));
     }
 
