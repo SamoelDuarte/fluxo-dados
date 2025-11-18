@@ -89,7 +89,14 @@ class ProcessContatoImport implements ShouldQueue
             $data_venc = $mapped['data_vencimento'] ?? null;
             if (preg_match('/\d{2}\/\d{2}\/\d{4}/', $data_venc)) {
                 $parts = explode('/', $data_venc);
-                $data_venc = $parts[2].'-'.$parts[1].'-'.$parts[0];
+                // Detecta formato: se primeiro número > 12, é DD/MM/YYYY, senão é MM/DD/YYYY
+                if (intval($parts[0]) > 12) {
+                    // DD/MM/YYYY format
+                    $data_venc = $parts[2].'-'.$parts[1].'-'.$parts[0];
+                } else {
+                    // MM/DD/YYYY format
+                    $data_venc = $parts[2].'-'.$parts[0].'-'.$parts[1];
+                }
             }
 
             ContatoDados::create([

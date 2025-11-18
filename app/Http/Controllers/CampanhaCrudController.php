@@ -383,14 +383,22 @@ class CampanhaCrudController extends Controller
                 $dias_clean = !empty($dias_atraso) ? intval($dias_atraso) : null;
                 $carteira_clean = !empty($carteira) ? trim((string)$carteira) : null;
 
-                // Converter data de d/m/Y para Y-m-d se necessário
+                // Converter data de d/m/Y ou m/d/Y para Y-m-d se necessário
                 $data_venc_clean = null;
                 if (!empty($data_venc)) {
                     $data_str = trim((string)$data_venc);
                     if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $data_str)) {
                         $parts = explode('/', $data_str);
-                        $day = str_pad($parts[0], 2, '0', STR_PAD_LEFT);
-                        $month = str_pad($parts[1], 2, '0', STR_PAD_LEFT);
+                        // Detecta formato: se primeiro número > 12, é DD/MM/YYYY, senão é MM/DD/YYYY
+                        if (intval($parts[0]) > 12) {
+                            // DD/MM/YYYY format
+                            $day = str_pad($parts[0], 2, '0', STR_PAD_LEFT);
+                            $month = str_pad($parts[1], 2, '0', STR_PAD_LEFT);
+                        } else {
+                            // MM/DD/YYYY format
+                            $month = str_pad($parts[0], 2, '0', STR_PAD_LEFT);
+                            $day = str_pad($parts[1], 2, '0', STR_PAD_LEFT);
+                        }
                         $year = $parts[2];
                         $data_venc_clean = $year . '-' . $month . '-' . $day;
                     }
