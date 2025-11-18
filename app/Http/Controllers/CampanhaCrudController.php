@@ -61,12 +61,15 @@ class CampanhaCrudController extends Controller
             'planilha' => 'nullable|file|mimes:xlsx,xls,csv',
         ]);
 
-        // Criar a campanha
+        // Criar a campanha com timestamp
+        $agora = now();
         $campanha = Campanha::create([
             'name' => $data['name'],
             'template_id' => $data['template_id'],
             'template_name' => $data['template_name'],
             'waba_id' => $data['waba_id'],
+            'created_at' => $agora,
+            'updated_at' => $agora
         ]);
 
         // Inserir phone_number_ids na tabela campanha_telefone
