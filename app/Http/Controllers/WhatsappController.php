@@ -1333,6 +1333,8 @@ class WhatsappController extends Controller
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
 
+            // Timestamp com timezone correto de São Paulo
+            $agora = now();
 
             // Prepara dados validados para criar o acordo
             $validated = [
@@ -1342,13 +1344,15 @@ class WhatsappController extends Controller
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
                 'texto' => $textoFormatado,
-                'contato_dado_id' => $contatoDados->id
+                'contato_dado_id' => $contatoDados->id,
+                'created_at' => $agora,
+                'updated_at' => $agora
             ];
 
             // Cria o novo acordo
             $acordo = Acordo::create($validated);
 
-            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
+            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.') . ' - Timestamp: ' . $agora->format('d/m/Y H:i:s'));
 
             // Atualiza contexto da sessão do WhatsApp e define como encerrada
             if ($session) {
@@ -1446,6 +1450,7 @@ class WhatsappController extends Controller
 
 
             // Prepara dados validados para criar o acordo
+            $agora = now();
             $validated = [
                 'documento' => $documentoLimpo,
                 'nome' => $nomeCliente,
@@ -1453,7 +1458,9 @@ class WhatsappController extends Controller
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
                 'texto' => $textoFormatado,
-                'contato_dado_id' => $contatoDados->id
+                'contato_dado_id' => $contatoDados->id,
+                'created_at' => $agora,
+                'updated_at' => $agora
             ];
 
             // Cria o novo acordo
