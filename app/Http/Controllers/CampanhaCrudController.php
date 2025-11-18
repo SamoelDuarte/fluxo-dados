@@ -314,10 +314,12 @@ class CampanhaCrudController extends Controller
     private function processarPlanilha(Campanha $campanha, $file)
     {
         try {
-            // Criar um contato genérico para esta campanha
+            // Criar um contato genérico para esta campanha com data e hora
+            $agora = now();
+            $nomeContato = 'campanha (' . $agora->format('d/m/y:H') . ')';
             $contato = Contato::firstOrCreate(
-                ['name' => 'Campanha ' . $campanha->id],
-                ['name' => 'Campanha ' . $campanha->id]
+                ['name' => $nomeContato],
+                ['name' => $nomeContato]
             );
 
             // Associar contato à campanha
