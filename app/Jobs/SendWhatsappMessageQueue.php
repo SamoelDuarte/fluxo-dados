@@ -54,25 +54,27 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     ->update(['send' => 0]);
                 // Deleta o arquivo de pausa
                 @unlink(storage_path('app/queue-pause.flag'));
+                $this->delete(); // Remove job da fila
                 return;
             }
 
             // Busca o contato pelo ID
-            $contatoDado = DB::table('contato_dados')->find($this->contatoDadoId);
+            $contatoDado = (array) DB::table('contato_dados')->find($this->contatoDadoId);
 
-            if (!$contatoDado) {
+            if (empty($contatoDado) || !isset($contatoDado['id'])) {
                 Log::error("❌ Contato não encontrado: ID {$this->contatoDadoId}");
+                $this->delete(); // Remove job da fila
                 return;
             }
 
             // Formata o número do contato
-            $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
+            $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado['telefone'] ?? '');
 
             // Extrai primeiro nome do contato
-            $nomeCompleto = $contatoDado->nome ?? 'Cliente';
+            $nomeCompleto = $contatoDado['nome'] ?? 'Cliente';
             $primeiroNome = explode(' ', trim($nomeCompleto))[0];
 
-            Log::info("📤 [Job Queue] Enviando para: {$numeroContato} ({$primeiroNome})");
+            Log::info("📤 [Job Queue] Tentativa " . ($this->attempts() ?? 1) . " - Enviando para: {$numeroContato} ({$primeiroNome})");
 
             // Cria cliente Guzzle
             $client = new Client();
@@ -120,6 +122,8 @@ class SendWhatsappMessageQueue implements ShouldQueue
             $responseBody = $response->getBody()->getContents();
             $responseData = json_decode($responseBody, true);
 
+            Log::info("📨 Resposta da API: " . json_encode($responseData));
+
             // Verifica se o envio foi bem-sucedido
             if (isset($responseData['messages'][0]['id'])) {
                 // Marca como enviado no banco (send=1)
@@ -131,18 +135,22 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     ]);
 
                 Log::info("✅ Mensagem enviada com sucesso! ID: {$responseData['messages'][0]['id']} | Contato: {$numeroContato}");
+                
+                // Remove job da fila após sucesso
+                $this->delete();
             } else {
                 Log::warning("⚠️ Resposta sem ID de mensagem: " . json_encode($responseData));
                 // Retorna para send=0 para tentar novamente
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
                     ->update(['send' => 0]);
-                // Tenta novamente após timeout
+                // Libera para tentar novamente
                 $this->release(30);
             }
 
         } catch (RequestException $e) {
             Log::error("❌ Erro RequestException: " . $e->getMessage());
+            Log::error("Response: " . ($e->hasResponse() ? $e->getResponse()->getBody() : 'N/A'));
             // Tenta novamente
             $this->release(30);
         } catch (\Exception $e) {

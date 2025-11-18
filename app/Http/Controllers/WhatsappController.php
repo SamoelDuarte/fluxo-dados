@@ -325,13 +325,6 @@ class WhatsappController extends Controller
             'last_message_at' => now()
         ]);
 
-        \Log::warning('[FLUXO-DADOS] Erro registrado na sessão', [
-            'wa_id' => $wa_id,
-            'error_message' => $mensagemErro,
-            'step' => $step,
-            'error_count' => $context['error_count']
-        ]);
-
         return response()->json([
             'success' => true,
             'wa_id' => $wa_id,
