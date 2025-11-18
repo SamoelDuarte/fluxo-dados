@@ -63,8 +63,9 @@ class CampanhaCrudController extends Controller
 
         // Criar a campanha com timestamp
         $agora = now();
+        $nomeCampanha = 'campanha (' . $agora->format('d/m/y:H') . ')';
         $campanha = Campanha::create([
-            'name' => $data['name'],
+            'name' => $nomeCampanha,
             'template_id' => $data['template_id'],
             'template_name' => $data['template_name'],
             'waba_id' => $data['waba_id'],
