@@ -16,8 +16,9 @@
                     <th>Imagem</th>
                     <th>Nome</th>
                     <th>Status</th>
-                    <th>Contatos</th>
-                    <th>Total Enviado</th>
+                    <th>Pendentes</th>
+                    <th>Na Fila</th>
+                    <th>Enviados</th>
                     <th>Ações</th>
                 </tr>
                 </thead>
@@ -34,8 +35,15 @@
                         </td>
                         <td>{{ $campanha->name }}</td>
                         <td>{{ $campanha->status === 'paused' ? 'Pausado' : 'Rodando' }}</td>
-                        <td>{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 0)->count() }}</td>
-                        <td>{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 1)->count() }}</td>
+                        <td>
+                            <span class="badge badge-info">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 0)->count() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-warning">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 2)->count() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-success">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 1)->count() }}</span>
+                        </td>
                         <td>
                             <a href="{{ route('campanhas.crud.edit', $campanha) }}" class="btn btn-sm btn-secondary">Editar</a>
                             <form action="{{ route('campanhas.crud.destroy', $campanha) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('Remover campanha?');">

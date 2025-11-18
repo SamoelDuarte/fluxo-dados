@@ -83,8 +83,8 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <a class="collapse-item" href="{{ route('whatsapp.connect') }}"> <i class="fab fa-whatsapp"
                                 style="color: #25D366;"></i> Whatsapp</a>
-                        <a class="collapse-item" href="{{ route('telefones.index') }}"> <i class="fas fa-phone"
-                                style="color: #4e73df;"></i> Telefones</a>
+                        {{-- <a class="collapse-item" href="{{ route('telefones.index') }}"> <i class="fas fa-phone"
+                                style="color: #4e73df;"></i> Telefones</a> --}}
                     </div>
                 </div>
 

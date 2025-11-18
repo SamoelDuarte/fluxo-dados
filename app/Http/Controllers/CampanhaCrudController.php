@@ -135,14 +135,103 @@ class CampanhaCrudController extends Controller
 
     public function play(Campanha $campanha)
     {
-        $campanha->update(['status' => 'playing']);
-        return redirect()->back()->with('success', 'Campanha iniciada.');
+        try {
+            // Atualiza status para playing
+            $campanha->update(['status' => 'playing']);
+
+            // Busca o token da tabela whatsapp
+            $whatsappConfig = DB::table('whatsapp')->first();
+            if (!$whatsappConfig || !$whatsappConfig->access_token) {
+                return redirect()->back()->with('error', 'Token WhatsApp não configurado');
+            }
+
+            $whatsappConfig->access_token = trim($whatsappConfig->access_token);
+
+            // Pega os phone_number_ids da campanha
+            $phoneNumberIds = $campanha->phoneNumbers();
+            if ($phoneNumberIds->isEmpty()) {
+                return redirect()->back()->with('error', 'Nenhum phone_number_id configurado para a campanha');
+            }
+
+            $totalNaFila = 0;
+            $totalErros = 0;
+
+            // Pega TODOS os contatos que NÃO foram enviados (send=0)
+            $contatos = DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 0)
+                ->get();
+
+            if ($contatos->isEmpty()) {
+                return redirect()->back()->with('warning', 'Nenhum contato pendente para enviar.');
+            }
+
+            // Converte phone_number_ids para array para usar índice
+            $phoneNumberIdsArray = $phoneNumberIds->toArray();
+            $phoneCount = count($phoneNumberIdsArray);
+            $contatoIndex = 0;
+
+            // LOOP: Contatos para distribuir entre os telefones (ROUND-ROBIN)
+            foreach ($contatos as $contatoDado) {
+                try {
+                    // Seleciona o telefone de forma round-robin
+                    $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
+                    $contatoIndex++;
+
+                    // Marca como "em processamento" na fila (send=2)
+                    DB::table('contato_dados')
+                        ->where('id', $contatoDado->id)
+                        ->update(['send' => 2]);
+
+                    // Dispara job para a fila
+                    \App\Jobs\SendWhatsappMessageQueue::dispatch(
+                        $contatoDado->id,
+                        $campanha->id,
+                        $phoneNumberId,
+                        $whatsappConfig->access_token,
+                        $campanha->template_name
+                    )
+                    ->onQueue('whatsapp')
+                    ->delay(now()->addSeconds(rand(1, 5)));
+
+                    $totalNaFila++;
+
+                } catch (\Exception $e) {
+                    $totalErros++;
+                    \Log::error('ERRO ao disparar job: ' . $e->getMessage());
+                }
+            }
+
+            \Log::info("✅ Campanha {$campanha->id} iniciada: {$totalNaFila} mensagens na fila");
+
+            return redirect()->back()->with('success', "Campanha iniciada! {$totalNaFila} mensagens adicionadas à fila.");
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao iniciar campanha: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Erro ao iniciar campanha: ' . $e->getMessage());
+        }
     }
 
     public function pause(Campanha $campanha)
     {
-        $campanha->update(['status' => 'paused']);
-        return redirect()->back()->with('success', 'Campanha pausada.');
+        try {
+            // Atualiza status para paused
+            $campanha->update(['status' => 'paused']);
+
+            // Retorna os contatos que estão na fila (send=2) de volta para send=0
+            DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 2)
+                ->update(['send' => 0]);
+
+            \Log::info("⏸️ Campanha {$campanha->id} pausada");
+
+            return redirect()->back()->with('success', 'Campanha pausada com sucesso!');
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao pausar campanha: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Erro ao pausar campanha: ' . $e->getMessage());
+        }
     }
 
     public function getTemplates(Request $request)

@@ -1515,39 +1515,47 @@ class CronController extends Controller
             ->exists();
 
         if (!$exists) {
-            echo 'Fora de Data de Agendamento: ' . $currentTime;
-            return;
+            Log::warning('🚫 Fora de horário de agendamento: ' . $currentTime);
+            return response()->json([
+                'mensagem' => 'Fora de Data de Agendamento: ' . $currentTime,
+                'total_na_fila' => 0
+            ]);
         }
 
         // Busca o token da tabela whatsapp
         $whatsappConfig = DB::table('whatsapp')->first();
         if (!$whatsappConfig || !$whatsappConfig->access_token) {
-            echo 'Token WhatsApp não configurado no banco de dados';
-            return;
+            Log::error('❌ Token WhatsApp não configurado no banco de dados');
+            return response()->json([
+                'erro' => 'Token WhatsApp não configurado no banco de dados'
+            ], 400);
         }
 
         // Limpa espaços em branco do token
         $whatsappConfig->access_token = trim($whatsappConfig->access_token);
-        Log::info('Token length: ' . strlen($whatsappConfig->access_token) . ' characters');
+        Log::info('🔑 Token WhatsApp length: ' . strlen($whatsappConfig->access_token) . ' characters');
 
         // Pega campanhas ativas (status = 'playing')
         $campanhas = Campanha::where('status', 'playing')->get();
 
         if ($campanhas->isEmpty()) {
-            echo 'Nenhuma campanha ativa encontrada';
-            return;
+            Log::warning('⚠️ Nenhuma campanha ativa encontrada');
+            return response()->json([
+                'mensagem' => 'Nenhuma campanha ativa encontrada',
+                'total_na_fila' => 0
+            ]);
         }
 
-        $totalEnviados = 0;
+        $totalNaFila = 0;
         $totalErros = 0;
 
         // LOOP 1: Campanhas
         foreach ($campanhas as $campanha) {
-            Log::info('=== Processando campanha: ' . $campanha->id . ' ===');
+            Log::info('📢 === Processando campanha: ' . $campanha->id . ' ===');
 
             // Verifica se a campanha tem template_name configurado
             if (!$campanha->template_name) {
-                Log::error('Campanha ID ' . $campanha->id . ' sem template_name configurado');
+                Log::error('❌ Campanha ID ' . $campanha->id . ' sem template_name configurado');
                 $totalErros++;
                 continue;
             }
@@ -1556,121 +1564,67 @@ class CronController extends Controller
             $phoneNumberIds = $campanha->phoneNumbers();
 
             if ($phoneNumberIds->isEmpty()) {
-                Log::warning('Campanha ID ' . $campanha->id . ' sem phone_number_ids configurados');
+                Log::warning('⚠️ Campanha ID ' . $campanha->id . ' sem phone_number_ids configurados');
                 continue;
             }
 
-            // LOOP 2: Phone Numbers da campanha
-            foreach ($phoneNumberIds as $phoneNumberId) {
-                Log::info('--- Processando phone_number_id: ' . $phoneNumberId . ' ---');
+            // Pega TODOS os contatos que NÃO foram enviados (send=0)
+            $contatos = DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 0)
+                ->get();
 
-                // Pega 10 contatos da campanha que ainda não foram enviados para este telefone
-                $contatos = DB::table('contato_dados')
-                    ->whereIn('contato_id', $campanha->contatos->pluck('id'))
-                    ->where('send', 0)
-                    ->limit(20)
-                    ->get();
+            if ($contatos->isEmpty()) {
+                Log::info('ℹ️ Nenhum contato para enviar nesta campanha');
+                continue;
+            }
 
-                if ($contatos->isEmpty()) {
-                    Log::info('Nenhum contato para enviar neste phone_number_id');
-                    continue;
-                }
+            Log::info('👥 Total de contatos para enviar: ' . $contatos->count());
 
-                Log::info('Total de contatos para enviar: ' . $contatos->count());
+            // Converte phone_number_ids para array para usar índice
+            $phoneNumberIdsArray = $phoneNumberIds->toArray();
+            $phoneCount = count($phoneNumberIdsArray);
+            $contatoIndex = 0;
 
-                // LOOP 3: Contatos para este phone_number_id
-                foreach ($contatos as $contatoDado) {
+            // LOOP 2: Contatos para distribuir entre os telefones (ROUND-ROBIN)
+            foreach ($contatos as $contatoDado) {
+                try {
+                    // Seleciona o telefone de forma round-robin
+                    $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
+                    $contatoIndex++;
 
-                    try {
-                        // Formata o número do contato
-                        $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado->telefone);
+                    // Marca como "em processamento" na fila (send=2)
+                    DB::table('contato_dados')
+                        ->where('id', $contatoDado->id)
+                        ->update(['send' => 2]); // 2 = na fila/processando
 
-                        // Extrai primeiro nome do contato
-                        $nomeCompleto = $contatoDado->nome ?? 'Cliente';
-                        $primeiroNome = explode(' ', trim($nomeCompleto))[0];
+                    // Dispara job para a fila em vez de executar direto
+                    \App\Jobs\SendWhatsappMessageQueue::dispatch(
+                        $contatoDado->id,
+                        $campanha->id,
+                        $phoneNumberId,
+                        $whatsappConfig->access_token,
+                        $campanha->template_name
+                    )
+                    ->onQueue('whatsapp')
+                    ->delay(now()->addSeconds(rand(1, 5))); // Delay aleatório para não sobrecarregar
 
-                        Log::info('Enviando para contato: ' . $numeroContato . ' (' . $primeiroNome . ') url img: ' . $this->getImageUrl());
+                    $totalNaFila++;
 
-                        // Enviar template
-                        $client = new Client();
-
-                        $data = [
-                            'messaging_product' => 'whatsapp',
-                            'to' => $numeroContato,
-                            'type' => 'template',
-                            'template' => [
-                                'name' => $campanha->template_name, // Usar o nome do template da campanha
-                                'language' => [
-                                    'code' => 'pt_BR',
-                                ],
-                                'components' => [
-                                    [
-                                        'type' => 'body',
-                                        'parameters' => [
-                                            [
-                                                'type' => 'text',
-                                                'text' => $primeiroNome
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ];
-
-
-                        // Headers para WhatsApp Business API
-                        $headers = [
-                            'Authorization' => 'Bearer ' . $whatsappConfig->access_token,
-                            'Content-Type' => 'application/json',
-                        ];
-
-                        Log::info('URL: https://graph.facebook.com/v23.0/' . $phoneNumberId . '/messages');
-                        Log::info('Payload: ' . json_encode($data));
-
-                        $response = $client->post(
-                            'https://graph.facebook.com/v23.0/' . $phoneNumberId . '/messages',
-                            [
-                                'json' => $data,
-                                'headers' => $headers,
-                            ]
-                        );
-
-                        $responseBody = $response->getBody()->getContents();
-                        Log::info('Resposta da API: ' . $responseBody);
-
-                        $responseData = json_decode($responseBody, true);
-
-                        // Se envio bem-sucedido
-                        if (isset($responseData['messages'][0]['id'])) {
-                            Log::info('✓ Mensagem interativa enviada com sucesso! ID: ' . $responseData['messages'][0]['id']);
-
-                            // Marca como enviado
-                            DB::table('contato_dados')
-                                ->where('id', $contatoDado->id)
-                                ->update([
-                                    'send' => 1,
-                                    'telefone_id' => null,
-                                    'updated_at' => now(),
-                                ]);
-
-                            $totalEnviados++;
-                        } else {
-                            Log::error('✗ Resposta sem mensagem ID: ' . json_encode($responseData));
-                            $totalErros++;
-                        }
-                    } catch (\Exception $e) {
-                        $totalErros++;
-                        Log::error('✗ ERRO ao enviar mensagem interativa: ' . $e->getMessage());
-                        Log::error('Stack: ' . $e->getTraceAsString());
-                    }
+                } catch (\Exception $e) {
+                    $totalErros++;
+                    Log::error('❌ ERRO ao disparar job: ' . $e->getMessage());
                 }
             }
         }
 
+        Log::info("✅ Processo de envio em massa finalizado: {$totalNaFila} mensagens na fila, {$totalErros} erros");
+
         return response()->json([
-            'mensagem' => 'Envio em massa concluído',
-            'total_enviados' => $totalEnviados,
+            'mensagem' => 'Mensagens adicionadas à fila de envio com sucesso! 🚀',
+            'total_na_fila' => $totalNaFila,
             'total_erros' => $totalErros,
+            'info' => 'Use o comando: php artisan queue:work --queue=whatsapp para processar a fila'
         ]);
     }
 
