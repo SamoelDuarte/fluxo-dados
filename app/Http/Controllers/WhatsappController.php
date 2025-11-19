@@ -1286,7 +1286,7 @@ class WhatsappController extends Controller
             }
 
             // Monta texto automaticamente com dados do contexto
-            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
+            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . " | Venc: " . $dataVencimento . "\n";
 
             // Timestamp com timezone correto de São Paulo
             $agora = now();

@@ -33,9 +33,9 @@ class SendAcordoToDatacob implements ShouldQueue
                         'Content-Type' => 'application/json'
                     ],
                     'json' => [
-                        'login' => env('NEOCOBE_LOGIN', 'api.dashboard'),
-                        'password' => env('NEOCOBE_PASSWORD', '36810556'),
-                        'apiKey' => env('NEOCOBE_APIKEY', 'PYBW+7AndDA=')
+                        'login' => env('NEOCOBE_LOGIN'),
+                        'password' => env('NEOCOBE_PASSWORD'),
+                        'apiKey' => env('NEOCOBE_APIKEY')
                     ]
                 ]
             );
@@ -51,8 +51,7 @@ class SendAcordoToDatacob implements ShouldQueue
     public function handle()
     {
         try {
-            // $acordo = Acordo::findOrFail($this->acordoId);
-            $acordo = Acordo::where('id', '166')->first();
+            $acordo = Acordo::findOrFail($this->acordoId);
 
             if (!$acordo->contatoDado || !$acordo->contatoDado->id_contrato) {
                 return;
@@ -70,7 +69,8 @@ class SendAcordoToDatacob implements ShouldQueue
             $idContrato = (int)$acordo->contatoDado->id_contrato;
             $qtdeParcelas = 1;
             $valorParcela = 0.00;
-            $dataNegociacao = $acordo->created_at->format('Y-m-d');
+            $dataPagtoEntrada = $acordo->created_at->format('Y-m-d');
+            $dataVencimento = $acordo->created_at->format('Y-m-d');
 
             if (preg_match('/(\d+)x\s+de\s+R\$\s+([\d.,]+)/', $acordo->texto, $matches)) {
                 $qtdeParcelas = (int)$matches[1];
@@ -80,16 +80,19 @@ class SendAcordoToDatacob implements ShouldQueue
                 $valorParcela = (float)str_replace(',', '.', $matches[1]);
             }
 
+            // Extrai data de vencimento do padrão: "Venc: dd/mm/yyyy"
+            if (preg_match('/Venc:\s+(\d{2})\/(\d{2})\/(\d{4})/', $acordo->texto, $matches)) {
+                $dataVencimento = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            }
+
             $payload = [
                 'IdContrato' => $idContrato,
                 'ValorEntrada' => 0.00,
                 'QtdeParcelas' => $qtdeParcelas,
-                'DataPagtoEntrada' => $dataNegociacao,
-                'DataNegociacao' => $dataNegociacao,
+                'DataPagtoEntrada' => $dataVencimento,
+                'DataNegociacao' => $dataPagtoEntrada,
                 'ValorParcela' => $valorParcela,
             ];
-
-            dd($payload);
 
             $client = new Client();
             $response = $client->post(

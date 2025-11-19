@@ -199,3 +199,4 @@ Seu worker agora roda 24/7 no Ubuntu sem terminal aberto e sem duplicação de m
 <!-- php artisan acordos:send-datacob -->
 
 <!-- comecar o envio php artisan queue:work --queue=default -->
+<!-- php artisan queue:work --queue=default -->
