@@ -33,9 +33,9 @@ class SendAcordoToDatacob implements ShouldQueue
                         'Content-Type' => 'application/json'
                     ],
                     'json' => [
-                        'login' => env('NEOCOBE_LOGIN'),
-                        'password' => env('NEOCOBE_PASSWORD'),
-                        'apiKey' => env('NEOCOBE_APIKEY')
+                        'login' => env('datacod_LOGIN'),
+                        'password' => env('datacod_PASSWORD'),
+                        'apiKey' => env('datacod_APIKEY')
                     ]
                 ]
             );
@@ -110,7 +110,6 @@ class SendAcordoToDatacob implements ShouldQueue
             $statusCode = $response->getStatusCode();
             if ($statusCode === 200 || $statusCode === 201) {
                 $acordo->update(['status' => 'enviado']);
-                \Log::info("✅ Acordo {$acordo->id} enviado para Datacob");
             }
 
         } catch (RequestException $e) {

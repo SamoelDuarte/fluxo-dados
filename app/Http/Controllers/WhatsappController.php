@@ -660,25 +660,8 @@ class WhatsappController extends Controller
                 ];
                 
                 // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
-                \Log::info('DEBUG obterDocumentosAbertos - Verificando parcelamentos', [
-                    'parcelamentos_keys' => array_keys($parcelamentos),
-                    'parcelamentos_data_existe' => isset($parcelamentos['data']),
-                    'parcelamentos_completo' => json_encode($parcelamentos)
-                ]);
-
                 if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
                     $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
-                    \Log::info('DEBUG obterDocumentosAbertos - Valor à vista encontrado', [
-                        'valorAVista' => $valorAVista
-                    ]);
-                } else {
-                    \Log::warning('DEBUG obterDocumentosAbertos - Valor à vista NÃO encontrado', [
-                        'valorAVista_atual' => $valorAVista,
-                        'data_existe' => isset($parcelamentos['data']),
-                        'data_0_existe' => isset($parcelamentos['data'][0]) ?? false,
-                        'parcelamento_existe' => isset($parcelamentos['data'][0]['parcelamento']) ?? false,
-                        'valorTotal_existe' => isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal']) ?? false
-                    ]);
                 }
             } else {
                 $erros[] = [
@@ -686,17 +669,8 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
-                \Log::error('DEBUG obterDocumentosAbertos - Parcelamentos vazios', [
-                    'contrato_id' => $contrato->id,
-                    'codigo_carteira' => $codigoCarteira
-                ]);
             }
         }
-
-        \Log::info('DEBUG obterDocumentosAbertos - Após loop de contratos', [
-            'valorAVista_final' => $valorAVista,
-            'parcelamentosResultados_count' => count($parcelamentosResultados)
-        ]);
 
         // Busca o contato WhatsApp e atualiza o contexto da sessão
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
@@ -705,11 +679,6 @@ class WhatsappController extends Controller
             if ($session) {
                 $context = $session->context ?? [];
                 
-                \Log::info('DEBUG ANTES DE SALVAR - Context state', [
-                    'valor_antes' => $context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE',
-                    'valorAVista_variavel' => $valorAVista
-                ]);
-                
                 $context['parcelamentos_verificados'] = true;
                 $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
                 $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
@@ -717,22 +686,11 @@ class WhatsappController extends Controller
                 $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
                 $context['nome'] = $contrato->nome; // Salva no contexto
                 
-                \Log::info('DEBUG DEPOIS DE ATRIBUIR - Context array', [
-                    'valor_no_array' => $context['valor-atual-da-divida-a-vista'],
-                    'array_completo' => json_encode($context)
-                ]);
-                
                 if (!empty($erros)) {
                     $context['parcelamentos_erros'] = $erros;
                 }
                 
                 $session->update(['context' => $context]);
-                
-                \Log::info('DEBUG DEPOIS DE SALVAR - Verificando sessão', [
-                    'session_id' => $session->id,
-                    'context_salvo' => json_encode($session->context),
-                    'valor_no_db' => $session->context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE'
-                ]);
             }
         }
 
@@ -961,13 +919,11 @@ class WhatsappController extends Controller
             $res = $client->sendAsync($request)->wait();
             $responseBody = $res->getBody()->getContents();
             $data = json_decode($responseBody, true);
-            // dd($data);
             if (isset($data['mensagem']) && strtolower($data['mensagem']) === 'nenhumacordo encontrado') {
                 return false;
             }
             return $data;
         } catch (\Exception $e) {
-            dd($e->getMessage());
             \Log::error(message: 'Erro ao obter acordos por cliente: ' . $e->getMessage());
             return false;
         }
@@ -995,10 +951,6 @@ class WhatsappController extends Controller
 
     private function getStepFluxo($id)
     {
-        Log::info('getStepFluxo debug', [
-            'negFlow' => $id,
-            'step_number' => $id,
-        ]);
         return WhatsappFlowStep::where('id', $id)->first();
     }
 
@@ -1225,10 +1177,8 @@ class WhatsappController extends Controller
             ]
         ];
 
-        // Log::info(message: 'sendMenuOptions body: ' . json_encode($body));
         $url = "https://graph.facebook.com/v18.0/{$phoneNumberId}/messages";
         $res = Http::withToken(token: $token)->post($url, $body);
-        Log::info('sendMenuOptions response: ' . $res->body());
         return true;
     }
     public function showForm()
@@ -1331,7 +1281,7 @@ class WhatsappController extends Controller
             }
 
             // Monta texto automaticamente com dados do contexto
-            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . "\n";
+            $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . " | Venc: " . $dataVencimento . "\n";
 
 
             // Prepara dados validados para criar o acordo
@@ -1346,8 +1296,6 @@ class WhatsappController extends Controller
 
             // Cria o novo acordo
             $acordo = Acordo::create($validated);
-
-            Log::info('✓ Acordo criado com sucesso via WhatsApp: ID ' . $acordo->id . ' - ' . $acordo->nome . ' (' . $acordo->documento . ') - Valor: R$ ' . number_format($valorDivida, 2, ',', '.'));
 
             // Atualiza contexto da sessão do WhatsApp e define como encerrada
             if ($session) {
