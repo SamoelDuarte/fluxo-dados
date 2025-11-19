@@ -131,7 +131,7 @@
                 </table>
             </div>
             <div class="mt-3">
-                {{ $acordos->appends(request()->query())->links() }}
+                {{ $acordos->appends(request()->query())->links('pagination::bootstrap-4') }}
             </div>
         </div>
     </div>
