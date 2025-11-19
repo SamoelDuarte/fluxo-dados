@@ -63,7 +63,7 @@ class CampanhaCrudController extends Controller
 
         // Criar a campanha com timestamp
         $agora = now();
-        $nomeCampanha = 'campanha (' . $agora->format('d/m/y:H') . ')';
+        $nomeCampanha = 'campanha (' . $agora->format('d/m/y:H:i') . ') ';
         $campanha = Campanha::create([
             'name' => $nomeCampanha,
             'template_id' => $data['template_id'],
@@ -331,7 +331,7 @@ class CampanhaCrudController extends Controller
         try {
             // Criar um contato genérico para esta campanha com data e hora
             $agora = now();
-            $nomeContato = 'campanha (' . $agora->format('d/m/y:H') . ')';
+            $nomeContato = 'campanha (' . $agora->format('d/m/y:H:i') . ') ';
             $contato = Contato::firstOrCreate(
                 ['name' => $nomeContato],
                 ['name' => $nomeContato]
