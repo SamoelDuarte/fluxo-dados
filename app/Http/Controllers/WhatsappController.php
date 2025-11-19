@@ -1276,6 +1276,14 @@ class WhatsappController extends Controller
                         $parcela = $negociacao['Parcelas'][0] ?? [];
                         $atrasoDias = $parcela['Atraso'] ?? 0;
                         $dataVencimento = $parcela['DtVencimento'] ?? '';
+                        
+                        // Converte data do formato ISO 8601 (2025-07-28T00:00:00) para dd/mm/yyyy (28/07/2025)
+                        if (!empty($dataVencimento)) {
+                            $dataObj = \DateTime::createFromFormat('Y-m-d\TH:i:s', $dataVencimento);
+                            if ($dataObj) {
+                                $dataVencimento = $dataObj->format('d/m/Y');
+                            }
+                        }
                     }
                 }
             }
@@ -1305,9 +1313,9 @@ class WhatsappController extends Controller
                 $context['acordo_data'] = now()->toIso8601String();
                 $context['acordo_valor'] = $valorDivida;
                 $session->update([
-                    'context' => $context,
+                    'context' =>  $context,
                     'current_step' => 'encerrada'
-                ]);
+                ]);  
             }
 
             return response()->json([
