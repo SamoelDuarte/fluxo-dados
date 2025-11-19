@@ -36,11 +36,12 @@ class Acordo extends Model
     }
 
     /**
-     * Acessar a campanha através do contato_dados
+     * Acessar a campanha através do contato_dados -> contato -> campanhas
      */
-    public function getCampanha()
+    public function getCampanhaAttribute()
     {
         if ($this->contatoDado && $this->contatoDado->contato) {
+            // Busca a primeira campanha relacionada ao contato
             return $this->contatoDado->contato->campanhas()->first();
         }
         return null;

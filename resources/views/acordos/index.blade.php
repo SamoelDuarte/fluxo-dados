@@ -94,7 +94,16 @@
                             <td>{{ $acordo->nome }}</td>
                             <td>{{ $acordo->documento }}</td>
                             <td>{{ $acordo->telefone }}</td>
-                            <td>{{ $acordo->campanha->name ?? 'N/A' }}</td>
+                            <td>
+                                @if($acordo->contatoDado && $acordo->contatoDado->contato)
+                                    @php
+                                        $campanha = $acordo->contatoDado->contato->campanhas()->first();
+                                    @endphp
+                                    {{ $campanha ? $campanha->name : 'N/A' }}
+                                @else
+                                    N/A
+                                @endif
+                            </td>
                             <td>
                                 <span class="badge badge-{{ $acordo->status === 'ativo' ? 'success' : ($acordo->status === 'cancelado' ? 'danger' : 'warning') }}">
                                     {{ ucfirst($acordo->status) }}
@@ -103,16 +112,16 @@
                             <td>{{ $acordo->created_at->format('d/m/Y H:i') }}</td>
                             <td>
                                 <a href="{{ route('acordos.show', $acordo->id) }}" class="btn btn-sm btn-info" title="Ver">
-                                    <i class="fas fa-eye"></i>
+                                    <i class="fa fa-eye"></i>
                                 </a>
                                 <a href="{{ route('acordos.edit', $acordo->id) }}" class="btn btn-sm btn-warning" title="Editar">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="fa fa-pencil"></i>
                                 </a>
                                 <form action="{{ route('acordos.destroy', $acordo->id) }}" method="POST" style="display: inline;">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-danger" title="Deletar" onclick="return confirm('Tem certeza?')">
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fa fa-trash"></i>
                                     </button>
                                 </form>
                             </td>
