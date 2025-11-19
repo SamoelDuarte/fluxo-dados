@@ -13,7 +13,7 @@ class SendAcordosToDatacob extends Command
 
     public function handle()
     {
-        $acordosPendentes = Acordo::where('id', '178')
+        $acordosPendentes = Acordo::where( 'id', '178')
             ->whereHas('contatoDado', function ($query) {
                 $query->whereNotNull('id_contrato');
             })
