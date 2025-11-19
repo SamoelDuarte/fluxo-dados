@@ -81,6 +81,7 @@
                             <th>Nome</th>
                             <th>Documento</th>
                             <th>Telefone</th>
+                            <th>Campanha</th>
                             <th>Status</th>
                             <th>Criado em</th>
                             <th>Ações</th>
@@ -93,6 +94,7 @@
                             <td>{{ $acordo->nome }}</td>
                             <td>{{ $acordo->documento }}</td>
                             <td>{{ $acordo->telefone }}</td>
+                            <td>{{ $acordo->campanha->name ?? 'N/A' }}</td>
                             <td>
                                 <span class="badge badge-{{ $acordo->status === 'ativo' ? 'success' : ($acordo->status === 'cancelado' ? 'danger' : 'warning') }}">
                                     {{ ucfirst($acordo->status) }}
@@ -130,15 +132,4 @@
 @endsection
 
 @section('scripts')
-<script>
-$(function() {
-    $('#acordosTable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json',
-        },
-        paging: false,
-        info: false
-    });
-});
-</script>
 @endsection
