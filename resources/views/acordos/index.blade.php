@@ -23,58 +23,62 @@
             </h6>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('acordos.index') }}" class="form-inline">
+            <form method="GET" action="{{ route('acordos.index') }}">
                 <!-- Primeira Linha -->
-                <div class="form-group mr-3 mb-3">
-                    <label for="documento" class="mr-2">Documento:</label>
-                    <input type="text" class="form-control" id="documento" name="documento" placeholder="CPF/CNPJ" value="{{ request('documento') }}">
-                </div>
+                <div class="row mb-3">
+                    <div class="col-md-2">
+                        <label for="documento" class="form-label">Documento:</label>
+                        <input type="text" class="form-control" id="documento" name="documento" placeholder="CPF/CNPJ" value="{{ request('documento') }}">
+                    </div>
 
-                <div class="form-group mr-3 mb-3">
-                    <label for="status" class="mr-2">Status:</label>
-                    <select class="form-control" id="status" name="status">
-                        <option value="">-- Todos --</option>
-                        <option value="pendente" {{ request('status') === 'pendente' ? 'selected' : '' }}>Pendente</option>
-                        <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
-                        <option value="finalizado" {{ request('status') === 'finalizado' ? 'selected' : '' }}>Finalizado</option>
-                        <option value="cancelado" {{ request('status') === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
-                    </select>
-                </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status:</label>
+                        <select class="form-control" id="status" name="status">
+                            <option value="">-- Todos --</option>
+                            <option value="pendente" {{ request('status') === 'pendente' ? 'selected' : '' }}>Pendente</option>
+                            <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
+                            <option value="finalizado" {{ request('status') === 'finalizado' ? 'selected' : '' }}>Finalizado</option>
+                            <option value="cancelado" {{ request('status') === 'cancelado' ? 'selected' : '' }}>Cancelado</option>
+                        </select>
+                    </div>
 
-                <div class="form-group mr-3 mb-3">
-                    <label for="campanha_id" class="mr-2">Campanha:</label>
-                    <select class="form-control" id="campanha_id" name="campanha_id">
-                        <option value="">-- Todas --</option>
-                        @foreach($campanhas as $campanha)
-                            <option value="{{ $campanha->id }}" {{ request('campanha_id') == $campanha->id ? 'selected' : '' }}>
-                                {{ $campanha->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                    <div class="col-md-3">
+                        <label for="campanha_id" class="form-label">Campanha:</label>
+                        <select class="form-control" id="campanha_id" name="campanha_id">
+                            <option value="">-- Todas --</option>
+                            @foreach($campanhas as $campanha)
+                                <option value="{{ $campanha->id }}" {{ request('campanha_id') == $campanha->id ? 'selected' : '' }}>
+                                    {{ $campanha->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
 
-                <div class="form-group mr-3 mb-3">
-                    <label for="data_inicio" class="mr-2">De:</label>
-                    <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ request('data_inicio') }}">
-                </div>
+                    <div class="col-md-2">
+                        <label for="data_inicio" class="form-label">De:</label>
+                        <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ request('data_inicio') }}">
+                    </div>
 
-                <div class="form-group mr-3 mb-3">
-                    <label for="data_fim" class="mr-2">Até:</label>
-                    <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ request('data_fim') }}">
+                    <div class="col-md-2">
+                        <label for="data_fim" class="form-label">Até:</label>
+                        <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ request('data_fim') }}">
+                    </div>
                 </div>
 
                 <!-- Segunda Linha - Botões -->
-                <div class="w-100"></div>
-
-                <button type="submit" class="btn btn-primary mr-2 mt-2">
-                    <i class="fas fa-search"></i> Filtrar
-                </button>
-                <a href="{{ route('acordos.index') }}" class="btn btn-secondary mr-2 mt-2">
-                    <i class="fas fa-redo"></i> Limpar
-                </a>
-                <a href="{{ route('acordos.export', request()->query()) }}" class="btn btn-success mt-2">
-                    <i class="fas fa-download"></i> Exportar Excel
-                </a>
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary mr-2">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{{ route('acordos.index') }}" class="btn btn-secondary mr-2">
+                            <i class="fas fa-redo"></i> Limpar
+                        </a>
+                        <a href="{{ route('acordos.export', request()->query()) }}" class="btn btn-success">
+                            <i class="fas fa-download"></i> Exportar Excel
+                        </a>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
