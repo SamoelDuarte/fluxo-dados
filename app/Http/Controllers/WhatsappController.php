@@ -81,7 +81,7 @@ class WhatsappController extends Controller
                     'context' => $initialContext,
                     "current_step" => 'verifica_cpf',
                 ]);
-                
+
                 echo json_encode([
                     'status' => 'primeira_mensagem',
                     'cpf' => $this->formatarCpfMascarado($contatoDados->document ?? ''),
@@ -212,15 +212,15 @@ class WhatsappController extends Controller
         $context = $session->context ?? [];
         // Mescla os dados novos com o contexto existente
         $context = array_merge($context, $contextData);
-        
+
         // IMPORTANTE: Preservar phone_number_id após criação inicial
         // Só atualizar se o novo valor não for vazio
         $updateData = [
             'context' => $context,
             'current_step' => $currentStep
         ];
-        
-        
+
+
         $session->update($updateData);
 
         return response()->json([
@@ -658,7 +658,7 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'pessoa_codigo' => $pessoaCodigo
                 ];
-                
+
                 // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
                 if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
                     $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
@@ -678,18 +678,18 @@ class WhatsappController extends Controller
             $session = WhatsappSession::where('contact_id', $contact->id)->where('current_step', '!=', 'encerrada')->first();
             if ($session) {
                 $context = $session->context ?? [];
-                
+
                 $context['parcelamentos_verificados'] = true;
                 $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
                 $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
                 $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
                 $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
                 $context['nome'] = $contrato->nome; // Salva no contexto
-                
+
                 if (!empty($erros)) {
                     $context['parcelamentos_erros'] = $erros;
                 }
-                
+
                 $session->update(['context' => $context]);
             }
         }
@@ -726,7 +726,7 @@ class WhatsappController extends Controller
         while ($diasUteis < 5) {
             $data = $data->addDay();
             $diasAdicionados++;
-            
+
             // Verifica se é dia útil (segunda a sexta = 1 a 5)
             if ($data->dayOfWeek >= 1 && $data->dayOfWeek <= 5) {
                 $diasUteis++;
@@ -766,12 +766,12 @@ class WhatsappController extends Controller
         $headers = [
             'Content-Type' => 'application/json',
         ];
-        
+
         // Calcula data da primeira parcela com 5 dias úteis a partir de hoje
         $dataPrimeiraParcela = $this->calcularDataVencimentoComDiasUteis();
         // Converte de d/m/Y para Y-m-d
         $dataPrimeiraParcelaFormatada = \DateTime::createFromFormat('d/m/Y', $dataPrimeiraParcela)->format('Y-m-d');
-        
+
         $body = json_encode([
             'codigoUsuarioCarteiraCobranca' => $codigoUsuarioCarteiraCobranca,
             'codigoCarteiraCobranca' => $codigoCarteira,
@@ -1057,7 +1057,7 @@ class WhatsappController extends Controller
         $digitos4a6 = substr($cpf, 3, 3);   // 4º a 6º dígitos
         $digitos7a9 = substr($cpf, 6, 3);   // 7º a 9º dígitos
         $digitos10a11 = substr($cpf, 9, 2); // 10º a 11º dígitos
-        
+
         // Formata no padrão CPF: XXX.###.###-##
         return $digitosMascarados . '.' . $digitos4a6 . '.' . $digitos7a9 . '-' . $digitos10a11;
     }
@@ -1276,7 +1276,7 @@ class WhatsappController extends Controller
                         $parcela = $negociacao['Parcelas'][0] ?? [];
                         $atrasoDias = $parcela['Atraso'] ?? 0;
                         $dataVencimento = $parcela['DtVencimento'] ?? '';
-                        
+
                         // Converte data do formato ISO 8601 (2025-07-28T00:00:00) para dd/mm/yyyy (28/07/2025)
                         if (!empty($dataVencimento)) {
                             $dataObj = \DateTime::createFromFormat('Y-m-d\TH:i:s', $dataVencimento);
@@ -1290,7 +1290,7 @@ class WhatsappController extends Controller
 
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . " | Venc: " . $dataVencimento . "\n";
-
+            $agora = now();
 
             // Prepara dados validados para criar o acordo
             $validated = [
@@ -1299,7 +1299,11 @@ class WhatsappController extends Controller
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
-                'texto' => $textoFormatado
+                'created_at' => $agora,
+                'updated_at' => $agora,
+                'contato_dado_id' => $contatoDados->id,
+                'texto' => $textoFormatado,
+
             ];
 
             // Cria o novo acordo
@@ -1313,9 +1317,9 @@ class WhatsappController extends Controller
                 $context['acordo_data'] = now()->toIso8601String();
                 $context['acordo_valor'] = $valorDivida;
                 $session->update([
-                    'context' =>  $context,
+                    'context' => $context,
                     'current_step' => 'encerrada'
-                ]);  
+                ]);
             }
 
             return response()->json([
@@ -1392,13 +1396,14 @@ class WhatsappController extends Controller
                 ], 409);
             }
 
-            
+
             $nomeCliente = $contatoDados->nome;
 
 
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = $request->input('texto');
-
+            // Timestamp com timezone correto de São Paulo
+            $agora = now();
 
             // Prepara dados validados para criar o acordo
             $validated = [
@@ -1407,6 +1412,9 @@ class WhatsappController extends Controller
                 'telefone' => $contatoDados->telefone,
                 'phone_number_id' => $request->input('phone_number_id'),
                 'status' => 'pendente',
+                'contato_dado_id' => $contatoDados->id,
+                'created_at' => $agora,
+                'updated_at' => $agora,
                 'texto' => $textoFormatado
             ];
 
