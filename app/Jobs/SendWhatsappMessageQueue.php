@@ -151,11 +151,19 @@ class SendWhatsappMessageQueue implements ShouldQueue
         } catch (RequestException $e) {
             Log::error("❌ Erro RequestException: " . $e->getMessage());
             Log::error("Response: " . ($e->hasResponse() ? $e->getResponse()->getBody() : 'N/A'));
+            // Revolver para send=0 para tentar novamente
+            DB::table('contato_dados')
+                ->where('id', $this->contatoDadoId)
+                ->update(['send' => 0]);
             // Tenta novamente
             $this->release(30);
         } catch (\Exception $e) {
             Log::error("❌ Erro ao processar Job: " . $e->getMessage());
             Log::error("Stack: " . $e->getTraceAsString());
+            // Revolver para send=0 para tentar novamente
+            DB::table('contato_dados')
+                ->where('id', $this->contatoDadoId)
+                ->update(['send' => 0]);
             // Tenta novamente
             $this->release(30);
         }
