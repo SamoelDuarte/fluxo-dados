@@ -94,6 +94,8 @@ class SendAcordoToDatacob implements ShouldQueue
                 'ValorParcela' => $valorParcela,
             ];
 
+            dd($payload);
+
             $client = new Client();
             $response = $client->post(
                 'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
