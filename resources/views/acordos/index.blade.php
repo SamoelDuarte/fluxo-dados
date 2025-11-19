@@ -41,6 +41,18 @@
                 </div>
 
                 <div class="form-group mr-3">
+                    <label for="campanha_id" class="mr-2">Campanha:</label>
+                    <select class="form-control" id="campanha_id" name="campanha_id">
+                        <option value="">-- Todas --</option>
+                        @foreach($campanhas as $campanha)
+                            <option value="{{ $campanha->id }}" {{ request('campanha_id') == $campanha->id ? 'selected' : '' }}>
+                                {{ $campanha->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group mr-3">
                     <label for="data_inicio" class="mr-2">De:</label>
                     <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ request('data_inicio') }}">
                 </div>

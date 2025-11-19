@@ -39,12 +39,22 @@ class AcordoCrudController extends Controller
             $query->where('documento', 'LIKE', '%' . $request->documento . '%');
         }
 
+        // Filtro por campanha
+        if ($request->filled('campanha_id')) {
+            $query->whereHas('contatoDado.contato.campanhas', function($q) use ($request) {
+                $q->where('campanhas.id', $request->campanha_id);
+            });
+        }
+
         // Ordenação
         $query->orderBy('created_at', 'DESC');
 
         $acordos = $query->paginate(15);
         
-        return view('acordos.index', compact('acordos'));
+        // Busca todas as campanhas para o filtro
+        $campanhas = \App\Models\Campanha::orderBy('name')->get();
+        
+        return view('acordos.index', compact('acordos', 'campanhas'));
     }
 
     /**
