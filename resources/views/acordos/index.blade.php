@@ -24,12 +24,13 @@
         </div>
         <div class="card-body">
             <form method="GET" action="{{ route('acordos.index') }}" class="form-inline">
-                <div class="form-group mr-3">
+                <!-- Primeira Linha -->
+                <div class="form-group mr-3 mb-3">
                     <label for="documento" class="mr-2">Documento:</label>
                     <input type="text" class="form-control" id="documento" name="documento" placeholder="CPF/CNPJ" value="{{ request('documento') }}">
                 </div>
 
-                <div class="form-group mr-3">
+                <div class="form-group mr-3 mb-3">
                     <label for="status" class="mr-2">Status:</label>
                     <select class="form-control" id="status" name="status">
                         <option value="">-- Todos --</option>
@@ -40,7 +41,7 @@
                     </select>
                 </div>
 
-                <div class="form-group mr-3">
+                <div class="form-group mr-3 mb-3">
                     <label for="campanha_id" class="mr-2">Campanha:</label>
                     <select class="form-control" id="campanha_id" name="campanha_id">
                         <option value="">-- Todas --</option>
@@ -52,23 +53,26 @@
                     </select>
                 </div>
 
-                <div class="form-group mr-3">
+                <div class="form-group mr-3 mb-3">
                     <label for="data_inicio" class="mr-2">De:</label>
                     <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ request('data_inicio') }}">
                 </div>
 
-                <div class="form-group mr-3">
+                <div class="form-group mr-3 mb-3">
                     <label for="data_fim" class="mr-2">Até:</label>
                     <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ request('data_fim') }}">
                 </div>
 
-                <button type="submit" class="btn btn-primary mr-2">
+                <!-- Segunda Linha - Botões -->
+                <div class="w-100"></div>
+
+                <button type="submit" class="btn btn-primary mr-2 mt-2">
                     <i class="fas fa-search"></i> Filtrar
                 </button>
-                <a href="{{ route('acordos.index') }}" class="btn btn-secondary mr-2">
+                <a href="{{ route('acordos.index') }}" class="btn btn-secondary mr-2 mt-2">
                     <i class="fas fa-redo"></i> Limpar
                 </a>
-                <a href="{{ route('acordos.export', request()->query()) }}" class="btn btn-success">
+                <a href="{{ route('acordos.export', request()->query()) }}" class="btn btn-success mt-2">
                     <i class="fas fa-download"></i> Exportar Excel
                 </a>
             </form>
