@@ -44,56 +44,45 @@ class SendWhatsappMessageQueue implements ShouldQueue
      */
     public function handle()
     {
-        $tentativa = $this->attempts() ?? 1;
-        $jobId = $this->job->getJobId() ?? 'unknown';
-        
-        Log::info("════════════════════════════════════════════════════════════");
-        Log::info("[JOB INICIOU] ID: {$jobId} | Contato: {$this->contatoDadoId} | Tentativa: {$tentativa}/3");
-        
         try {
             // Verifica se há flag de pausa
             if (file_exists(storage_path('app/queue-pause.flag'))) {
-                Log::warning("[PAUSA] Flag detectada - Job cancelado");
+                // Revolver para send=0 para tentar depois
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
                     ->update(['send' => 0]);
-                @unlink(storage_path('app/queue-pause.flag'));
+                // Deleta o arquivo de pausa
+                $pausaFile = storage_path('app/queue-pause.flag');
+                if (file_exists($pausaFile)) {
+                    unlink($pausaFile);
+                }
                 $this->delete();
-                Log::info("[PAUSA] Job deletado");
                 return;
             }
-            Log::info("[PAUSA] Flag NÃO detectada - Continuando");
 
             // Busca o contato pelo ID
-            Log::info("[BANCO] Buscando contato ID: {$this->contatoDadoId}");
             $contatoDado = (array) DB::table('contato_dados')->find($this->contatoDadoId);
 
             if (empty($contatoDado) || !isset($contatoDado['id'])) {
-                Log::error("[ERRO] Contato NÃO ENCONTRADO no banco! ID: {$this->contatoDadoId}");
+                Log::error("❌ Contato não encontrado: ID {$this->contatoDadoId}");
                 $this->delete();
                 return;
             }
-            Log::info("[BANCO] ✓ Contato encontrado: {$contatoDado['nome']}");
 
             // Formata o número do contato
             $numeroContato = preg_replace('/[^0-9]/', '', $contatoDado['telefone'] ?? '');
             if (empty($numeroContato)) {
-                Log::error("[ERRO] Número do telefone vazio!");
+                Log::error("❌ Número do telefone vazio!");
                 DB::table('contato_dados')->where('id', $this->contatoDadoId)->update(['send' => -1]);
                 $this->delete();
                 return;
             }
-            Log::info("[TELEFONE] {$numeroContato}");
 
             // Extrai primeiro nome do contato
             $nomeCompleto = $contatoDado['nome'] ?? 'Cliente';
             $primeiroNome = explode(' ', trim($nomeCompleto))[0];
-            Log::info("[NOME] {$primeiroNome}");
-
-            Log::info("[ENVIANDO] Para: {$numeroContato} | Nome: {$primeiroNome} | Template: {$this->templateName}");
 
             // Cria cliente Guzzle
-            Log::info("[GUZZLE] Criando cliente...");
             $client = new Client();
 
             // Monta o payload da mensagem
@@ -119,42 +108,29 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     ]
                 ]
             ];
-            Log::info("[PAYLOAD] " . json_encode($data));
 
             // Headers para WhatsApp Business API
             $headers = [
-                'Authorization' => 'Bearer ' . substr($this->accessToken, 0, 20) . '...',
+                'Authorization' => 'Bearer ' . $this->accessToken,
                 'Content-Type' => 'application/json',
             ];
-            Log::info("[HEADERS] Authorization: " . $headers['Authorization']);
 
             // Envia a requisição
-            Log::info("[API] Enviando POST para: https://graph.facebook.com/v23.0/{$this->phoneNumberId}/messages");
             $response = $client->post(
                 'https://graph.facebook.com/v23.0/' . $this->phoneNumberId . '/messages',
                 [
                     'json' => $data,
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . $this->accessToken,
-                        'Content-Type' => 'application/json',
-                    ],
+                    'headers' => $headers,
                     'timeout' => 30,
                 ]
             );
 
-            Log::info("[RESPOSTA] Status HTTP: " . $response->getStatusCode());
             $responseBody = $response->getBody()->getContents();
-            Log::info("[RESPOSTA] Body: {$responseBody}");
             $responseData = json_decode($responseBody, true);
-            Log::info("[RESPOSTA] Decoded: " . json_encode($responseData));
 
             // Verifica se o envio foi bem-sucedido
             if (isset($responseData['messages'][0]['id'])) {
-                $messageId = $responseData['messages'][0]['id'];
-                Log::info("[SUCESSO] Message ID: {$messageId}");
-                
                 // Marca como enviado no banco (send=1)
-                Log::info("[BANCO] Atualizando send=1 para contato {$this->contatoDadoId}");
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
                     ->update([
@@ -162,36 +138,23 @@ class SendWhatsappMessageQueue implements ShouldQueue
                         'updated_at' => now()
                     ]);
 
-                Log::info("[SUCESSO] ✅ Mensagem enviada! ID: {$messageId} | Contato: {$numeroContato}");
+                Log::info("✅ Mensagem enviada! Contato: {$numeroContato}");
                 
                 // Remove job da fila após sucesso
-                Log::info("[JOB] Deletando job da fila");
                 $this->delete();
-                Log::info("[JOB] ✅ Job deletado com sucesso");
-                Log::info("════════════════════════════════════════════════════════════\n");
             } else {
-                Log::warning("[RESPOSTA] SEM ID DE MENSAGEM: " . json_encode($responseData));
-                Log::warning("[JOB] Mantendo send=2 e fazendo release(30)");
-                // NÃO VOLTA PARA 0 - MANTÉM EM 2
+                Log::warning("⚠️ Resposta sem ID de mensagem");
+                // Mantém send=2 e faz release
                 $this->release(30);
-                Log::info("════════════════════════════════════════════════════════════\n");
             }
 
         } catch (RequestException $e) {
-            Log::error("[ERRO HTTP] " . $e->getMessage());
-            if ($e->hasResponse()) {
-                Log::error("[ERRO RESPOSTA] " . $e->getResponse()->getBody()->getContents());
-            }
-            Log::warning("[JOB] Mantendo send=2 e fazendo release(30)");
+            Log::error("❌ Erro HTTP: " . $e->getMessage());
             $this->release(30);
-            Log::info("════════════════════════════════════════════════════════════\n");
             
         } catch (\Exception $e) {
-            Log::error("[ERRO GERAL] " . $e->getMessage());
-            Log::error("[ERRO STACK] " . $e->getTraceAsString());
-            Log::warning("[JOB] Mantendo send=2 e fazendo release(30)");
+            Log::error("❌ Erro: " . $e->getMessage());
             $this->release(30);
-            Log::info("════════════════════════════════════════════════════════════\n");
         }
     }
 

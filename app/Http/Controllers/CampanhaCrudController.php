@@ -143,6 +143,13 @@ class CampanhaCrudController extends Controller
             // Atualiza status para playing
             $campanha->update(['status' => 'playing']);
 
+            // REMOVE a flag de pausa se existir (para não bloquear novos jobs)
+            $pausaFlag = storage_path('app/queue-pause.flag');
+            if (file_exists($pausaFlag)) {
+                unlink($pausaFlag);
+                \Log::info("🟢 Flag de pausa removida ao iniciar campanha");
+            }
+
             // Busca o token da tabela whatsapp
             $whatsappConfig = DB::table('whatsapp')->first();
             if (!$whatsappConfig || !$whatsappConfig->access_token) {
@@ -188,15 +195,19 @@ class CampanhaCrudController extends Controller
                         ->update(['send' => 2]);
 
                     // Dispara job para a fila
-                    \App\Jobs\SendWhatsappMessageQueue::dispatch(
+                    $job = \App\Jobs\SendWhatsappMessageQueue::dispatch(
                         $contatoDado->id,
                         $campanha->id,
                         $phoneNumberId,
                         $whatsappConfig->access_token,
                         $campanha->template_name
                     )
-                    ->onQueue('whatsapp')
-                    ->delay(now()->addSeconds(rand(1, 5)));
+                    ->onQueue('whatsapp');
+
+                    // Adiciona delay apenas a partir do SEGUNDO contato (evita problema do primeiro)
+                    if ($contatoIndex > 1) {
+                        $job->delay(now()->addSeconds(rand(1, 5)));
+                    }
 
                     $totalNaFila++;
 
