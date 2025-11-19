@@ -197,3 +197,5 @@ Seu worker agora roda 24/7 no Ubuntu sem terminal aberto e sem duplicação de m
 
 <!-- enviar acordo apara neocob -->
 <!-- php artisan acordos:send-datacob -->
+
+<!-- comecar o envio php artisan queue:work --queue=default -->

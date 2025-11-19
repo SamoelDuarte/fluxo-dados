@@ -652,26 +652,8 @@ class WhatsappController extends Controller
                     'pessoa_codigo' => $pessoaCodigo
                 ];
                 
-                // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
-                \Log::info('DEBUG obterDocumentosAbertos - Verificando parcelamentos', [
-                    'parcelamentos_keys' => array_keys($parcelamentos),
-                    'parcelamentos_data_existe' => isset($parcelamentos['data']),
-                    'parcelamentos_completo' => json_encode($parcelamentos)
-                ]);
-
                 if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
                     $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
-                    \Log::info('DEBUG obterDocumentosAbertos - Valor à vista encontrado', [
-                        'valorAVista' => $valorAVista
-                    ]);
-                } else {
-                    \Log::warning('DEBUG obterDocumentosAbertos - Valor à vista NÃO encontrado', [
-                        'valorAVista_atual' => $valorAVista,
-                        'data_existe' => isset($parcelamentos['data']),
-                        'data_0_existe' => isset($parcelamentos['data'][0]) ?? false,
-                        'parcelamento_existe' => isset($parcelamentos['data'][0]['parcelamento']) ?? false,
-                        'valorTotal_existe' => isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal']) ?? false
-                    ]);
                 }
             } else {
                 $erros[] = [
@@ -679,10 +661,6 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
-                \Log::error('DEBUG obterDocumentosAbertos - Parcelamentos vazios', [
-                    'contrato_id' => $contrato->id,
-                    'codigo_carteira' => $codigoCarteira
-                ]);
             }
         }
 
@@ -698,34 +676,18 @@ class WhatsappController extends Controller
             if ($session) {
                 $context = $session->context ?? [];
                 
-                \Log::info('DEBUG ANTES DE SALVAR - Context state', [
-                    'valor_antes' => $context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE',
-                    'valorAVista_variavel' => $valorAVista
-                ]);
-                
                 $context['parcelamentos_verificados'] = true;
                 $context['parcelamentos_resultados_count'] = count($parcelamentosResultados);
                 $context['verificacao_parcelamentos_at'] = now()->toIso8601String();
-                $context['valor-atual-da-divida-a-vista'] = $valorAVista; // Salva no contexto
-                $context['cpf_cnpj'] = $cpfCnpjLimpo; // Salva no contexto
-                $context['nome'] = $contrato->nome; // Salva no contexto
-                
-                \Log::info('DEBUG DEPOIS DE ATRIBUIR - Context array', [
-                    'valor_no_array' => $context['valor-atual-da-divida-a-vista'],
-                    'array_completo' => json_encode($context)
-                ]);
+                $context['valor-atual-da-divida-a-vista'] = $valorAVista;
+                $context['cpf_cnpj'] = $cpfCnpjLimpo;
+                $context['nome'] = $contrato->nome;
                 
                 if (!empty($erros)) {
                     $context['parcelamentos_erros'] = $erros;
                 }
                 
                 $session->update(['context' => $context]);
-                
-                \Log::info('DEBUG DEPOIS DE SALVAR - Verificando sessão', [
-                    'session_id' => $session->id,
-                    'context_salvo' => json_encode($session->context),
-                    'valor_no_db' => $session->context['valor-atual-da-divida-a-vista'] ?? 'NAO_EXISTE'
-                ]);
             }
         }
 
@@ -1370,7 +1332,6 @@ class WhatsappController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('Validação falhou ao criar acordo: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
                 'error' => 'Erro de validação',
@@ -1473,7 +1434,6 @@ class WhatsappController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('Validação falhou ao criar acordo: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
                 'error' => 'Erro de validação',
