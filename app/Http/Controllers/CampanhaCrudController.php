@@ -182,6 +182,11 @@ class CampanhaCrudController extends Controller
                     $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
                     $contatoIndex++;
 
+                    // Marca como "em processamento" na fila (send=2)
+                    DB::table('contato_dados')
+                        ->where('id', $contatoDado->id)
+                        ->update(['send' => 2]);
+
                     // Dispara job para a fila
                     \App\Jobs\SendWhatsappMessageQueue::dispatch(
                         $contatoDado->id,
@@ -192,11 +197,6 @@ class CampanhaCrudController extends Controller
                     )
                     ->onQueue('whatsapp')
                     ->delay(now()->addSeconds(rand(1, 5)));
-
-                    // Marca como "em processamento" na fila (send=2) APÓS sucesso no dispatch
-                    DB::table('contato_dados')
-                        ->where('id', $contatoDado->id)
-                        ->update(['send' => 2]);
 
                     $totalNaFila++;
 
