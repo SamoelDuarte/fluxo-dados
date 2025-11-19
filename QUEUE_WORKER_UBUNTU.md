@@ -194,3 +194,6 @@ php /www/wwwroot/fluxo-neocob.betasolucao.com.br/artisan queue:work --queue=what
 ## 🚀 Pronto!
 
 Seu worker agora roda 24/7 no Ubuntu sem terminal aberto e sem duplicação de mensagens! ✅
+
+<!-- enviar acordo apara neocob -->
+<!-- php artisan acordos:send-datacob -->

@@ -37,4 +37,8 @@ return [
         'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
     ],
 
+    'datacob' => [
+        'token' => env('DATACOB_TOKEN'),
+    ],
+
 ];
