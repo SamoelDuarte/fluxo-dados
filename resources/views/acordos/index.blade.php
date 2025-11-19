@@ -129,9 +129,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-3">
+            {{-- <div class="mt-3">
                 {{ $acordos->appends(request()->query())->links() }}
-            </div>
+            </div> --}}
         </div>
     </div>
     @endif
