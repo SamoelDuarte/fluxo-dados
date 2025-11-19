@@ -81,7 +81,6 @@
                             <th>Nome</th>
                             <th>Documento</th>
                             <th>Telefone</th>
-                            <th>Campanha</th>
                             <th>Status</th>
                             <th>Criado em</th>
                             <th>Ações</th>
@@ -94,15 +93,6 @@
                             <td>{{ $acordo->nome }}</td>
                             <td>{{ $acordo->documento }}</td>
                             <td>{{ $acordo->telefone }}</td>
-                            <td>
-                                @if($acordo->campanha_id)
-                                    <a href="{{ route('campanhas.crud.edit', $acordo->campanha_id) }}" title="Ver campanha">
-                                        {{ $acordo->campanha_name }}
-                                    </a>
-                                @else
-                                    <span class="text-muted">{{ $acordo->campanha_name }}</span>
-                                @endif
-                            </td>
                             <td>
                                 <span class="badge badge-{{ $acordo->status === 'ativo' ? 'success' : ($acordo->status === 'cancelado' ? 'danger' : 'warning') }}">
                                     {{ ucfirst($acordo->status) }}
@@ -129,9 +119,9 @@
                     </tbody>
                 </table>
             </div>
-            {{-- <div class="mt-3">
+            <div class="mt-3">
                 {{ $acordos->appends(request()->query())->links() }}
-            </div> --}}
+            </div>
         </div>
     </div>
     @endif
@@ -140,7 +130,7 @@
 @endsection
 
 @section('scripts')
-{{-- <script>
+<script>
 $(function() {
     $('#acordosTable').DataTable({
         language: {
@@ -150,5 +140,5 @@ $(function() {
         info: false
     });
 });
-</script> --}}
+</script>
 @endsection
