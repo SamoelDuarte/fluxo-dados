@@ -37,6 +37,9 @@ Route::get('/gethavan', [CronController::class, 'getDadoHavan']);
 Route::get('/envio-em-massa', [CronController::class, 'envioEmMassa']);
 Route::post('/envio-em-massa', [CronController::class, 'envioEmMassa']);
 
+// Rota para enviar acordos para Datacob (direto, sem fila)
+Route::get('/enviar-acordos-datacob', [CronController::class, 'enviarAcordosDatacob']);
+
 // Rotas de Acordos
 Route::prefix('acordos')->group(function () {
     Route::get('/', [AcordoController::class, 'index']); // Listar todos

@@ -9,6 +9,7 @@ use App\Models\Campanha;
 use App\Models\ImagemCampanha;
 use App\Models\WhatsappSession;
 use App\Models\WhatsappContact;
+use App\Models\Acordo;
 use DB;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -1921,5 +1922,123 @@ class CronController extends Controller
         }
     }
 
+    /**
+     * Envia acordos pendentes para Datacob API (direto, sem fila)
+     * GET /api/enviar-acordos-datacob
+     */
+    public function enviarAcordosDatacob()
+    {
+        try {
+            $acordos = Acordo::where('id', '178')
+                ->whereHas('contatoDado', function ($query) {
+                    $query->whereNotNull('id_contrato');
+                })
+                ->get();
+
+            if ($acordos->isEmpty()) {
+                return response()->json([
+                    'sucesso' => true,
+                    'mensagem' => 'Nenhum acordo pendente para enviar',
+                    'total_enviados' => 0
+                ]);
+            }
+
+            $totalEnviados = 0;
+            $totalErros = 0;
+            $erros = [];
+
+            // Token da API Datacob
+            $token = $this->geraTokenDATACOB();
+            if (!$token) {
+                return response()->json([
+                    'sucesso' => false,
+                    'erro' => 'Não foi possível obter token Datacob',
+                    'total_enviados' => 0
+                ], 500);
+            }
+
+            $client = new Client();
+
+            // Envia cada acordo
+            foreach ($acordos as $acordo) {
+                try {
+                    $contatoDado = $acordo->contatoDado;
+                    if (!$contatoDado) continue;
+
+                    $idContrato = (int)$contatoDado->id_contrato;
+                    $qtdeParcelas = 1;
+                    $valorParcela = 0.00;
+                    $dataPagtoEntrada = $acordo->created_at->format('Y-m-d');
+                    $dataVencimento = $acordo->created_at->format('Y-m-d');
+
+                    // Extrai qtde e valor de parcela
+                    if (preg_match('/(\d+)x\s+de\s+R\$\s+([\d.,]+)/', $acordo->texto, $matches)) {
+                        $qtdeParcelas = (int)$matches[1];
+                        $valorParcela = (float)str_replace(',', '.', $matches[2]);
+                    } elseif (preg_match('/acordo\s+a\s+vista:\s+R\$\s+([\d.,]+)/', $acordo->texto, $matches)) {
+                        $qtdeParcelas = 1;
+                        $valorParcela = (float)str_replace(',', '.', $matches[1]);
+                    }
+
+                    // Extrai data de vencimento
+                    if (preg_match('/Venc:\s+(\d{2})\/(\d{2})\/(\d{4})/', $acordo->texto, $matches)) {
+                        $dataVencimento = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+                    }
+
+                    $payload = [
+                        'IdContrato' => $idContrato,
+                        'ValorEntrada' => 0.00,
+                        'QtdeParcelas' => $qtdeParcelas,
+                        'DataPagtoEntrada' => $dataVencimento,
+                        'DataNegociacao' => $dataPagtoEntrada,
+                        'ValorParcela' => $valorParcela,
+                    ];
+
+                    dd('payload', $payload);
+
+                    // Envia para API
+                    $response = $client->post(
+                        'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
+                        [
+                            'headers' => [
+                                'Authorization' => 'Bearer ' . $token,
+                                'apiKey' => 'PYBW+7AndDA=',
+                                'Content-Type' => 'application/json',
+                            ],
+                            'json' => $payload,
+                        ]
+                    );
+
+                    if ($response->getStatusCode() === 200 || $response->getStatusCode() === 201) {
+                        $acordo->update(['status' => 'enviado']);
+                        $totalEnviados++;
+                    } else {
+                        $totalErros++;
+                        $erros[] = "Acordo {$acordo->id}: Status {$response->getStatusCode()}";
+                    }
+
+                } catch (\Exception $e) {
+                    $totalErros++;
+                    $erros[] = "Acordo {$acordo->id}: " . $e->getMessage();
+                }
+            }
+
+            return response()->json([
+                'sucesso' => true,
+                'mensagem' => 'Envio de acordos concluído',
+                'total_enviados' => $totalEnviados,
+                'total_erros' => $totalErros,
+                'erros' => $erros
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao enviar acordos Datacob: ' . $e->getMessage());
+            return response()->json([
+                'sucesso' => false,
+                'erro' => $e->getMessage(),
+                'total_enviados' => 0
+            ], 500);
+        }
+    }
 
 }
