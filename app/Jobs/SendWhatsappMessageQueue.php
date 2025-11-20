@@ -45,6 +45,38 @@ class SendWhatsappMessageQueue implements ShouldQueue
     public function handle()
     {
         try {
+            // Verifica horário disponível (dias/horas agendadas)
+            $now = \Carbon\Carbon::now('America/Sao_Paulo');
+            $daysOfWeek = [
+                0 => 'domingo',
+                1 => 'segunda',
+                2 => 'terça',
+                3 => 'quarta',
+                4 => 'quinta',
+                5 => 'sexta',
+                6 => 'sábado',
+            ];
+            $dayOfWeek = $daysOfWeek[$now->dayOfWeek];
+            $currentTime = $now->format('H:i:s');
+
+            // Verifica se está no horário agendado
+            $exists = DB::table('available_slots')
+                ->where('day_of_week', $dayOfWeek)
+                ->where('start_time', '<=', $currentTime)
+                ->where('end_time', '>=', $currentTime)
+                ->exists();
+
+            if (!$exists) {
+                // Fora do horário agendado - volta para send=0 e tenta depois
+                DB::table('contato_dados')
+                    ->where('id', $this->contatoDadoId)
+                    ->update(['send' => 0]);
+                
+                // Recoloca na fila para tentar no próximo horário agendado
+                $this->release(300); // Aguarda 5 minutos para tentar novamente
+                return;
+            }
+
             // Verifica se há flag de pausa
             if (file_exists(storage_path('app/queue-pause.flag'))) {
                 // Revolver para send=0 para tentar depois
