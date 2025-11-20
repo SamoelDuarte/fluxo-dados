@@ -59,7 +59,7 @@ class SendWhatsappMessage implements ShouldQueue
                 'hora' => $currentTime,
                 'para' => $this->to
             ]);
-            $this->release(20); // Aguarda 20 segundos para tentar novamente
+            $this->release(delay: 20); // Aguarda 20 segundos para tentar novamente
             return;
         }
 

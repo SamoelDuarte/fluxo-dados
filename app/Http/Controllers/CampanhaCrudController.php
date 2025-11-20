@@ -143,6 +143,12 @@ class CampanhaCrudController extends Controller
             // Atualiza status para playing
             $campanha->update(['status' => 'playing']);
 
+            // 🔧 LIMPAR CACHES PARA FORÇAR LEITURA FRESCA DO BANCO
+            \Illuminate\Support\Facades\Cache::flush();
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:cache');
+            \Log::info("🔄 Caches limpos - forçando leitura fresca do banco de dados");
+
             // REMOVE a flag de pausa se existir (para não bloquear novos jobs)
             $pausaFlag = storage_path('app/queue-pause.flag');
             if (file_exists($pausaFlag)) {
@@ -232,6 +238,12 @@ class CampanhaCrudController extends Controller
         try {
             // Atualiza status para paused
             $campanha->update(['status' => 'paused']);
+
+            // 🔧 LIMPAR CACHES PARA FORÇAR LEITURA FRESCA DO BANCO
+            \Illuminate\Support\Facades\Cache::flush();
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:cache');
+            \Log::info("🔄 Caches limpos - forçando leitura fresca do banco de dados");
 
             // Cria um arquivo de pausa para o worker detectar
             file_put_contents(storage_path('app/queue-pause.flag'), 'paused');

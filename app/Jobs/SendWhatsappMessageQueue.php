@@ -39,9 +39,6 @@ class SendWhatsappMessageQueue implements ShouldQueue
         $this->templateName = $templateName;
     }
 
-    /**
-     * Handle do Job - Executado pela fila
-     */
     public function handle()
     {
         try {
@@ -58,25 +55,48 @@ class SendWhatsappMessageQueue implements ShouldQueue
             ];
             $dayOfWeek = $daysOfWeek[$now->dayOfWeek];
             $currentTime = $now->format('H:i:s');
+            $currentDate = $now->format('Y-m-d H:i:s');
 
-            // Verifica se está no horário agendado
-            $exists = DB::table('available_slots')
+            Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            Log::info("📋 INICIANDO JOB SendWhatsappMessageQueue");
+            Log::info("📅 Contato: {$this->contatoDadoId} | Campanha: {$this->campanhaId}");
+            Log::info("🕐 Horário agora: {$currentDate} (Timezone: America/Sao_Paulo)");
+            Log::info("📆 Dia da semana: {$dayOfWeek} | Hora: {$currentTime}");
+
+            // Verifica se está no horário agendado - CONSULTA AO BANCO EM TEMPO REAL
+            $slotRecord = DB::table('available_slots')
                 ->where('day_of_week', $dayOfWeek)
                 ->where('start_time', '<=', $currentTime)
                 ->where('end_time', '>=', $currentTime)
-                ->exists();
+                ->first();
 
-            if (!$exists) {
+            Log::info("🔍 Consultando available_slots para: {$dayOfWeek} às {$currentTime}");
+            
+            if ($slotRecord) {
+                Log::info("✅ HORÁRIO ENCONTRADO NO BANCO:");
+                Log::info("   - Dia: {$slotRecord->day_of_week}");
+                Log::info("   - Início: {$slotRecord->start_time}");
+                Log::info("   - Fim: {$slotRecord->end_time}");
+            } else {
+                Log::warning("❌ HORÁRIO NÃO ENCONTRADO - FORA DO AGENDAMENTO");
+                Log::warning("   Nenhum slot ativo para {$dayOfWeek} às {$currentTime}");
+            }
+
+            if (!$slotRecord) {
                 // Fora do horário agendado - mantém send=2 e aguarda o próximo horário
-                Log::info("⏳ Fora do horário agendado. Reenfileirando para tentar depois...");
+                Log::warning("⏳ JOB BLOQUEADO: Refileirando para tentar em 20 segundos");
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 
                 // Recoloca na fila SEM ALTERAR send para continuar aguardando
                 $this->release(20); // Aguarda 20 segundos para tentar novamente
                 return;
             }
 
+            Log::info("✅ PROSSEGUINDO: JOB SERÁ PROCESSADO AGORA");
+
             // Verifica se há flag de pausa
             if (file_exists(storage_path('app/queue-pause.flag'))) {
+                Log::warning("🛑 FLAG DE PAUSA DETECTADA - CANCELANDO JOB");
                 // Revolver para send=0 para tentar depois
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
@@ -87,6 +107,7 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     unlink($pausaFile);
                 }
                 $this->delete();
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 return;
             }
 
@@ -95,6 +116,7 @@ class SendWhatsappMessageQueue implements ShouldQueue
 
             if (empty($contatoDado) || !isset($contatoDado['id'])) {
                 Log::error("❌ Contato não encontrado: ID {$this->contatoDadoId}");
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 $this->delete();
                 return;
             }
@@ -104,6 +126,7 @@ class SendWhatsappMessageQueue implements ShouldQueue
             if (empty($numeroContato)) {
                 Log::error("❌ Número do telefone vazio!");
                 DB::table('contato_dados')->where('id', $this->contatoDadoId)->update(['send' => -1]);
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 $this->delete();
                 return;
             }
@@ -111,6 +134,9 @@ class SendWhatsappMessageQueue implements ShouldQueue
             // Extrai primeiro nome do contato
             $nomeCompleto = $contatoDado['nome'] ?? 'Cliente';
             $primeiroNome = explode(' ', trim($nomeCompleto))[0];
+
+            Log::info("📱 Enviando para: {$numeroContato} ({$primeiroNome})");
+            Log::info("📧 Template: {$this->templateName}");
 
             // Cria cliente Guzzle
             $client = new Client();
@@ -168,22 +194,32 @@ class SendWhatsappMessageQueue implements ShouldQueue
                         'updated_at' => now()
                     ]);
 
-                Log::info("✅ Mensagem enviada! Contato: {$numeroContato}");
+                Log::info("✅ SUCESSO: Mensagem enviada!");
+                Log::info("   - Contato: {$numeroContato}");
+                Log::info("   - Message ID: {$responseData['messages'][0]['id']}");
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 
                 // Remove job da fila após sucesso
                 $this->delete();
             } else {
                 Log::warning("⚠️ Resposta sem ID de mensagem");
+                Log::warning("   Resposta: " . json_encode($responseData));
+                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
                 // Mantém send=2 e faz release
                 $this->release(30);
             }
 
         } catch (RequestException $e) {
-            Log::error("❌ Erro HTTP: " . $e->getMessage());
+            Log::error("❌ ERRO HTTP ao enviar mensagem");
+            Log::error("   Mensagem: " . $e->getMessage());
+            Log::error("   Resposta: " . ($e->hasResponse() ? $e->getResponse()->getBody() : 'N/A'));
+            Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             $this->release(30);
             
         } catch (\Exception $e) {
-            Log::error("❌ Erro: " . $e->getMessage());
+            Log::error("❌ ERRO GERAL: " . $e->getMessage());
+            Log::error("   Arquivo: " . $e->getFile() . " | Linha: " . $e->getLine());
+            Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             $this->release(30);
         }
     }
