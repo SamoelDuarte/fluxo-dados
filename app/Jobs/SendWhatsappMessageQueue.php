@@ -67,13 +67,11 @@ class SendWhatsappMessageQueue implements ShouldQueue
                 ->exists();
 
             if (!$exists) {
-                // Fora do horário agendado - volta para send=0 e tenta depois
-                DB::table('contato_dados')
-                    ->where('id', $this->contatoDadoId)
-                    ->update(['send' => 0]);
+                // Fora do horário agendado - mantém send=2 e aguarda o próximo horário
+                Log::info("⏳ Fora do horário agendado. Reenfileirando para tentar depois...");
                 
-                // Recoloca na fila para tentar no próximo horário agendado
-                $this->release(300); // Aguarda 5 minutos para tentar novamente
+                // Recoloca na fila SEM ALTERAR send para continuar aguardando
+                $this->release(600); // Aguarda 10 minutos para tentar novamente
                 return;
             }
 
