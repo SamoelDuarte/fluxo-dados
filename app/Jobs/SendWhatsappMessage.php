@@ -41,19 +41,29 @@ class SendWhatsappMessage implements ShouldQueue
         $dayOfWeek = $daysOfWeek[$now->dayOfWeek];
         $currentTime = $now->format('H:i:s');
 
-        // Verifica se está no horário agendado
+        Log::info("📅 Verificando agendamento: {$dayOfWeek} às {$currentTime}");
+
+        // Verifica se está no horário agendado - SEM CACHE
         $exists = DB::table('available_slots')
             ->where('day_of_week', $dayOfWeek)
             ->where('start_time', '<=', $currentTime)
             ->where('end_time', '>=', $currentTime)
             ->exists();
 
+        Log::info("🔍 Resultado da busca: " . ($exists ? "EM HORÁRIO" : "FORA DO HORÁRIO"));
+
         if (!$exists) {
             // Fora do horário agendado - reenfileira sem enviar
-            Log::info("⏳ Fora do horário agendado. Reenfileirando para tentar depois...");
+            Log::warning("⏳ BLOQUEADO: Fora do horário agendado. Reenfileirando para tentar em 10 minutos...", [
+                'dia' => $dayOfWeek,
+                'hora' => $currentTime,
+                'para' => $this->to
+            ]);
             $this->release(600); // Aguarda 10 minutos para tentar novamente
             return;
         }
+
+        Log::info("✅ EM HORÁRIO: Prosseguindo com envio para {$this->to}");
 
         $config = DB::table('whatsapp')->first();
         $token = $config->access_token ?? env('WHATSAPP_TOKEN');
