@@ -42,55 +42,8 @@ class SendWhatsappMessageQueue implements ShouldQueue
     public function handle()
     {
         try {
-            // Verifica horário disponível (dias/horas agendadas)
-            $now = \Carbon\Carbon::now('America/Sao_Paulo');
-            $daysOfWeek = [
-                0 => 'domingo',
-                1 => 'segunda',
-                2 => 'terça',
-                3 => 'quarta',
-                4 => 'quinta',
-                5 => 'sexta',
-                6 => 'sábado',
-            ];
-            $dayOfWeek = $daysOfWeek[$now->dayOfWeek];
-            $currentTime = $now->format('H:i:s');
-            $currentDate = $now->format('Y-m-d H:i:s');
-
-            Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            Log::info("📋 INICIANDO JOB SendWhatsappMessageQueue");
-            Log::info("📅 Contato: {$this->contatoDadoId} | Campanha: {$this->campanhaId}");
-            Log::info("🕐 Horário agora: {$currentDate} (Timezone: America/Sao_Paulo)");
-            Log::info("📆 Dia da semana: {$dayOfWeek} | Hora: {$currentTime}");
-
-            // Verifica se está no horário agendado - CONSULTA AO BANCO EM TEMPO REAL
-            $slotRecord = DB::table('available_slots')
-                ->where('day_of_week', $dayOfWeek)
-                ->where('start_time', '<=', $currentTime)
-                ->where('end_time', '>=', $currentTime)
-                ->first();
-
-            Log::info("🔍 Consultando available_slots para: {$dayOfWeek} às {$currentTime}");
-            
-            if ($slotRecord) {
-                Log::info("✅ HORÁRIO ENCONTRADO NO BANCO:");
-                Log::info("   - Dia: {$slotRecord->day_of_week}");
-                Log::info("   - Início: {$slotRecord->start_time}");
-                Log::info("   - Fim: {$slotRecord->end_time}");
-            } else {
-                Log::warning("❌ HORÁRIO NÃO ENCONTRADO - FORA DO AGENDAMENTO");
-                Log::warning("   Nenhum slot ativo para {$dayOfWeek} às {$currentTime}");
-            }
-
-            if (!$slotRecord) {
-                // Fora do horário agendado - mantém send=2 e aguarda o próximo horário
-                Log::warning("⏳ JOB BLOQUEADO: Refileirando para tentar em 20 segundos");
-                Log::info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                
-                // Recoloca na fila SEM ALTERAR send para continuar aguardando
-                $this->release(20); // Aguarda 20 segundos para tentar novamente
-                return;
-            }
+           
+           
 
             Log::info("✅ PROSSEGUINDO: JOB SERÁ PROCESSADO AGORA");
 
