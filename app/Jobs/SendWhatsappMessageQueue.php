@@ -71,7 +71,7 @@ class SendWhatsappMessageQueue implements ShouldQueue
                 Log::info("⏳ Fora do horário agendado. Reenfileirando para tentar depois...");
                 
                 // Recoloca na fila SEM ALTERAR send para continuar aguardando
-                $this->release(600); // Aguarda 10 minutos para tentar novamente
+                $this->release(20); // Aguarda 20 segundos para tentar novamente
                 return;
             }
 
