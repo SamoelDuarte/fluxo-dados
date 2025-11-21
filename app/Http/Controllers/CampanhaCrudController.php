@@ -142,67 +142,67 @@ class CampanhaCrudController extends Controller
         try {
             $campanha->update(['status' => 'playing']);
 
-            // Buscar token WhatsApp
-            $whatsappConfig = DB::table('whatsapp')->first();
-            if (!$whatsappConfig || !$whatsappConfig->access_token) {
-                \Log::error('Token WhatsApp nao configurado');
-                return redirect()->back()->with('error', 'Token WhatsApp nao configurado');
-            }
+            // // Buscar token WhatsApp
+            // $whatsappConfig = DB::table('whatsapp')->first();
+            // if (!$whatsappConfig || !$whatsappConfig->access_token) {
+            //     \Log::error('Token WhatsApp nao configurado');
+            //     return redirect()->back()->with('error', 'Token WhatsApp nao configurado');
+            // }
 
-            $token = trim($whatsappConfig->access_token);
+            // $token = trim($whatsappConfig->access_token);
 
-            // Buscar phone_number_ids da campanha
-            $phoneNumberIds = $campanha->phoneNumbers();
-            if ($phoneNumberIds->isEmpty()) {
-                \Log::error('Campanha sem phone_number_ids configurados');
-                return redirect()->back()->with('error', 'Campanha sem phone_number_ids');
-            }
+            // // Buscar phone_number_ids da campanha
+            // $phoneNumberIds = $campanha->phoneNumbers();
+            // if ($phoneNumberIds->isEmpty()) {
+            //     \Log::error('Campanha sem phone_number_ids configurados');
+            //     return redirect()->back()->with('error', 'Campanha sem phone_number_ids');
+            // }
 
-            // Buscar contatos nao enviados (send=0)
-            $contatos = DB::table('contato_dados')
-                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
-                ->where('send', 0)
-                ->get();
+            // // Buscar contatos nao enviados (send=0)
+            // $contatos = DB::table('contato_dados')
+            //     ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+            //     ->where('send', 0)
+            //     ->get();
 
-            if ($contatos->isEmpty()) {
-                \Log::info('Nenhum contato para enviar na campanha ' . $campanha->id);
-                return redirect()->back()->with('info', 'Nenhum contato pendente');
-            }
+            // if ($contatos->isEmpty()) {
+            //     \Log::info('Nenhum contato para enviar na campanha ' . $campanha->id);
+            //     return redirect()->back()->with('info', 'Nenhum contato pendente');
+            // }
 
-            // Distribuir contatos na fila
-            $phoneNumberIdsArray = $phoneNumberIds->toArray();
-            $phoneCount = count($phoneNumberIdsArray);
-            $contatoIndex = 0;
-            $totalEnfileirado = 0;
+            // // Distribuir contatos na fila
+            // $phoneNumberIdsArray = $phoneNumberIds->toArray();
+            // $phoneCount = count($phoneNumberIdsArray);
+            // $contatoIndex = 0;
+            // $totalEnfileirado = 0;
 
-            foreach ($contatos as $contatoDado) {
-                try {
-                    // Round-robin para distribuir entre telefones
-                    $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
-                    $contatoIndex++;
+            // foreach ($contatos as $contatoDado) {
+            //     try {
+            //         // Round-robin para distribuir entre telefones
+            //         $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
+            //         $contatoIndex++;
 
-                    // Marcar como em fila
-                    DB::table('contato_dados')
-                        ->where('id', $contatoDado->id)
-                        ->update(['send' => 2]);
+            //         // Marcar como em fila
+            //         DB::table('contato_dados')
+            //             ->where('id', $contatoDado->id)
+            //             ->update(['send' => 2]);
 
-                    // Disparar job (lock no job previne duplicacao)
-                    \App\Jobs\SendWhatsappMessageQueue::dispatch(
-                        $contatoDado->id,
-                        $campanha->id,
-                        $phoneNumberId,
-                        $token,
-                        $campanha->template_name
-                    )->onQueue('whatsapp');
+            //         // Disparar job (lock no job previne duplicacao)
+            //         \App\Jobs\SendWhatsappMessageQueue::dispatch(
+            //             $contatoDado->id,
+            //             $campanha->id,
+            //             $phoneNumberId,
+            //             $token,
+            //             $campanha->template_name
+            //         )->onQueue('whatsapp');
 
-                    $totalEnfileirado++;
-                } catch (\Exception $e) {
-                    \Log::error('Erro ao disparar job para contato ' . $contatoDado->id . ': ' . $e->getMessage());
-                }
-            }
+            //         $totalEnfileirado++;
+            //     } catch (\Exception $e) {
+            //         \Log::error('Erro ao disparar job para contato ' . $contatoDado->id . ': ' . $e->getMessage());
+            //     }
+            // }
 
-            \Log::info("Campanha {$campanha->id} iniciada: {$totalEnfileirado} contatos enfileirados");
-            return redirect()->back()->with('success', "Campanha iniciada! {$totalEnfileirado} contatos na fila");
+            // \Log::info("Campanha {$campanha->id} iniciada: {$totalEnfileirado} contatos enfileirados");
+            return redirect()->back()->with('success', "Campanha iniciada! ");
         } catch (\Exception $e) {
             \Log::error('Erro: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Erro: ' . $e->getMessage());
