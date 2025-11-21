@@ -397,20 +397,41 @@ class WhatsappController extends Controller
 
     public function gerarTokenNeocobe()
     {
+        // Valida variáveis de ambiente
+        $url = env('NEOCOBE_TOKEN_URL');
+        $login = env('NEOCOBE_LOGIN');
+        $password = env('NEOCOBE_PASSWORD');
+        $apiKey = env('NEOCOBE_APIKEY');
+
+        if (empty($url) || empty($login) || empty($password) || empty($apiKey)) {
+            \Log::error('Variáveis de ambiente NEOCOBE não configuradas', [
+                'url_vazio' => empty($url),
+                'login_vazio' => empty($login),
+                'password_vazio' => empty($password),
+                'apiKey_vazio' => empty($apiKey)
+            ]);
+            return null;
+        }
+
         $client = new \GuzzleHttp\Client(['verify' => false]);
         $headers = [
             'Content-Type' => 'application/json'
         ];
         $body = json_encode([
-            'Login' => env('NEOCOBE_LOGIN'),
-            'Password' => env('NEOCOBE_PASSWORD'),
-            'ApiKey' => env('NEOCOBE_APIKEY')
+            'Login' => $login,
+            'Password' => $password,
+            'ApiKey' => $apiKey
         ]);
-        $url = env('NEOCOBE_TOKEN_URL');
-        $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
-        $res = $client->sendAsync($request)->wait();
-        $tokenData = json_decode($res->getBody(), true);
-        return $tokenData['access_token'] ?? null;
+
+        try {
+            $request = new \GuzzleHttp\Psr7\Request('POST', $url, $headers, $body);
+            $res = $client->sendAsync($request)->wait();
+            $tokenData = json_decode($res->getBody(), true);
+            return $tokenData['access_token'] ?? null;
+        } catch (\Exception $e) {
+            \Log::error('Erro ao gerar token Neocobe: ' . $e->getMessage());
+            return null;
+        }
     }
 
     public function verificaDividaOuAcordo(Request $request)
