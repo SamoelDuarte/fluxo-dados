@@ -1975,7 +1975,7 @@ class CronController extends Controller
     public function enviarAcordosDatacob()
     {
         try {
-            $acordos = Acordo::where('id', '186')
+            $acordos = Acordo::where('id', '188')
                 ->whereHas('contatoDado', function ($query) {
                     $query->whereNotNull('id_contrato');
                 })
