@@ -1569,7 +1569,7 @@ class CronController extends Controller
                 $contatos = DB::table('contato_dados')
                     ->whereIn('contato_id', $campanha->contatos->pluck('id'))
                     ->where('send', 0)
-                    ->limit(30)
+                    ->limit(1)
                     ->get();
 
                 if ($contatos->isEmpty()) {
