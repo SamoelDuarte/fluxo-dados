@@ -1605,7 +1605,7 @@ class CronController extends Controller
                                     'code' => 'pt_BR',
                                 ],
                                 'components' => [
-                                    [
+                                     [
                                         'type' => 'header',
                                         'parameters' => [
                                             [
@@ -2015,10 +2015,9 @@ class CronController extends Controller
                     $idContrato = (int) $contatoDado->id_contrato;
                     $qtdeParcelas = 1;
                     $valorParcela = 0.00;
-                    // Calcula data de pagamento com 5 dias úteis
+                     // Calcula data de pagamento com 5 dias úteis
                     $dataPagtoEntrada = $this->calcularDataVencimentoComDiasUteis();
-                    // Data de vencimento começa igual, mas será sobrescrita se extraída do texto
-                    $dataVencimento = $dataPagtoEntrada;
+                    $dataVencimento = $acordo->created_at->format('Y-m-d');
 
                     // Extrai qtde e valor de parcela
                     // Trata formato: "6x de R$ 1.095,95" ou "acordo a vista: R$ 1.095,95"
@@ -2092,7 +2091,7 @@ class CronController extends Controller
             ], 500);
         }
     }
-    private function calcularDataVencimentoComDiasUteis()
+private function calcularDataVencimentoComDiasUteis()
     {
         $data = now();
         $diasAdicionados = 0;
@@ -2118,5 +2117,4 @@ class CronController extends Controller
 
         return $data->format('d/m/Y');
     }
-
 }
