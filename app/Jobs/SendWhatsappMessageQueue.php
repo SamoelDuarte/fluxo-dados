@@ -134,12 +134,9 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     'timeout' => 30,
                 ]
             );
-            $horaSistema = Carbon::now('America/Sao_Paulo')->format('d/m/Y H:i:s');
-            $horaAgendamento = isset($contatoDado->created_at) && $contatoDado->created_at ? Carbon::parse($contatoDado->created_at)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i:s') : 'N/A';
-
 
             $responseData = json_decode($response->getBody()->getContents(), true);
-            Log::info('Enviado: ' . $numeroContato . ' | Agendado em: ' . $horaAgendamento . ' | Sistema agora: ' . $horaSistema . ' | Campanha: ' . $this->campanhaId);
+            
             if (isset($responseData['messages'][0]['id'])) {
                 $horaSistema = Carbon::now('America/Sao_Paulo')->format('d/m/Y H:i:s');
                 $horaAgendamento = isset($contatoDado->created_at) && $contatoDado->created_at ? Carbon::parse($contatoDado->created_at)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i:s') : 'N/A';
@@ -149,22 +146,38 @@ class SendWhatsappMessageQueue implements ShouldQueue
                     ->update(['send' => 1, 'updated_at' => now()]);
 
                 Log::info('Enviado: ' . $numeroContato . ' | Agendado em: ' . $horaAgendamento . ' | Sistema agora: ' . $horaSistema . ' | Campanha: ' . $this->campanhaId);
+                
+                // LIBERAR LOCK SOMENTE APÓS DELETE
+                $lockKey = 'contato_' . $this->contatoDadoId;
+                cache()->lock($lockKey)->forceRelease();
+                
                 $this->delete();
             } else {
                 Log::warning('Resposta invalida para ' . $numeroContato);
+                
+                // LIBERAR LOCK SE RESPOSTA INVALIDA
+                $lockKey = 'contato_' . $this->contatoDadoId;
+                cache()->lock($lockKey)->forceRelease();
+                
                 $this->release(30);
             }
 
         } catch (RequestException $e) {
             Log::error('Erro HTTP: ' . $e->getMessage());
+            
+            // LIBERAR LOCK EM CASO DE ERRO
+            $lockKey = 'contato_' . $this->contatoDadoId;
+            cache()->lock($lockKey)->forceRelease();
+            
             $this->release(30);
         } catch (\Exception $e) {
             Log::error('Erro: ' . $e->getMessage());
-            $this->release(30);
-        } finally {
-            // RELEASE LOCK: Liberar lock do contato
+            
+            // LIBERAR LOCK EM CASO DE ERRO
             $lockKey = 'contato_' . $this->contatoDadoId;
             cache()->lock($lockKey)->forceRelease();
+            
+            $this->release(30);
         }
     }
 

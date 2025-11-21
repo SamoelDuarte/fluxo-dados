@@ -162,7 +162,8 @@ class CampanhaCrudController extends Controller
             $contatos = DB::table('contato_dados')
                 ->whereIn('contato_id', $campanha->contatos->pluck('id'))
                 ->where('send', 0)
-                ->distinct('telefone')
+                ->groupBy('telefone')
+                ->select('contato_dados.*')
                 ->get();
 
             if ($contatos->isEmpty()) {
