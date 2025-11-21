@@ -1972,12 +1972,15 @@ class CronController extends Controller
                     $dataVencimento = $acordo->created_at->format('Y-m-d');
 
                     // Extrai qtde e valor de parcela
-                    if (preg_match('/(\d+)x\s+de\s+R\$\s+([\d.,]+)/', $acordo->texto, $matches)) {
+                    // Trata formato: "6x de R$ 1.095,95" ou "acordo a vista: R$ 1.095,95"
+                    if (preg_match('/(\d+)x\s+de\s+R\$\s+([\d.]+,\d{2})/', $acordo->texto, $matches)) {
                         $qtdeParcelas = (int)$matches[1];
-                        $valorParcela = (float)str_replace(',', '.', $matches[2]);
-                    } elseif (preg_match('/acordo\s+a\s+vista:\s+R\$\s+([\d.,]+)/', $acordo->texto, $matches)) {
+                        // Converte "1.095,95" para 1095.95
+                        $valorParcela = (float)str_replace(['.', ','], ['', '.'], $matches[2]);
+                    } elseif (preg_match('/acordo\s+a\s+vista:\s+R\$\s+([\d.]+,\d{2})/', $acordo->texto, $matches)) {
                         $qtdeParcelas = 1;
-                        $valorParcela = (float)str_replace(',', '.', $matches[1]);
+                        // Converte "1.095,95" para 1095.95
+                        $valorParcela = (float)str_replace(['.', ','], ['', '.'], $matches[1]);
                     }
 
                     // Extrai data de vencimento
