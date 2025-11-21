@@ -158,10 +158,11 @@ class CampanhaCrudController extends Controller
                 return redirect()->back()->with('error', 'Campanha sem phone_number_ids');
             }
 
-            // Buscar contatos nao enviados (send=0)
+            // Buscar contatos nao enviados (send=0) - SEM DUPLICATAS
             $contatos = DB::table('contato_dados')
                 ->whereIn('contato_id', $campanha->contatos->pluck('id'))
                 ->where('send', 0)
+                ->distinct('telefone')
                 ->get();
 
             if ($contatos->isEmpty()) {
@@ -186,14 +187,14 @@ class CampanhaCrudController extends Controller
                         ->where('id', $contatoDado->id)
                         ->update(['send' => 2]);
 
-                    // Disparar job
+                    // Disparar job (lock no job previne duplicacao)
                     \App\Jobs\SendWhatsappMessageQueue::dispatch(
                         $contatoDado->id,
                         $campanha->id,
                         $phoneNumberId,
                         $token,
                         $campanha->template_name
-                    )->onQueue('whatsapp')->delay(now()->addSeconds(rand(1, 5)));
+                    )->onQueue('whatsapp');
 
                     $totalEnfileirado++;
                 } catch (\Exception $e) {

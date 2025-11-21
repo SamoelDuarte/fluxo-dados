@@ -40,6 +40,14 @@ class SendWhatsappMessageQueue implements ShouldQueue
     public function handle()
     {
         try {
+            // LOCK: Prevenir processamento duplicado
+            $lockKey = 'contato_' . $this->contatoDadoId;
+            if (!cache()->lock($lockKey, 60)->get()) {
+                Log::warning('Contato ' . $this->contatoDadoId . ' ja esta sendo processado');
+                $this->release(5);
+                return;
+            }
+
             $now = Carbon::now('America/Sao_Paulo');
 
             $daysOfWeek = [
@@ -131,7 +139,7 @@ class SendWhatsappMessageQueue implements ShouldQueue
 
             if (isset($responseData['messages'][0]['id'])) {
                 $horaSistema = Carbon::now('America/Sao_Paulo')->format('d/m/Y H:i:s');
-                $horaAgendamento = $contatoDado->created_at ? Carbon::parse($contatoDado->created_at)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i:s') : 'N/A';
+                $horaAgendamento = isset($contatoDado->created_at) && $contatoDado->created_at ? Carbon::parse($contatoDado->created_at)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i:s') : 'N/A';
                 
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
@@ -150,6 +158,10 @@ class SendWhatsappMessageQueue implements ShouldQueue
         } catch (\Exception $e) {
             Log::error('Erro: ' . $e->getMessage());
             $this->release(30);
+        } finally {
+            // RELEASE LOCK: Liberar lock do contato
+            $lockKey = 'contato_' . $this->contatoDadoId;
+            cache()->lock($lockKey)->forceRelease();
         }
     }
 
