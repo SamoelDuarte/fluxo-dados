@@ -141,8 +141,68 @@ class CampanhaCrudController extends Controller
     {
         try {
             $campanha->update(['status' => 'playing']);
-            \Log::info("✅ Campanha {$campanha->id} iniciada");
-            return redirect()->back()->with('success', 'Campanha iniciada!');
+
+            // Buscar token WhatsApp
+            $whatsappConfig = DB::table('whatsapp')->first();
+            if (!$whatsappConfig || !$whatsappConfig->access_token) {
+                \Log::error('Token WhatsApp nao configurado');
+                return redirect()->back()->with('error', 'Token WhatsApp nao configurado');
+            }
+
+            $token = trim($whatsappConfig->access_token);
+
+            // Buscar phone_number_ids da campanha
+            $phoneNumberIds = $campanha->phoneNumbers();
+            if ($phoneNumberIds->isEmpty()) {
+                \Log::error('Campanha sem phone_number_ids configurados');
+                return redirect()->back()->with('error', 'Campanha sem phone_number_ids');
+            }
+
+            // Buscar contatos nao enviados (send=0)
+            $contatos = DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 0)
+                ->get();
+
+            if ($contatos->isEmpty()) {
+                \Log::info('Nenhum contato para enviar na campanha ' . $campanha->id);
+                return redirect()->back()->with('info', 'Nenhum contato pendente');
+            }
+
+            // Distribuir contatos na fila
+            $phoneNumberIdsArray = $phoneNumberIds->toArray();
+            $phoneCount = count($phoneNumberIdsArray);
+            $contatoIndex = 0;
+            $totalEnfileirado = 0;
+
+            foreach ($contatos as $contatoDado) {
+                try {
+                    // Round-robin para distribuir entre telefones
+                    $phoneNumberId = $phoneNumberIdsArray[$contatoIndex % $phoneCount];
+                    $contatoIndex++;
+
+                    // Marcar como em fila
+                    DB::table('contato_dados')
+                        ->where('id', $contatoDado->id)
+                        ->update(['send' => 2]);
+
+                    // Disparar job
+                    \App\Jobs\SendWhatsappMessageQueue::dispatch(
+                        $contatoDado->id,
+                        $campanha->id,
+                        $phoneNumberId,
+                        $token,
+                        $campanha->template_name
+                    )->onQueue('whatsapp')->delay(now()->addSeconds(rand(1, 5)));
+
+                    $totalEnfileirado++;
+                } catch (\Exception $e) {
+                    \Log::error('Erro ao disparar job para contato ' . $contatoDado->id . ': ' . $e->getMessage());
+                }
+            }
+
+            \Log::info("Campanha {$campanha->id} iniciada: {$totalEnfileirado} contatos enfileirados");
+            return redirect()->back()->with('success', "Campanha iniciada! {$totalEnfileirado} contatos na fila");
         } catch (\Exception $e) {
             \Log::error('Erro: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Erro: ' . $e->getMessage());
@@ -153,8 +213,15 @@ class CampanhaCrudController extends Controller
     {
         try {
             $campanha->update(['status' => 'paused']);
-            \Log::info("⏸️ Campanha {$campanha->id} pausada");
-            return redirect()->back()->with('success', 'Campanha pausada!');
+
+            // Revert contatos marcados em fila (send=2) para send=0
+            DB::table('contato_dados')
+                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
+                ->where('send', 2)
+                ->update(['send' => 0]);
+
+            \Log::info("Campanha {$campanha->id} pausada");
+            return redirect()->back()->with('success', 'Campanha pausada! Contatos removidos da fila');
         } catch (\Exception $e) {
             \Log::error('Erro: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Erro: ' . $e->getMessage());
