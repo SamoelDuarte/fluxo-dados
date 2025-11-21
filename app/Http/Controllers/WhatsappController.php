@@ -1330,6 +1330,11 @@ class WhatsappController extends Controller
                 }
             }
 
+            // Se dataVencimento vazio, calcula com 5 dias úteis
+            if (empty($dataVencimento)) {
+                $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
+            }
+
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . " | Venc: " . $dataVencimento . "\n";
             $agora = now();

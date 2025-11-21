@@ -1605,7 +1605,7 @@ class CronController extends Controller
                                     'code' => 'pt_BR',
                                 ],
                                 'components' => [
-                                     [
+                                    [
                                         'type' => 'header',
                                         'parameters' => [
                                             [
@@ -2015,8 +2015,10 @@ class CronController extends Controller
                     $idContrato = (int) $contatoDado->id_contrato;
                     $qtdeParcelas = 1;
                     $valorParcela = 0.00;
-                    $dataPagtoEntrada = $acordo->created_at->format('Y-m-d');
-                    $dataVencimento = $acordo->created_at->format('Y-m-d');
+                    // Calcula data de pagamento com 5 dias úteis
+                    $dataPagtoEntrada = $this->calcularDataVencimentoComDiasUteis();
+                    // Data de vencimento começa igual, mas será sobrescrita se extraída do texto
+                    $dataVencimento = $dataPagtoEntrada;
 
                     // Extrai qtde e valor de parcela
                     // Trata formato: "6x de R$ 1.095,95" ou "acordo a vista: R$ 1.095,95"
@@ -2089,6 +2091,32 @@ class CronController extends Controller
                 'total_enviados' => 0
             ], 500);
         }
+    }
+    private function calcularDataVencimentoComDiasUteis()
+    {
+        $data = now();
+        $diasAdicionados = 0;
+        $diasUteis = 0;
+
+        // Adiciona dias até completar 5 dias úteis
+        while ($diasUteis < 5) {
+            $data = $data->addDay();
+            $diasAdicionados++;
+
+            // Verifica se é dia útil (segunda a sexta = 1 a 5)
+            if ($data->dayOfWeek >= 1 && $data->dayOfWeek <= 5) {
+                $diasUteis++;
+            }
+        }
+
+        // Verifica se caiu em sábado (6) ou domingo (0)
+        if ($data->dayOfWeek == 6) { // Sábado
+            $data = $data->addDays(2); // Pula para segunda
+        } elseif ($data->dayOfWeek == 0) { // Domingo
+            $data = $data->addDay(); // Pula para segunda
+        }
+
+        return $data->format('d/m/Y');
     }
 
 }
