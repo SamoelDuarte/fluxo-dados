@@ -130,11 +130,14 @@ class SendWhatsappMessageQueue implements ShouldQueue
             $responseData = json_decode($response->getBody()->getContents(), true);
 
             if (isset($responseData['messages'][0]['id'])) {
+                $horaSistema = Carbon::now('America/Sao_Paulo')->format('d/m/Y H:i:s');
+                $horaAgendamento = $contatoDado->created_at ? Carbon::parse($contatoDado->created_at)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i:s') : 'N/A';
+                
                 DB::table('contato_dados')
                     ->where('id', $this->contatoDadoId)
                     ->update(['send' => 1, 'updated_at' => now()]);
                 
-                Log::info('Enviado: ' . $numeroContato);
+                Log::info('Enviado: ' . $numeroContato . ' | Agendado em: ' . $horaAgendamento . ' | Sistema agora: ' . $horaSistema . ' | Campanha: ' . $this->campanhaId);
                 $this->delete();
             } else {
                 Log::warning('Resposta invalida para ' . $numeroContato);
