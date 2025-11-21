@@ -468,9 +468,6 @@ class WhatsappController extends Controller
         try {
             $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
             $res = $client->sendAsync($requestApi)->wait();
-
-        try {
-            $res = $client->sendAsync($requestApi)->wait();
             $body = $res->getBody()->getContents();
             $dividaData = json_decode($body, true);
 
@@ -539,8 +536,12 @@ class WhatsappController extends Controller
                 return response()->json(['tipo' => 'sem_divida', 'divida' => $dividaData]);
             }
         } catch (\GuzzleHttp\Exception\ClientException $e) {
+            \Log::error('Erro ao consultar dívida: ' . $e->getMessage());
             $body = $e->getResponse()->getBody()->getContents();
             return response($body, 200)->header('Content-Type', 'application/json');
+        } catch (\Exception $e) {
+            \Log::error('Erro geral em verificaDividaOuAcordo: ' . $e->getMessage());
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
     }
 
