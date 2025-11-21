@@ -419,6 +419,7 @@ class WhatsappController extends Controller
         $idGrupo = "1582";
 
         if (empty($wa_id)) {
+            \Log::warning('wa_id vazio em verificaDividaOuAcordo');
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
 
@@ -426,19 +427,35 @@ class WhatsappController extends Controller
         $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
 
         if (!$contatoDados || empty($contatoDados->document)) {
+            \Log::warning('ContatoDados não encontrado para wa_id: ' . $wa_id);
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
 
         // Pega o document do contatoDados e limpa
         $cpfCnpj = preg_replace('/\D/', '', $contatoDados->document);
 
-        if (empty($cpfCnpj) || empty($idGrupo)) {
+        if (empty($cpfCnpj)) {
+            \Log::warning('CPF/CNPJ vazio para wa_id: ' . $wa_id);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        if (empty($idGrupo)) {
+            \Log::error('idGrupo está vazio');
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
 
         $token = $this->gerarTokenNeocobe();
         if (empty($token) || !is_string($token)) {
-            \Log::error('Falha ao gerar token Neocobe');
+            \Log::error('Falha ao gerar token Neocobe para wa_id: ' . $wa_id);
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+
+        // Constrói a URL de forma segura
+        $baseUrl = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao';
+        $url = $baseUrl . '?cpfCnpj=' . urlencode($cpfCnpj) . '&idGrupo=' . urlencode($idGrupo);
+
+        if (empty($url) || !is_string($url)) {
+            \Log::error('URL inválida construída em verificaDividaOuAcordo', ['url' => $url]);
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
 
@@ -447,20 +464,10 @@ class WhatsappController extends Controller
             'apiKey' => env('NEOCOBE_APIKEY'),
             'Authorization' => 'Bearer ' . $token
         ];
-        
-        if (empty($cpfCnpj) || empty($idGrupo)) {
-            \Log::error('CPF/CNPJ ou idGrupo vazios na verificaDividaOuAcordo');
-            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
-        }
-        
-        $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . urlencode($cpfCnpj) . '&idGrupo=' . urlencode($idGrupo);
-        
-        if (empty($url)) {
-            \Log::error('URL gerada está vazia');
-            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
-        }
-        
-        $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
+
+        try {
+            $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
+            $res = $client->sendAsync($requestApi)->wait();
 
         try {
             $res = $client->sendAsync($requestApi)->wait();
