@@ -159,11 +159,16 @@ class CampanhaCrudController extends Controller
             }
 
             // Buscar contatos nao enviados (send=0) - SEM DUPLICATAS
+            // Usa subquery para pegar o primeiro ID de cada telefone
             $contatos = DB::table('contato_dados')
                 ->whereIn('contato_id', $campanha->contatos->pluck('id'))
                 ->where('send', 0)
-                ->groupBy('telefone')
-                ->select('contato_dados.*')
+                ->whereIn('id', function ($query) {
+                    $query->selectRaw('MIN(id)')
+                        ->from('contato_dados')
+                        ->where('send', 0)
+                        ->groupBy('telefone');
+                })
                 ->get();
 
             if ($contatos->isEmpty()) {
