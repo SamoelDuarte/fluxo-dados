@@ -437,16 +437,29 @@ class WhatsappController extends Controller
         }
 
         $token = $this->gerarTokenNeocobe();
-        if (!$token) {
+        if (empty($token) || !is_string($token)) {
+            \Log::error('Falha ao gerar token Neocobe');
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
         }
 
-        $client = new \GuzzleHttp\Client(config: ['verify' => false]);
+        $client = new \GuzzleHttp\Client(['verify' => false]);
         $headers = [
             'apiKey' => env('NEOCOBE_APIKEY'),
             'Authorization' => 'Bearer ' . $token
         ];
-        $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . $cpfCnpj . '&idGrupo=' . $idGrupo;
+        
+        if (empty($cpfCnpj) || empty($idGrupo)) {
+            \Log::error('CPF/CNPJ ou idGrupo vazios na verificaDividaOuAcordo');
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+        
+        $url = 'https://datacob.thiagofarias.adv.br/api/negociacao/v1/consultar-divida-ativa-negociacao?cpfCnpj=' . urlencode($cpfCnpj) . '&idGrupo=' . urlencode($idGrupo);
+        
+        if (empty($url)) {
+            \Log::error('URL gerada está vazia');
+            return response()->make('false', 200, ['Content-Type' => 'text/plain']);
+        }
+        
         $requestApi = new \GuzzleHttp\Psr7\Request('GET', $url, $headers);
 
         try {
