@@ -215,10 +215,7 @@ class CampanhaCrudController extends Controller
             $campanha->update(['status' => 'paused']);
 
             // Revert contatos marcados em fila (send=2) para send=0
-            DB::table('contato_dados')
-                ->whereIn('contato_id', $campanha->contatos->pluck('id'))
-                ->where('send', 2)
-                ->update(['send' => 0]);
+        
 
             \Log::info("Campanha {$campanha->id} pausada");
             return redirect()->back()->with('success', 'Campanha pausada! Contatos removidos da fila');
