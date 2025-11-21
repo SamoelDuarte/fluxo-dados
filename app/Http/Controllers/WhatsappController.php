@@ -398,10 +398,10 @@ class WhatsappController extends Controller
     public function gerarTokenNeocobe()
     {
         // Valida variáveis de ambiente
-        $url = env('NEOCOBE_TOKEN_URL');
-        $login = env('NEOCOBE_LOGIN');
-        $password = env('NEOCOBE_PASSWORD');
-        $apiKey = env('NEOCOBE_APIKEY');
+        $url = "https://datacob.thiagofarias.adv.br/api/account/v1/login";
+        $login = 'api.dashboard';
+        $password ="36810556";
+        $apiKey = "PYBW+7AndDA=";
 
         if (empty($url) || empty($login) || empty($password) || empty($apiKey)) {
             \Log::error('Variáveis de ambiente NEOCOBE não configuradas', [
