@@ -2038,8 +2038,9 @@ class CronController extends Controller
                     $idContrato = (int) $contatoDado->id_contrato;
                     $qtdeParcelas = 1;
                     $valorParcela = 0.00;
-                     // Calcula data de pagamento com 5 dias úteis
-                    $dataPagtoEntrada = $this->calcularDataVencimentoComDiasUteis();
+                     // Calcula data de pagamento com 5 dias úteis e converte para Y-m-d
+                    $dataPagtoEntradaFormatada = $this->calcularDataVencimentoComDiasUteis();
+                    $dataPagtoEntrada = \DateTime::createFromFormat('d/m/Y', $dataPagtoEntradaFormatada)->format('Y-m-d');
                     $dataVencimento = $acordo->created_at->format('Y-m-d');
 
                     // Extrai qtde e valor de parcela
