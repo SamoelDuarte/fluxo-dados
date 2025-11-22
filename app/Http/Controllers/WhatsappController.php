@@ -617,9 +617,7 @@ class WhatsappController extends Controller
         $cpfCnpjLimpo = preg_replace('/\D/', '', $contatoDados->document);
 
         // Busca os contratos na tabela contato_dados
-        $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
-            ->orWhere('document', $contatoDados->document)
-            ->get();
+        $contratos = ContatoDados::where('document', $cpfCnpjLimpo)->get();
 
         $quantidade = $contratos->count();
 
