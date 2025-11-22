@@ -710,19 +710,31 @@ class WhatsappController extends Controller
                     'pessoa_codigo' => $pessoaCodigo
                 ];
 
-                // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
-                if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
-                    $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
-                    \Log::info('✓ Valor à vista extraído:', [
-                        'valor_a_vista' => $valorAVista,
-                        'caminho' => 'data[0].parcelamento[0].valorTotal',
+                // Verifica se a resposta contém erro (messagem ou parcelamento null)
+                $temErro = isset($parcelamentos['data'][0]['parcelamento']) && $parcelamentos['data'][0]['parcelamento'] === null;
+                $temMensagem = isset($parcelamentos['data'][0]['messagem']) && !empty($parcelamentos['data'][0]['messagem']);
+
+                if ($temErro || $temMensagem) {
+                    \Log::error('✗ Erro na resposta da API (cliente não encontrado)', [
+                        'contrato_id' => $contrato->id,
+                        'messagem' => $parcelamentos['data'][0]['messagem'] ?? 'Parcelamento null',
+                        'valor_divida' => $parcelamentos['data'][0]['valorDivida'] ?? 0,
                     ]);
                 } else {
-                    \Log::warning('✗ Não conseguiu extrair valor à vista', [
-                        'valor_a_vista_vazio' => empty($valorAVista),
-                        'tem_data' => isset($parcelamentos['data']),
-                        'estrutura_parcelamentos' => array_keys($parcelamentos),
-                    ]);
+                    // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
+                    if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
+                        $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
+                        \Log::info('✓ Valor à vista extraído:', [
+                            'valor_a_vista' => $valorAVista,
+                            'caminho' => 'data[0].parcelamento[0].valorTotal',
+                        ]);
+                    } else {
+                        \Log::warning('✗ Não conseguiu extrair valor à vista', [
+                            'valor_a_vista_vazio' => empty($valorAVista),
+                            'tem_data' => isset($parcelamentos['data']),
+                            'estrutura_parcelamentos' => array_keys($parcelamentos),
+                        ]);
+                    }
                 }
             } else {
                 $erros[] = [
