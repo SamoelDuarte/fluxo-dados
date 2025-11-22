@@ -1595,50 +1595,27 @@ class CronController extends Controller
                         // Enviar template
                         $client = new Client();
 
-                        // $data = [
-                        //     'messaging_product' => 'whatsapp',
-                        //     'to' => $numeroContato,
-                        //     'type' => 'template',
-                        //     'template' => [
-                        //         'name' => $campanha->template_name, // Usar o nome do template da campanha
-                        //         'language' => [
-                        //             'code' => 'pt_BR',
-                        //         ],
-                        //         'components' => [
-                        //              [
-                        //                 'type' => 'header',
-                        //                 'parameters' => [
-                        //                     [
-                        //                         'type' => 'image',
-                        //                         'image' => [
-                        //                             'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campaha-2.jpg'
-                        //                         ]
-                        //                     ]
-                        //                 ]
-                        //             ],
-                        //             [
-                        //                 'type' => 'body',
-                        //                 'parameters' => [
-                        //                     [
-                        //                         'type' => 'text',
-                        //                         'text' => $primeiroNome
-                        //                     ]
-                        //                 ]
-                        //             ]
-                        //         ]
-                        //     ]
-                        // ];
-
-                           $data = [
+                        $data = [
                             'messaging_product' => 'whatsapp',
                             'to' => $numeroContato,
                             'type' => 'template',
                             'template' => [
-                                'name' => 'inicio240', // Usar o nome do template da campanha
+                                'name' => $campanha->template_name, // Usar o nome do template da campanha
                                 'language' => [
                                     'code' => 'pt_BR',
                                 ],
                                 'components' => [
+                                     [
+                                        'type' => 'header',
+                                        'parameters' => [
+                                            [
+                                                'type' => 'image',
+                                                'image' => [
+                                                    'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campaha-2.jpg'
+                                                ]
+                                            ]
+                                        ]
+                                    ],
                                     [
                                         'type' => 'body',
                                         'parameters' => [
@@ -1651,6 +1628,29 @@ class CronController extends Controller
                                 ]
                             ]
                         ];
+
+                        //    $data = [
+                        //     'messaging_product' => 'whatsapp',
+                        //     'to' => $numeroContato,
+                        //     'type' => 'template',
+                        //     'template' => [
+                        //         'name' => 'inicio240', // Usar o nome do template da campanha
+                        //         'language' => [
+                        //             'code' => 'pt_BR',
+                        //         ],
+                        //         'components' => [
+                        //             [
+                        //                 'type' => 'body',
+                        //                 'parameters' => [
+                        //                     [
+                        //                         'type' => 'text',
+                        //                         'text' => $primeiroNome
+                        //                     ]
+                        //                 ]
+                        //             ]
+                        //         ]
+                        //     ]
+                        // ];
 
 
                         // Headers para WhatsApp Business API
