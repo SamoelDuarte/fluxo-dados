@@ -686,10 +686,21 @@ class WhatsappController extends Controller
             $codigoCarteira = $contrato->carteira;
             $pessoaCodigo = $contrato->cod_cliente;
 
+            \Log::info('=== Obtendo parcelamento ===', [
+                'contrato_id' => $contrato->id,
+                'codigo_carteira' => $codigoCarteira,
+                'pessoa_codigo' => $pessoaCodigo,
+            ]);
+
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
                 $codigoCarteira,
                 $pessoaCodigo
             );
+
+            \Log::info('Resposta parcelamentos:', [
+                'tem_resposta' => !empty($parcelamentos),
+                'parcelamentos' => $parcelamentos,
+            ]);
 
             if ($parcelamentos) {
                 $parcelamentosResultados[] = [
@@ -702,6 +713,16 @@ class WhatsappController extends Controller
                 // Extrai o valor à vista (primeira parcela) do primeiro parcelamento
                 if (empty($valorAVista) && isset($parcelamentos['data'][0]['parcelamento'][0]['valorTotal'])) {
                     $valorAVista = $parcelamentos['data'][0]['parcelamento'][0]['valorTotal'];
+                    \Log::info('✓ Valor à vista extraído:', [
+                        'valor_a_vista' => $valorAVista,
+                        'caminho' => 'data[0].parcelamento[0].valorTotal',
+                    ]);
+                } else {
+                    \Log::warning('✗ Não conseguiu extrair valor à vista', [
+                        'valor_a_vista_vazio' => empty($valorAVista),
+                        'tem_data' => isset($parcelamentos['data']),
+                        'estrutura_parcelamentos' => array_keys($parcelamentos),
+                    ]);
                 }
             } else {
                 $erros[] = [
@@ -709,8 +730,15 @@ class WhatsappController extends Controller
                     'codigo_carteira' => $codigoCarteira,
                     'erro' => 'Falha ao obter opções de parcelamento da API'
                 ];
+                \Log::error('✗ Falha ao obter parcelamentos para contrato: ' . $contrato->id);
             }
         }
+
+        \Log::info('=== Resumo final ===', [
+            'valor_a_vista_final' => $valorAVista,
+            'total_parcelamentos' => count($parcelamentosResultados),
+            'total_erros' => count($erros),
+        ]);
 
         // Busca o contato WhatsApp e atualiza o contexto da sessão
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
