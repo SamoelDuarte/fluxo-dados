@@ -1605,17 +1605,6 @@ class CronController extends Controller
                                     'code' => 'pt_BR',
                                 ],
                                 'components' => [
-                                     [
-                                        'type' => 'header',
-                                        'parameters' => [
-                                            [
-                                                'type' => 'image',
-                                                'image' => [
-                                                    'link' => 'https://fluxo-neocob.betasolucao.com.br/storage/campaign-images/campaha-2.jpg'
-                                                ]
-                                            ]
-                                        ]
-                                    ],
                                     [
                                         'type' => 'body',
                                         'parameters' => [
