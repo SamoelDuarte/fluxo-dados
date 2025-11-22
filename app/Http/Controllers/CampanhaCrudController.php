@@ -361,6 +361,7 @@ class CampanhaCrudController extends Controller
                 $valor = $row[10] ?? null;         // Coluna 10: Valor Contrato
                 $dias_atraso = $row[11] ?? null;   // Coluna 11: Dias em atraso
                 $data_venc = $row[12] ?? null;     // Coluna 12: Data Vencimento
+                $codigo_cliente = $row[8] ?? null;     // Coluna 13: Código Cliente
 
                 // Limpar e validar
                 $telefone = !empty($telefone_raw) ? preg_replace('/\D/', '', (string)$telefone_raw) : null;
@@ -408,7 +409,7 @@ class CampanhaCrudController extends Controller
                         'telefone' => $telefone,
                         'nome' => $nome ?? 'Cliente',
                         'document' => $document,
-                        'cod_cliente' => substr((string)$numero_contrato, 0, 255),
+                        'cod_cliente' => substr((string)$codigo_cliente, 0, 255),
                         'data_vencimento' => $data_venc_clean,
                         'dias_atraso' => $dias_clean,
                         'valor' => $valor_clean,
