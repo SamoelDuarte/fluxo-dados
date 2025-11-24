@@ -2049,6 +2049,7 @@ class CronController extends Controller
                     $dataProximaParcela->add(new \DateInterval('P5D'));
                     $dataVencimentoProximaParcela = $dataProximaParcela->format('Y-m-d');
 
+                    // Prepara payload com encoding UTF-8 garantido
                     $payload = [
                         'IdContrato' => (int) $idContrato,
                         'ValorEntrada' => round((float) $valorParcela, 2),
@@ -2063,6 +2064,15 @@ class CronController extends Controller
                         'Parcelas' => [(int) $qtdeParcelas],
                         'ModalidadeNegociacao' => 0,
                     ];
+
+                    // Garante que todos os valores string estão em UTF-8
+                    array_walk_recursive($payload, function (&$value) {
+                        if (is_string($value)) {
+                            if (!mb_check_encoding($value, 'UTF-8')) {
+                                $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
+                            }
+                        }
+                    });
                     // dd($payload);
                   
                     // dd($payload);
@@ -2079,23 +2089,26 @@ class CronController extends Controller
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
                                 'apiKey' => 'PYBW+7AndDA=',
-                                'Content-Type' => 'application/json',
+                                'Content-Type' => 'application/json; charset=utf-8',
                             ],
                             'json' => $payload,
-                            'verify' => false, // SSL certificate verification disabled
+                            'verify' => false,
                         ]
                     );
 
                     $statusCode = $response->getStatusCode();
-                    $responseBody = $response->getBody()->getContents();
+                    $responseBody = (string) $response->getBody();
                     
-                    // Tenta decodificar com tratamento de encoding
-                    $responseBodyCleaned = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8');
+                    // Remove BOM e limpa encoding
+                    $responseBody = preg_replace('/^\xEF\xBB\xBF/', '', $responseBody);
+                    if (!mb_check_encoding($responseBody, 'UTF-8')) {
+                        $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'ISO-8859-1');
+                    }
 
                     \Log::info('Resposta Datacob:', [
                         'acordo_id' => $acordo->id,
                         'status_code' => $statusCode,
-                        'response_body' => $responseBodyCleaned,
+                        'response_body' => $responseBody,
                     ]);
 
                     if ($statusCode === 200 || $statusCode === 201) {
@@ -2106,7 +2119,7 @@ class CronController extends Controller
                         $totalErros++;
                         $erros[] = "Acordo {$acordo->id}: Status {$statusCode}";
                         \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': Status ' . $statusCode, [
-                            'response' => substr($responseBodyCleaned, 0, 500), // Primeiros 500 chars
+                            'response' => substr($responseBody, 0, 500),
                         ]);
                     }
 
