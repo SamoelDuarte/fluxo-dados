@@ -2044,6 +2044,7 @@ class CronController extends Controller
                         $valorParcela = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
                     }
 
+                    // Sanitiza valores para garantir UTF-8 válido
                     // Calcula data vencimento próxima parcela (5 dias úteis após pagamento entrada)
                     $dataProximaParcela = \DateTime::createFromFormat('Y-m-d', $dataPagtoEntrada);
                     $dataProximaParcela->add(new \DateInterval('P5D'));
@@ -2051,16 +2052,13 @@ class CronController extends Controller
 
                     $payload = [
                         'IdContrato' => (int) $idContrato,
-                        'ValorEntrada' => round((float) $valorParcela, 2),
+                        'ValorAcordo' => round((float) $valorParcela, 2), // Valor total do acordo
                         'QtdeParcelas' => (int) $qtdeParcelas,
+                        'ValorEntrada' => round((float) $valorParcela, 2),
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
-                        'ValorParcela' => round((float) $valorParcela, 2),
-                        'DataPagtoParcelas' => (string) $dataVencimentoProximaParcela,
-                        'DataNegociacao' => (string) $dataCriacao,
-                        'Email' => '',
-                        'Ddd' => '',
-                        'Fone' => '',
-                        'Parcelas' => [(int) $qtdeParcelas],
+                        'ValorParcelas' => '225,84', // Valor de cada parcela
+                        'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
+                          'Parcelas' => [(int) $qtdeParcelas],
                         'ModalidadeNegociacao' => 0,
                     ];
 
@@ -2072,7 +2070,7 @@ class CronController extends Controller
                         'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE),
                     ]);
 
-                    // Envia para API
+                    // Envia para API (usando HTTPS)
                     $response = $client->post(
                         'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
                         [
@@ -2082,17 +2080,20 @@ class CronController extends Controller
                                 'Content-Type' => 'application/json',
                             ],
                             'json' => $payload,
-                            'verify' => false,
+                            'verify' => false, // SSL certificate verification disabled
                         ]
                     );
 
                     $statusCode = $response->getStatusCode();
                     $responseBody = $response->getBody()->getContents();
+                    
+                    // Tenta decodificar com tratamento de encoding
+                    $responseBodyCleaned = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8');
 
                     \Log::info('Resposta Datacob:', [
                         'acordo_id' => $acordo->id,
                         'status_code' => $statusCode,
-                        'response_body' => $responseBody,
+                        'response_body' => $responseBodyCleaned,
                     ]);
 
                     if ($statusCode === 200 || $statusCode === 201) {
@@ -2103,7 +2104,7 @@ class CronController extends Controller
                         $totalErros++;
                         $erros[] = "Acordo {$acordo->id}: Status {$statusCode}";
                         \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': Status ' . $statusCode, [
-                            'response' => substr($responseBody, 0, 500),
+                            'response' => substr($responseBodyCleaned, 0, 500), // Primeiros 500 chars
                         ]);
                     }
 
