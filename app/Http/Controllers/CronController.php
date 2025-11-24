@@ -2058,6 +2058,8 @@ class CronController extends Controller
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
                         'ValorParcelas' => '225,84', // Valor de cada parcela
                         'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
+                          'Parcelas' => [(int) $qtdeParcelas],
+                        'ModalidadeNegociacao' => 0,
                     ];
 
                   
