@@ -2063,7 +2063,7 @@ class CronController extends Controller
                         'Parcelas' => [(int) $qtdeParcelas],
                         'ModalidadeNegociacao' => 0,
                     ];
-
+                    dd($payload);
                   
                     // dd($payload);
                     \Log::info('=== Enviando acordo para Datacob ===', [
