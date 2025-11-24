@@ -2061,7 +2061,7 @@ class CronController extends Controller
                     ];
 
                   
-
+                    dd($payload);
                     \Log::info('=== Enviando acordo para Datacob ===', [
                         'acordo_id' => $acordo->id,
                         'payload' => $payload,
