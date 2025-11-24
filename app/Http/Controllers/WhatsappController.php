@@ -684,7 +684,7 @@ class WhatsappController extends Controller
 
         foreach ($contratos as $contrato) {
             $codigoCarteira = $contrato->carteira;
-            $pessoaCodigo = $contrato->cod_cliente;
+            $pessoaCodigo = $contrato->id_contrato;
 
             \Log::info('=== Obtendo parcelamento ===', [
                 'contrato_id' => $contrato->id,
