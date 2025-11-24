@@ -2182,18 +2182,7 @@ private function calcularDataVencimentoComDiasUteis()
 
             $acordosFormatados = $acordos->map(function ($acordo) {
                 return [
-                    'id' => $acordo->id,
-                    'texto' => $acordo->texto,
-                    'status' => $acordo->status,
-                    'created_at' => $acordo->created_at->format('d/m/Y H:i:s'),
-                    'updated_at' => $acordo->updated_at->format('d/m/Y H:i:s'),
-                    'contato' => $acordo->contatoDado ? [
-                        'id' => $acordo->contatoDado->id,
-                        'nome' => $acordo->contatoDado->nome,
-                        'telefone' => $acordo->contatoDado->telefone,
-                        'document' => $acordo->contatoDado->document,
-                        'cod_cliente' => $acordo->contatoDado->cod_cliente,
-                    ] : null,
+                   'telefone' => $acordo->contatoDado->telefone
                 ];
             });
 
