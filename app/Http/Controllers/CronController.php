@@ -2058,7 +2058,6 @@ class CronController extends Controller
                         'DataPagtoParcelas' => (string) $dataVencimentoProximaParcela,
                         'DataNegociacao' => (string) $dataCriacao,
                         'Parcelas' => [(int) $qtdeParcelas],
-                        'ModalidadeNegociacao' => 0,
                     ];
                     // dd($payload);
                   
