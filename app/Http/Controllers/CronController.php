@@ -2067,30 +2067,26 @@ class CronController extends Controller
                         'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE),
                     ]);
 
-                    // Envia para API (usando HTTPS)
+                    // Envia para API (sem Content-Type, como Node)
                     $response = $client->post(
                         'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
                         [
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
                                 'apiKey' => 'PYBW+7AndDA=',
-                                'Content-Type' => 'application/json',
                             ],
                             'json' => $payload,
-                            'verify' => false, // SSL certificate verification disabled
+                            'verify' => false,
                         ]
                     );
 
                     $statusCode = $response->getStatusCode();
                     $responseBody = $response->getBody()->getContents();
-                    
-                    // Tenta decodificar com tratamento de encoding
-                    $responseBodyCleaned = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8');
 
                     \Log::info('Resposta Datacob:', [
                         'acordo_id' => $acordo->id,
                         'status_code' => $statusCode,
-                        'response_body' => $responseBodyCleaned,
+                        'response_body' => $responseBody,
                     ]);
 
                     if ($statusCode === 200 || $statusCode === 201) {
@@ -2100,9 +2096,7 @@ class CronController extends Controller
                     } else {
                         $totalErros++;
                         $erros[] = "Acordo {$acordo->id}: Status {$statusCode}";
-                        \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': Status ' . $statusCode, [
-                            'response' => substr($responseBodyCleaned, 0, 500), // Primeiros 500 chars
-                        ]);
+                      
                     }
 
                 } catch (\Exception $e) {
