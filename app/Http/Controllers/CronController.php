@@ -2054,19 +2054,7 @@ class CronController extends Controller
                         'ValorParcela' => round((float) $valorParcela, 2),
                     ];
 
-                    // Valida payload antes de enviar
-                    if (empty($payload['IdContrato']) || $payload['IdContrato'] <= 0) {
-                        throw new \Exception('IdContrato inválido: ' . $payload['IdContrato']);
-                    }
-                    if ($payload['ValorEntrada'] <= 0) {
-                        throw new \Exception('ValorEntrada inválido: ' . $payload['ValorEntrada']);
-                    }
-                    if ($payload['QtdeParcelas'] <= 0) {
-                        throw new \Exception('QtdeParcelas inválido: ' . $payload['QtdeParcelas']);
-                    }
-                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $payload['DataPagtoEntrada'])) {
-                        throw new \Exception('DataPagtoEntrada formato inválido: ' . $payload['DataPagtoEntrada']);
-                    }
+                  
 
                     \Log::info('=== Enviando acordo para Datacob ===', [
                         'acordo_id' => $acordo->id,
@@ -2076,7 +2064,7 @@ class CronController extends Controller
 
                     // Envia para API (usando HTTPS)
                     $response = $client->post(
-                        'https://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
+                        'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
                         [
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
