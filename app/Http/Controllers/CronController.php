@@ -84,7 +84,7 @@ class CronController extends Controller
             "renegociaSomenteDocumentosEmAtraso" => false // Deixe como false ou conforme necessário
         ];
 
-
+        dd($data);
 
         // Cabeçalhos da requisição
         $headers = [
