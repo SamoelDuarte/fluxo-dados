@@ -2204,4 +2204,129 @@ private function calcularDataVencimentoComDiasUteis()
             ], 500);
         }
     }
+
+    /**
+     * Envia mensagens WhatsApp de texto para array de telefones (10 por array)
+     * Usa arrays manuais passados diretamente no código
+     * GET /api/enviar-whatsapp-batch
+     */
+    public function enviarWhatsappBatch()
+    {
+        try {
+            // Array de telefones - cole aqui diretamente
+            $telefones = [
+              "5511986123660",
+            ];
+
+            if (empty($telefones)) {
+                return response()->json([
+                    'sucesso' => false,
+                    'mensagem' => 'Nenhum telefone fornecido',
+                    'total_enviados' => 0
+                ], 400);
+            }
+
+            // Obtém configuração do WhatsApp
+            $config = DB::table('whatsapp')->first();
+            if (!$config || !$config->access_token) {
+                return response()->json([
+                    'sucesso' => false,
+                    'erro' => 'Token WhatsApp não configurado',
+                    'total_enviados' => 0
+                ], 500);
+            }
+
+            $token = trim($config->access_token);
+
+            $client = new Client();
+            $totalEnviados = 0;
+            $totalErros = 0;
+            $erros = [];
+
+            // Mensagem padrão - Mensagem simpática sobre instabilidade do sistema
+            $mensagemPadrao = "Olá! 👋\n\n" .
+                "Mais cedo enfrentamos uma instabilidade no nosso sistema e infelizmente seu acordo não foi registrado.\n\n" .
+                "Sem problemas! Para continuar, basta você digitar *Olá* que retornaremos com a proposta de parcelamento.\n\n" .
+                "Desculpe pelo inconveniente! 😊";
+
+            // Envia para cada telefone
+            foreach ($telefones as $telefone) {
+                try {
+                    // Sanitiza o telefone
+                    $telefoneFormatado = preg_replace('/[^0-9]/', '', $telefone);
+
+                    if (strlen($telefoneFormatado) < 10) {
+                        $erros[] = "Telefone inválido: {$telefone}";
+                        $totalErros++;
+                        continue;
+                    }
+
+                    // Monta o payload de mensagem de texto
+                    $body = json_encode([
+                        'messaging_product' => 'whatsapp',
+                        'recipient_type' => 'individual',
+                        'to' => $telefoneFormatado,
+                        'type' => 'text',
+                        'text' => [
+                            'preview_url' => false,
+                            'body' => $mensagemPadrao
+                        ]
+                    ]);
+
+                    // Headers
+                    $headers = [
+                        'Content-Type' => 'application/json',
+                        'Authorization' => 'Bearer ' . $token
+                    ];
+
+                    // Cria e envia a requisição com sendAsync
+                    $guzzleRequest = new Request(
+                        'POST',
+                        'https://graph.facebook.com/v22.0/895058090348328/messages',
+                        $headers,
+                        $body
+                    );
+
+                    $response = $client->sendAsync($guzzleRequest)->wait();
+                    $statusCode = $response->getStatusCode();
+                    $responseBody = $response->getBody()->getContents();
+
+                    \Log::info('Resposta WhatsApp:', [
+                        'telefone' => $telefoneFormatado,
+                        'status_code' => $statusCode,
+                        'response' => $responseBody,
+                    ]);
+
+                    if ($statusCode >= 200 && $statusCode < 300) {
+                        $totalEnviados++;
+                        \Log::info('✓ Mensagem enviada para: ' . $telefoneFormatado);
+                    } else {
+                        $totalErros++;
+                        $erros[] = "Telefone {$telefoneFormatado}: Status {$statusCode}";
+                    }
+
+                } catch (\Exception $e) {
+                    $totalErros++;
+                    $erros[] = "Telefone {$telefone}: " . $e->getMessage();
+                    \Log::error('Erro ao enviar para ' . $telefone . ': ' . $e->getMessage());
+                }
+            }
+
+            return response()->json([
+                'sucesso' => true,
+                'mensagem' => 'Envio em lote concluído',
+                'total_enviados' => $totalEnviados,
+                'total_erros' => $totalErros,
+                'erros' => $erros
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao enviar WhatsApp em lote: ' . $e->getMessage());
+            return response()->json([
+                'sucesso' => false,
+                'erro' => $e->getMessage(),
+                'total_enviados' => 0
+            ], 500);
+        }
+    }
 }
