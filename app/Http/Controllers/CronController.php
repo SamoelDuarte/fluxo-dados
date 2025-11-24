@@ -2056,11 +2056,11 @@ class CronController extends Controller
                         'QtdeParcelas' => (int) $qtdeParcelas,
                         'ValorEntrada' => round((float) $valorParcela, 2),
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
-                        'ValorParcela' => 225.84, // Valor de cada parcela
+                        'ValorParcelas' => round((float) $valorParcela, 2), // Valor de cada parcela
+                        'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
                     ];
 
                   
-                    // dd($payload);
                     \Log::info('=== Enviando acordo para Datacob ===', [
                         'acordo_id' => $acordo->id,
                         'payload' => $payload,
