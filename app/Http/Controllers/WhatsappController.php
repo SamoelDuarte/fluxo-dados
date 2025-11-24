@@ -400,7 +400,7 @@ class WhatsappController extends Controller
         // Valida variáveis de ambiente
         $url = "https://datacob.thiagofarias.adv.br/api/account/v1/login";
         $login = 'api.dashboard';
-        $password ="36810556";
+        $password = "36810556";
         $apiKey = "PYBW+7AndDA=";
 
         if (empty($url) || empty($login) || empty($password) || empty($apiKey)) {
@@ -1355,23 +1355,13 @@ class WhatsappController extends Controller
                     if (!empty($negociacao['Parcelas']) && is_array($negociacao['Parcelas'])) {
                         $parcela = $negociacao['Parcelas'][0] ?? [];
                         $atrasoDias = $parcela['Atraso'] ?? 0;
-                        $dataVencimento = $parcela['DtVencimento'] ?? '';
 
-                        // Converte data do formato ISO 8601 (2025-07-28T00:00:00) para dd/mm/yyyy (28/07/2025)
-                        if (!empty($dataVencimento)) {
-                            $dataObj = \DateTime::createFromFormat('Y-m-d\TH:i:s', $dataVencimento);
-                            if ($dataObj) {
-                                $dataVencimento = $dataObj->format('d/m/Y');
-                            }
-                        }
                     }
                 }
             }
 
-            // Se dataVencimento vazio, calcula com 5 dias úteis
-            if (empty($dataVencimento)) {
-                $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
-            }
+            $dataVencimento = $this->calcularDataVencimentoComDiasUteis();
+
 
             // Monta texto automaticamente com dados do contexto
             $textoFormatado = "acordo a vista: R$ " . number_format($valorDivida, 2, ',', '.') . " | Venc: " . $dataVencimento . "\n";
