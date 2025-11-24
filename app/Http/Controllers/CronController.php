@@ -2081,7 +2081,7 @@ class CronController extends Controller
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
                                 'apiKey' => 'PYBW+7AndDA=',
-                                'Content-Type' => 'application/json; charset=UTF-8',
+                                'Content-Type' => 'application/json',
                             ],
                             'json' => $payload,
                             'verify' => false, // SSL certificate verification disabled
@@ -2090,11 +2090,14 @@ class CronController extends Controller
 
                     $statusCode = $response->getStatusCode();
                     $responseBody = $response->getBody()->getContents();
+                    
+                    // Tenta decodificar com tratamento de encoding
+                    $responseBodyCleaned = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8');
 
                     \Log::info('Resposta Datacob:', [
                         'acordo_id' => $acordo->id,
                         'status_code' => $statusCode,
-                        'response_body' => $responseBody,
+                        'response_body' => $responseBodyCleaned,
                     ]);
 
                     if ($statusCode === 200 || $statusCode === 201) {
@@ -2103,14 +2106,17 @@ class CronController extends Controller
                         \Log::info('✓ Acordo enviado com sucesso: ' . $acordo->id);
                     } else {
                         $totalErros++;
-                        $erros[] = "Acordo {$acordo->id}: Status {$statusCode} - {$responseBody}";
-                        \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': ' . $responseBody);
+                        $erros[] = "Acordo {$acordo->id}: Status {$statusCode}";
+                        \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': Status ' . $statusCode, [
+                            'response' => substr($responseBodyCleaned, 0, 500), // Primeiros 500 chars
+                        ]);
                     }
 
                 } catch (\Exception $e) {
                     $totalErros++;
                     $erros[] = "Acordo {$acordo->id}: " . $e->getMessage();
-                    \Log::error('✗ Exceção ao enviar acordo ' . $acordo->id . ': ' . $e->getMessage(), [
+                    \Log::error('✗ Exceção ao enviar acordo ' . $acordo->id, [
+                        'message' => $e->getMessage(),
                         'exception' => get_class($e),
                         'file' => $e->getFile(),
                         'line' => $e->getLine(),
