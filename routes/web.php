@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
 
 });
 
+Route::get('/211', [CronController::class, 'obterAcordosFechadosApos211']); // Processamento do upload
 Route::get('/parcelamento', [CronController::class, 'obterOpcoesParcelamento']); // Processamento do upload
 Route::get('/gethavan', [CronController::class, 'getDadoHavan']); // Processamento do upload
 Route::middleware(['cors'])->post('/obterparcelamento', [CronController::class, 'obterParcelamento']);
