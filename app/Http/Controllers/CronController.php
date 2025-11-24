@@ -2030,7 +2030,7 @@ class CronController extends Controller
                      // Calcula data de pagamento com 5 dias úteis e converte para Y-m-d
                     $dataPagtoEntradaFormatada = $this->calcularDataVencimentoComDiasUteis();
                     $dataPagtoEntrada = \DateTime::createFromFormat('d/m/Y', $dataPagtoEntradaFormatada)->format('Y-m-d');
-                    $dataVencimento = $acordo->created_at->format('Y-m-d');
+                    $dataCriacao = $acordo->created_at->format('Y-m-d');
 
                     // Extrai qtde e valor de parcela
                     // Trata formato: "6x de R$ 1.095,95" ou "acordo a vista: R$ 1.095,95"
@@ -2044,17 +2044,12 @@ class CronController extends Controller
                         $valorParcela = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
                     }
 
-                    // Extrai data de vencimento
-                    if (preg_match('/Venc:\s+(\d{2})\/(\d{2})\/(\d{4})/', $acordo->texto, $matches)) {
-                        $dataVencimento = $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-                    }
-
                     $payload = [
                         'IdContrato' => $idContrato,
                         'ValorEntrada' => $valorParcela,
                         'QtdeParcelas' => $qtdeParcelas,
-                        'DataPagtoEntrada' => $dataVencimento,
-                        'DataNegociacao' => $dataPagtoEntrada,
+                        'DataPagtoEntrada' => $dataPagtoEntrada,
+                        'DataNegociacao' => $dataCriacao,
                         'ValorParcela' => $valorParcela,
                     ];
 
