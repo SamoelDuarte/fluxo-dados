@@ -2053,7 +2053,7 @@ class CronController extends Controller
                         'ValorParcela' => $valorParcela,
                     ];
 
-                    // dd('payload', $payload);
+                    dd('payload', $payload);
 
                     // Envia para API
                     $response = $client->post(
