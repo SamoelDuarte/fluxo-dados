@@ -2044,16 +2044,21 @@ class CronController extends Controller
                         $valorParcela = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
                     }
 
+                    // Sanitiza valores para garantir UTF-8 válido
                     $payload = [
-                        'IdContrato' => $idContrato,
-                        'ValorEntrada' => $valorParcela,
-                        'QtdeParcelas' => $qtdeParcelas,
-                        'DataPagtoEntrada' => $dataPagtoEntrada,
-                        'DataNegociacao' => $dataCriacao,
-                        'ValorParcela' => $valorParcela,
+                        'IdContrato' => (int) $idContrato,
+                        'ValorEntrada' => (float) $valorParcela,
+                        'QtdeParcelas' => (int) $qtdeParcelas,
+                        'DataPagtoEntrada' => (string) $dataPagtoEntrada,
+                        'DataNegociacao' => (string) $dataPagtoEntrada, // Usa mesma data de pagamento
+                        'ValorParcela' => (float) $valorParcela,
                     ];
 
-                    // dd('payload', $payload);
+                    \Log::info('=== Enviando acordo para Datacob ===', [
+                        'acordo_id' => $acordo->id,
+                        'payload' => $payload,
+                        'payload_json' => json_encode($payload),
+                    ]);
 
                     // Envia para API
                     $response = $client->post(
@@ -2062,23 +2067,37 @@ class CronController extends Controller
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
                                 'apiKey' => 'PYBW+7AndDA=',
-                                'Content-Type' => 'application/json',
+                                'Content-Type' => 'application/json; charset=UTF-8',
                             ],
                             'json' => $payload,
                         ]
                     );
 
-                    if ($response->getStatusCode() === 200 || $response->getStatusCode() === 201) {
+                    $statusCode = $response->getStatusCode();
+                    $responseBody = $response->getBody()->getContents();
+
+                    \Log::info('Resposta Datacob:', [
+                        'acordo_id' => $acordo->id,
+                        'status_code' => $statusCode,
+                        'response_body' => $responseBody,
+                    ]);
+
+                    if ($statusCode === 200 || $statusCode === 201) {
                         $acordo->update(['status' => 'enviado']);
                         $totalEnviados++;
+                        \Log::info('✓ Acordo enviado com sucesso: ' . $acordo->id);
                     } else {
                         $totalErros++;
-                        $erros[] = "Acordo {$acordo->id}: Status {$response->getStatusCode()}";
+                        $erros[] = "Acordo {$acordo->id}: Status {$statusCode} - {$responseBody}";
+                        \Log::error('✗ Erro ao enviar acordo ' . $acordo->id . ': ' . $responseBody);
                     }
 
                 } catch (\Exception $e) {
                     $totalErros++;
                     $erros[] = "Acordo {$acordo->id}: " . $e->getMessage();
+                    \Log::error('✗ Exceção ao enviar acordo ' . $acordo->id . ': ' . $e->getMessage(), [
+                        'exception' => $e,
+                    ]);
                 }
             }
 
