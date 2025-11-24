@@ -2047,22 +2047,36 @@ class CronController extends Controller
                     // Sanitiza valores para garantir UTF-8 válido
                     $payload = [
                         'IdContrato' => (int) $idContrato,
-                        'ValorEntrada' => (float) $valorParcela,
+                        'ValorEntrada' => round((float) $valorParcela, 2),
                         'QtdeParcelas' => (int) $qtdeParcelas,
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
                         'DataNegociacao' => (string) $dataPagtoEntrada, // Usa mesma data de pagamento
-                        'ValorParcela' => (float) $valorParcela,
+                        'ValorParcela' => round((float) $valorParcela, 2),
                     ];
+
+                    // Valida payload antes de enviar
+                    if (empty($payload['IdContrato']) || $payload['IdContrato'] <= 0) {
+                        throw new \Exception('IdContrato inválido: ' . $payload['IdContrato']);
+                    }
+                    if ($payload['ValorEntrada'] <= 0) {
+                        throw new \Exception('ValorEntrada inválido: ' . $payload['ValorEntrada']);
+                    }
+                    if ($payload['QtdeParcelas'] <= 0) {
+                        throw new \Exception('QtdeParcelas inválido: ' . $payload['QtdeParcelas']);
+                    }
+                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $payload['DataPagtoEntrada'])) {
+                        throw new \Exception('DataPagtoEntrada formato inválido: ' . $payload['DataPagtoEntrada']);
+                    }
 
                     \Log::info('=== Enviando acordo para Datacob ===', [
                         'acordo_id' => $acordo->id,
                         'payload' => $payload,
-                        'payload_json' => json_encode($payload),
+                        'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE),
                     ]);
 
-                    // Envia para API
+                    // Envia para API (usando HTTPS)
                     $response = $client->post(
-                        'http://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
+                        'https://datacob.thiagofarias.adv.br/api/negociacao/v1/confirmar-acordo',
                         [
                             'headers' => [
                                 'Authorization' => 'Bearer ' . $token,
@@ -2070,6 +2084,7 @@ class CronController extends Controller
                                 'Content-Type' => 'application/json; charset=UTF-8',
                             ],
                             'json' => $payload,
+                            'verify' => false, // SSL certificate verification disabled
                         ]
                     );
 
@@ -2096,7 +2111,9 @@ class CronController extends Controller
                     $totalErros++;
                     $erros[] = "Acordo {$acordo->id}: " . $e->getMessage();
                     \Log::error('✗ Exceção ao enviar acordo ' . $acordo->id . ': ' . $e->getMessage(), [
-                        'exception' => $e,
+                        'exception' => get_class($e),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
                     ]);
                 }
             }
