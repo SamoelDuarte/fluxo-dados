@@ -2044,7 +2044,6 @@ class CronController extends Controller
                         $valorParcela = (float) str_replace(['.', ','], ['', '.'], $matches[1]);
                     }
 
-                    // Sanitiza valores para garantir UTF-8 válido
                     // Calcula data vencimento próxima parcela (5 dias úteis após pagamento entrada)
                     $dataProximaParcela = \DateTime::createFromFormat('Y-m-d', $dataPagtoEntrada);
                     $dataProximaParcela->add(new \DateInterval('P5D'));
@@ -2052,13 +2051,16 @@ class CronController extends Controller
 
                     $payload = [
                         'IdContrato' => (int) $idContrato,
-                        'ValorAcordo' => round((float) $valorParcela, 2), // Valor total do acordo
-                        'QtdeParcelas' => (int) $qtdeParcelas,
                         'ValorEntrada' => round((float) $valorParcela, 2),
+                        'QtdeParcelas' => (int) $qtdeParcelas,
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
-                        'ValorParcelas' => '225,84', // Valor de cada parcela
-                        'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
-                          'Parcelas' => [(int) $qtdeParcelas],
+                        'ValorParcela' => round((float) $valorParcela, 2),
+                        'DataPagtoParcelas' => (string) $dataVencimentoProximaParcela,
+                        'DataNegociacao' => (string) $dataCriacao,
+                        'Email' => '',
+                        'Ddd' => '',
+                        'Fone' => '',
+                        'Parcelas' => [(int) $qtdeParcelas],
                         'ModalidadeNegociacao' => 0,
                     ];
 
