@@ -2049,7 +2049,6 @@ class CronController extends Controller
                     $dataProximaParcela->add(new \DateInterval('P5D'));
                     $dataVencimentoProximaParcela = $dataProximaParcela->format('Y-m-d');
 
-                    // Prepara payload com encoding UTF-8 garantido
                     $payload = [
                         'IdContrato' => (int) $idContrato,
                         'ValorEntrada' => round((float) $valorParcela, 2),
@@ -2058,21 +2057,9 @@ class CronController extends Controller
                         'ValorParcela' => round((float) $valorParcela, 2),
                         'DataPagtoParcelas' => (string) $dataVencimentoProximaParcela,
                         'DataNegociacao' => (string) $dataCriacao,
-                        'Email' => '',
-                        'Ddd' => '',
-                        'Fone' => '',
                         'Parcelas' => [(int) $qtdeParcelas],
                         'ModalidadeNegociacao' => 0,
                     ];
-
-                    // Garante que todos os valores string estão em UTF-8
-                    array_walk_recursive($payload, function (&$value) {
-                        if (is_string($value)) {
-                            if (!mb_check_encoding($value, 'UTF-8')) {
-                                $value = mb_convert_encoding($value, 'UTF-8', 'ISO-8859-1');
-                            }
-                        }
-                    });
                     // dd($payload);
                   
                     // dd($payload);
