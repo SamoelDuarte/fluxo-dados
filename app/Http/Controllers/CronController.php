@@ -2028,7 +2028,7 @@ class CronController extends Controller
                     $idContrato = (int) $contatoDado->cod_cliente;
                     $qtdeParcelas = 1;
                     $valorParcela = 0.00;
-                     // Calcula data de pagamento com 5 dias úteis e converte para Y-m-d
+                    // Calcula data de pagamento com 5 dias úteis e converte para Y-m-d
                     $dataPagtoEntradaFormatada = $this->calcularDataVencimentoComDiasUteis();
                     $dataPagtoEntrada = \DateTime::createFromFormat('d/m/Y', $dataPagtoEntradaFormatada)->format('Y-m-d');
                     $dataCriacao = $acordo->created_at->format('Y-m-d');
@@ -2061,8 +2061,8 @@ class CronController extends Controller
                         'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
                     ];
                     dd(json_encode($payload));
-                  
-                 
+
+
 
                     // Envia para API (sem Content-Type, como Node)
                     $response = $client->post(
@@ -2093,7 +2093,7 @@ class CronController extends Controller
                     } else {
                         $totalErros++;
                         $erros[] = "Acordo {$acordo->id}: Status {$statusCode}";
-                      
+
                     }
 
                 } catch (\Exception $e) {
@@ -2130,7 +2130,7 @@ class CronController extends Controller
             ], 500);
         }
     }
-private function calcularDataVencimentoComDiasUteis()
+    private function calcularDataVencimentoComDiasUteis()
     {
         $data = now();
         $diasAdicionados = 0;
@@ -2215,7 +2215,36 @@ private function calcularDataVencimentoComDiasUteis()
         try {
             // Array de telefones - cole aqui diretamente
             $telefones = [
-              "5511986123660",
+                "5512988114958",
+                "5511958810272",
+                "5511945163032",
+                "5519992333503",
+                "5519971676905",
+                "5514981164618",
+                "5519999571210",
+                "5519995795444",
+                "5517991260564",
+                "5515988063871",
+                "5512997374863",
+                "5518981941411",
+                "5517991495178",
+                "5519987245949",
+                "5517992492200",
+                "5516991238001",
+                "5512988760856",
+                "5517997765608",
+                "5513996802355",
+                "5518997178721",
+                "5519992737020",
+                "5519981544219",
+                "5512981532211",
+                "5519971121552",
+                "5518981239223",
+                "5512982519755",
+                "5512974041325",
+                "5511942577543",
+                "5511910988114",
+                "5519991732535"
             ];
 
             if (empty($telefones)) {
