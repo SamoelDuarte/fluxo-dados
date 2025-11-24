@@ -2158,47 +2158,49 @@ private function calcularDataVencimentoComDiasUteis()
     }
 
     /**
-     * Busca todos os acordos fechados a partir do ID 211 em diante
-     * GET /api/acordos-fechados-apos-211
+     * Deleta acordos pendentes a partir do ID 211 em diante
+     * DELETE /api/deletar-acordos-apos-211
      */
-    public function obterAcordosFechadosApos211()
+    public function deletarAcordosFechadosApos211()
     {
         try {
             $acordos = Acordo::where('id', '>', 211)
                 ->whereIn('status', ['pendente'])
-                ->whereNotIn('id',['313'])
-                ->with('contatoDado')
-                ->orderBy('id', 'desc')
+                ->whereNotIn('id', ['313'])
                 ->get();
 
             if ($acordos->isEmpty()) {
                 return response()->json([
                     'sucesso' => true,
-                    'mensagem' => 'Nenhum acordo fechado encontrado após ID 211',
-                    'total' => 0,
-                    'acordos' => []
+                    'mensagem' => 'Nenhum acordo pendente encontrado após ID 211',
+                    'total_deletados' => 0
                 ]);
             }
 
-            $acordosFormatados = $acordos->map(function ($acordo) {
-                return [
-                   'telefone' => $acordo->contatoDado->telefone
-                ];
-            });
+            $totalDeletados = $acordos->count();
+            $ids = $acordos->pluck('id')->toArray();
+
+            // Deleta apenas os acordos (não deleta contatoDado)
+            Acordo::whereIn('id', $ids)->delete();
+
+            \Log::info('Acordos deletados com sucesso', [
+                'total' => $totalDeletados,
+                'ids' => $ids
+            ]);
 
             return response()->json([
                 'sucesso' => true,
-                'mensagem' => 'Acordos fechados encontrados',
-                'total' => $acordos->count(),
-                'acordos' => $acordosFormatados
+                'mensagem' => 'Acordos deletados com sucesso',
+                'total_deletados' => $totalDeletados,
+                'ids_deletados' => $ids
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao buscar acordos fechados: ' . $e->getMessage());
+            \Log::error('Erro ao deletar acordos: ' . $e->getMessage());
             return response()->json([
                 'sucesso' => false,
                 'erro' => $e->getMessage(),
-                'total' => 0
+                'total_deletados' => 0
             ], 500);
         }
     }
