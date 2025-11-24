@@ -2024,7 +2024,7 @@ class CronController extends Controller
                     if (!$contatoDado)
                         continue;
 
-                    $idContrato = (int) $contatoDado->id_contrato;
+                    $idContrato = (int) $contatoDado->cod_cliente;
                     $qtdeParcelas = 1;
                     $valorParcela = 0.00;
                      // Calcula data de pagamento com 5 dias úteis e converte para Y-m-d
