@@ -2052,23 +2052,12 @@ class CronController extends Controller
 
                     $payload = [
                         'IdContrato' => (int) $idContrato,
-                        'IdAcordo' => 0, // Novo acordo
-                        'NrAcordo' => 0, // Novo acordo
                         'ValorAcordo' => round((float) $valorParcela, 2), // Valor total do acordo
-                        'Plano' => 0, // Não aplicável
+                
                         'ValorEntrada' => round((float) $valorParcela, 2),
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
                         'ValorParcelas' => round((float) $valorParcela, 2), // Valor de cada parcela
                         'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
-                        'EnviarPara' => '', // Email/contato - deixa vazio
-                        'Situacao' => '', // Status - deixa para API definir
-                        'ModalidadeNegociacao' => 0, // À vista
-                        'PercentualParcelamento' => 0, // Sem parcelamento extra
-                        'ValorDesconto' => 0, // Sem desconto
-                        'IdAcordoExterno' => '', // Não tem referência externa
-                        'Renegociacao' => false, // Novo acordo
-                        'PercentualDesconto' => 0, // Sem desconto percentual
-                        'ValorOriginal' => 0, // Valor é o acordo
                     ];
 
                   
