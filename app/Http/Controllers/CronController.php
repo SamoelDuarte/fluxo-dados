@@ -2156,4 +2156,60 @@ private function calcularDataVencimentoComDiasUteis()
 
         return $data->format('d/m/Y');
     }
+
+    /**
+     * Busca todos os acordos fechados a partir do ID 211 em diante
+     * GET /api/acordos-fechados-apos-211
+     */
+    public function obterAcordosFechadosApos211()
+    {
+        try {
+            $acordos = Acordo::where('id', '>', 211)
+                ->whereIn('status', ['fechado', 'enviado'])
+                ->with('contatoDado')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            if ($acordos->isEmpty()) {
+                return response()->json([
+                    'sucesso' => true,
+                    'mensagem' => 'Nenhum acordo fechado encontrado após ID 211',
+                    'total' => 0,
+                    'acordos' => []
+                ]);
+            }
+
+            $acordosFormatados = $acordos->map(function ($acordo) {
+                return [
+                    'id' => $acordo->id,
+                    'texto' => $acordo->texto,
+                    'status' => $acordo->status,
+                    'created_at' => $acordo->created_at->format('d/m/Y H:i:s'),
+                    'updated_at' => $acordo->updated_at->format('d/m/Y H:i:s'),
+                    'contato' => $acordo->contatoDado ? [
+                        'id' => $acordo->contatoDado->id,
+                        'nome' => $acordo->contatoDado->nome,
+                        'telefone' => $acordo->contatoDado->telefone,
+                        'document' => $acordo->contatoDado->document,
+                        'cod_cliente' => $acordo->contatoDado->cod_cliente,
+                    ] : null,
+                ];
+            });
+
+            return response()->json([
+                'sucesso' => true,
+                'mensagem' => 'Acordos fechados encontrados',
+                'total' => $acordos->count(),
+                'acordos' => $acordosFormatados
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao buscar acordos fechados: ' . $e->getMessage());
+            return response()->json([
+                'sucesso' => false,
+                'erro' => $e->getMessage(),
+                'total' => 0
+            ], 500);
+        }
+    }
 }
