@@ -2045,13 +2045,30 @@ class CronController extends Controller
                     }
 
                     // Sanitiza valores para garantir UTF-8 válido
+                    // Calcula data vencimento próxima parcela (5 dias úteis após pagamento entrada)
+                    $dataProximaParcela = \DateTime::createFromFormat('Y-m-d', $dataPagtoEntrada);
+                    $dataProximaParcela->add(new \DateInterval('P5D'));
+                    $dataVencimentoProximaParcela = $dataProximaParcela->format('Y-m-d');
+
                     $payload = [
                         'IdContrato' => (int) $idContrato,
+                        'IdAcordo' => 0, // Novo acordo
+                        'NrAcordo' => 0, // Novo acordo
+                        'ValorAcordo' => round((float) $valorParcela, 2), // Valor total do acordo
+                        'Plano' => 0, // Não aplicável
                         'ValorEntrada' => round((float) $valorParcela, 2),
-                        'QtdeParcelas' => (int) $qtdeParcelas,
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
-                        'DataNegociacao' => (string) $dataPagtoEntrada, // Usa mesma data de pagamento
-                        'ValorParcela' => round((float) $valorParcela, 2),
+                        'ValorParcelas' => round((float) $valorParcela, 2), // Valor de cada parcela
+                        'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
+                        'EnviarPara' => '', // Email/contato - deixa vazio
+                        'Situacao' => '', // Status - deixa para API definir
+                        'ModalidadeNegociacao' => 0, // À vista
+                        'PercentualParcelamento' => 0, // Sem parcelamento extra
+                        'ValorDesconto' => 0, // Sem desconto
+                        'IdAcordoExterno' => '', // Não tem referência externa
+                        'Renegociacao' => false, // Novo acordo
+                        'PercentualDesconto' => 0, // Sem desconto percentual
+                        'ValorOriginal' => 0, // Valor é o acordo
                     ];
 
                   
