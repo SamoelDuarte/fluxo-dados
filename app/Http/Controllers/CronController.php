@@ -2165,7 +2165,7 @@ private function calcularDataVencimentoComDiasUteis()
     {
         try {
             $acordos = Acordo::where('id', '>', 211)
-                ->whereIn('status', ['fechado', 'enviado'])
+                ->whereIn('status', ['pendente'])
                 ->with('contatoDado')
                 ->orderBy('id', 'desc')
                 ->get();
