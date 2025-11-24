@@ -237,6 +237,7 @@ class CronController extends Controller
 
         // Retornar os dados no formato esperado
         return response()->json([
+            'payload' => $data,
             'data' => $dadosParcelamento,
             'carteira' => '1', // Ajuste conforme necessário
         ]);
@@ -841,7 +842,7 @@ class CronController extends Controller
                 $query->where('request', 1)
                     ->where('erro', 0);
             })
-            ->limit(80) // Limitar para 20 registros
+            ->limit(value: 80) // Limitar para 20 registros
             ->get();
 
         $resultados = [];
