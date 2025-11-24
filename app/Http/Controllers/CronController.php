@@ -2120,10 +2120,15 @@ class CronController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao enviar acordos Datacob: ' . $e->getMessage());
+            $mensagemErro = $e->getMessage();
+            // Remove caracteres UTF-8 inválidos se existirem
+            if (!mb_check_encoding($mensagemErro, 'UTF-8')) {
+                $mensagemErro = mb_convert_encoding($mensagemErro, 'UTF-8', 'ISO-8859-1');
+            }
+            \Log::error('Erro ao enviar acordos Datacob: ' . $mensagemErro);
             return response()->json([
                 'sucesso' => false,
-                'erro' => $e->getMessage(),
+                'erro' => $mensagemErro,
                 'total_enviados' => 0
             ], 500);
         }
