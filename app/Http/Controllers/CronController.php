@@ -2053,7 +2053,7 @@ class CronController extends Controller
                     $payload = [
                         'IdContrato' => (int) $idContrato,
                         'ValorAcordo' => round((float) $valorParcela, 2), // Valor total do acordo
-                
+                        'QtdeParcelas' => (int) $qtdeParcelas,
                         'ValorEntrada' => round((float) $valorParcela, 2),
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
                         'ValorParcelas' => round((float) $valorParcela, 2), // Valor de cada parcela
