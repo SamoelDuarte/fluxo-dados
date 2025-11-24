@@ -2056,7 +2056,7 @@ class CronController extends Controller
                         'QtdeParcelas' => (int) $qtdeParcelas,
                         'ValorEntrada' => round((float) $valorParcela, 2),
                         'DataPagtoEntrada' => (string) $dataPagtoEntrada,
-                        'ValorParcelas' => '225.84', // Valor de cada parcela
+                        'ValorParcelas' => '225,84', // Valor de cada parcela
                         'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
                     ];
 
