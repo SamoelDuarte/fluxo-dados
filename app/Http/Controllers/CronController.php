@@ -2059,13 +2059,9 @@ class CronController extends Controller
                         'ValorParcela' => round((float) $valorParcela, 2), // Valor de cada parcela
                         'DataVencimentoProximaParcela' => (string) $dataVencimentoProximaParcela,
                     ];
-                    dd(json_decode($payload,true));
+                    dd(json_encode($payload));
                   
-                    \Log::info('=== Enviando acordo para Datacob ===', [
-                        'acordo_id' => $acordo->id,
-                        'payload' => $payload,
-                        'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE),
-                    ]);
+                 
 
                     // Envia para API (sem Content-Type, como Node)
                     $response = $client->post(
