@@ -37,10 +37,11 @@ class AcordoController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(15);
 
-        // Adicionar informação da campanha para cada acordo
+        // Adicionar informação da campanha para cada acordo (mais recente)
         foreach ($acordos as $acordo) {
             if ($acordo->contatoDado && $acordo->contatoDado->contato) {
-                $campanha = $acordo->contatoDado->contato->campanhas()->first();
+                // Busca a campanha mais recente (ordenada por created_at DESC)
+                $campanha = $acordo->contatoDado->contato->campanhas()->orderBy('created_at', 'desc')->first();
                 $acordo->campanha_name = $campanha ? $campanha->name : 'N/A';
                 $acordo->campanha_id = $campanha ? $campanha->id : null;
             } else {
