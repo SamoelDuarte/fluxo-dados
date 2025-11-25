@@ -795,9 +795,15 @@ class WhatsappController extends Controller
     /**
      * Calcula data de vencimento com 5 dias úteis a partir de hoje
      * Se cair no fim de semana (sábado 4 ou domingo 5), adiciona dias até segunda
+     * HOJE: Retorna data fixa 28/11/2025
      */
     private function calcularDataVencimentoComDiasUteis()
     {
+        // Data fixa para hoje: 28/11/2025
+        return '28/11/2025';
+        
+        // Código original comentado para recuperar depois:
+        /*
         $data = now();
         $diasAdicionados = 0;
         $diasUteis = 0;
@@ -821,6 +827,7 @@ class WhatsappController extends Controller
         }
 
         return $data->format('d/m/Y');
+        */
     }
 
     private function obterOpcoesParcelamentoHavan($codigoCarteira, $pessoaCodigo)
