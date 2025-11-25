@@ -652,30 +652,15 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contratos = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
 
-        if (!$contatoDados || empty($contatoDados->document)) {
-            return response()->json([
-                'error' => 'Contato não encontrado em contatoDados',
-                'success' => false
-            ], 404);
-        }
+       
 
         // Pega o document do contatoDados e limpa
-        $cpfCnpjLimpo = preg_replace('/\D/', '', $contatoDados->document);
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $contratos->document);
 
-        // Busca os contratos na tabela contato_dados
-        $contratos = ContatoDados::where('document', $cpfCnpjLimpo)
-            ->orWhere('document', $contatoDados->document)
-            ->get();
+      
 
-        if ($contratos->isEmpty()) {
-            return response()->json([
-                'error' => 'Nenhum contrato encontrado para este cliente',
-                'success' => false,
-                'cpf_cnpj_buscado' => $cpfCnpjLimpo
-            ], 404);
-        }
 
         // Obtém opções de parcelamento para cada contrato
         $parcelamentosResultados = [];
