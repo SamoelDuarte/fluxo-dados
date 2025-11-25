@@ -652,40 +652,31 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contratos = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contrato = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
 
        
 
         // Pega o document do contatoDados e limpa
-        $cpfCnpjLimpo = preg_replace('/\D/', '', $contratos->document);
+        $cpfCnpjLimpo = preg_replace('/\D/', '', $contrato->document);
 
       
-
 
         // Obtém opções de parcelamento para cada contrato
         $parcelamentosResultados = [];
         $erros = [];
         $valorAVista = 0; // Valor da primeira parcela (à vista)
 
-        foreach ($contratos as $contrato) {
+       
             $codigoCarteira = $contrato->carteira;
             $pessoaCodigo = $contrato->id_contrato;
 
-            \Log::info('=== Obtendo parcelamento ===', [
-                'contrato_id' => $contrato->id,
-                'codigo_carteira' => $codigoCarteira,
-                'pessoa_codigo' => $pessoaCodigo,
-            ]);
+           
 
             $parcelamentos = $this->obterOpcoesParcelamentoHavan(
                 $codigoCarteira,
                 $pessoaCodigo
             );
 
-            \Log::info('Resposta parcelamentos:', [
-                'tem_resposta' => !empty($parcelamentos),
-                'parcelamentos' => $parcelamentos,
-            ]);
 
             if ($parcelamentos) {
                 $parcelamentosResultados[] = [
@@ -729,7 +720,6 @@ class WhatsappController extends Controller
                 ];
                 \Log::error('✗ Falha ao obter parcelamentos para contrato: ' . $contrato->id);
             }
-        }
 
         \Log::info('=== Resumo final ===', [
             'valor_a_vista_final' => $valorAVista,
@@ -768,7 +758,7 @@ class WhatsappController extends Controller
         return response()->json([
             'success' => true,
             'cpf_cnpj' => $cpfCnpjLimpo,
-            'quantidade_contratos' => $contratos->count(),
+            'quantidade_contratos' => 1,
             'parcelamentos_encontrados' => count($parcelamentosResultados),
             'parcelamentos' => $parcelamentosResultados,
             'erros' => $erros,
