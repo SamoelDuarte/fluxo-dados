@@ -1724,7 +1724,7 @@ class CronController extends Controller
         try {
             // Busca todas as sessões que não estão encerradas
             $sessoes = WhatsappSession::where('current_step', '!=', 'encerrada')
-            ->limit(10)
+                ->limit(30)
                 ->get();
 
             if ($sessoes->isEmpty()) {
@@ -2135,7 +2135,7 @@ class CronController extends Controller
     {
         // Data fixa para hoje: 28/11/2025
         return '28/11/2025';
-        
+
         // Código original comentado para recuperar depois:
         /*
         $data = now();
