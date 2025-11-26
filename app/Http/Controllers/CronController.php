@@ -1724,6 +1724,7 @@ class CronController extends Controller
         try {
             // Busca todas as sessões que não estão encerradas
             $sessoes = WhatsappSession::where('current_step', '!=', 'encerrada')
+            ->limit(10)
                 ->get();
 
             if ($sessoes->isEmpty()) {
