@@ -1577,7 +1577,7 @@ class CronController extends Controller
                     Log::info('Nenhum contato para enviar neste phone_number_id');
                     continue;
                 }
-                dd($contatos);  
+                // dd($contatos);  
 
                 Log::info('Total de contatos para enviar: ' . $contatos->count());
 
