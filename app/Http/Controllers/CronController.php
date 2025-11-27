@@ -2145,10 +2145,10 @@ class CronController extends Controller
     private function calcularDataVencimentoComDiasUteis()
     {
         // Data fixa para hoje: 28/11/2025
-        return '28/11/2025';
+        // return '28/11/2025';
 
         // Código original comentado para recuperar depois:
-        /*
+        
         $data = now();
         $diasAdicionados = 0;
         $diasUteis = 0;
@@ -2172,7 +2172,7 @@ class CronController extends Controller
         }
 
         return $data->format('d/m/Y');
-        */
+        
     }
 
     /**
