@@ -1570,14 +1570,13 @@ class CronController extends Controller
                 $contatos = DB::table('contato_dados')
                     ->whereIn('contato_id', $campanha->contatos->pluck('id'))
                     ->where('send', 0)
-                    ->limit(1)
+                    ->limit(30)
                     ->get();
 
                 if ($contatos->isEmpty()) {
                     Log::info('Nenhum contato para enviar neste phone_number_id');
                     continue;
                 }
-                // dd($contatos);  
 
                 Log::info('Total de contatos para enviar: ' . $contatos->count());
 
