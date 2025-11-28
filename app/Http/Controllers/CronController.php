@@ -1726,47 +1726,36 @@ class CronController extends Controller
 
     /**
      * Verifica inatividade nas sessões e envia alertas automáticos
-     * - Alerta 1: Após 60 minutos (1 hora) de inatividade - "Percebemos que você está ocupado..."
-     * - Alerta 2: Após 120 minutos (2 horas) de inatividade - "Ainda está por aí?..."
-     * - Alerta 3: Após 180 minutos (3 horas) de inatividade - "Muito obrigado..." e encerra sessão
+     * - Alerta 1: Após 60 minutos (1 hora) de inatividade - qtde_alerta = 0 → 1
+     * - Alerta 2: Após 120 minutos (2 horas) de inatividade - qtde_alerta = 1 → 2
+     * - Alerta 3: Após 180 minutos (3 horas) de inatividade - qtde_alerta = 2 → 3 e encerra
+     * 
+     * Lógica: Busca 10 de cada categoria por vez, envia mensagem específica e atualiza
      */
     public function verificarInatividade()
     {
         try {
-            // Busca todas as sessões que não estão encerradas
-            $sessoes = WhatsappSession::where('current_step', '!=', 'encerrada')
+            $agora = now();
+            $totalProcessadas = 0;
+            $totalAlertas = 0;
+            $erros = [];
+
+            // ===== ALERTA 1: Busca 10 sessões com 60+ minutos inativo e qtde_alerta = 0 =====
+            $sessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
+                ->where('qtde_alerta', 0)
+                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 60")
                 ->limit(10)
                 ->get();
 
-            if ($sessoes->isEmpty()) {
-                Log::info('Nenhuma sessão ativa encontrada para verificar inatividade');
-                return response()->json([
-                    'mensagem' => 'Nenhuma sessão para verificar',
-                    'processadas' => 0,
-                    'alertas_enviados' => 0
-                ]);
-            }
+            if ($sessoes1->isNotEmpty()) {
+                Log::info("Processando " . $sessoes1->count() . " sessões para ALERTA 1");
+                
+                $ids1 = [];
+                foreach ($sessoes1 as $sessao) {
+                    try {
+                        $contato = $sessao->contact;
+                        if (!$contato) continue;
 
-            $processadas = 0;
-            $alertasEnviados = 0;
-            $erros = [];
-
-            foreach ($sessoes as $sessao) {
-                $processadas++;
-
-                $ultimaAtualizacao = $sessao->updated_at;
-                $agora = now();
-                $minutosInativo = $ultimaAtualizacao->diffInMinutes($agora);
-
-                Log::info("Sessão ID {$sessao->id} - Minutos inativo: {$minutosInativo}");
-
-                // Verifica se tem mais de 60 minutos de inatividade
-                if ($minutosInativo >= 60) {
-                    $contato = $sessao->contact;
-                    $qtdeAlerta = $sessao->qtde_alerta ?? 0;
-
-                    if ($qtdeAlerta == 0 && $minutosInativo >= 60) {
-                        // PRIMEIRO ALERTA (60 minutos / 1 hora)
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
                             $contato->name . ", percebemos que você está ocupado neste momento.\n\nVocê deseja continuar o seu atendimento?",
@@ -1776,16 +1765,44 @@ class CronController extends Controller
                             ]
                         );
 
-                        $sessao->update([
+                        $ids1[] = $sessao->id;
+                        $totalAlertas++;
+                        Log::info("✓ Alerta 1 enviado para sessão {$sessao->id}");
+
+                    } catch (\Exception $e) {
+                        $erros[] = "Erro ao enviar alerta 1 para sessão {$sessao->id}: " . $e->getMessage();
+                        Log::error($erros[count($erros) - 1]);
+                    }
+                }
+
+                // Atualiza todas de uma vez
+                if (!empty($ids1)) {
+                    DB::table('whatsapp_sessions')
+                        ->whereIn('id', $ids1)
+                        ->update([
                             'qtde_alerta' => 1,
-                            'updated_at' => now()
+                            'updated_at' => $agora
                         ]);
+                    $totalProcessadas += count($ids1);
+                }
+            }
 
-                        $alertasEnviados++;
-                        Log::info("✓ Primeiro alerta enviado para sessão {$sessao->id}");
+            // ===== ALERTA 2: Busca 10 sessões com 120+ minutos inativo e qtde_alerta = 1 =====
+            $sessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
+                ->where('qtde_alerta', 1)
+                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 120")
+                ->limit(10)
+                ->get();
 
-                    } elseif ($qtdeAlerta == 1 && $minutosInativo >= 120) {
-                        // SEGUNDO ALERTA (120 minutos / 2 horas)
+            if ($sessoes2->isNotEmpty()) {
+                Log::info("Processando " . $sessoes2->count() . " sessões para ALERTA 2");
+                
+                $ids2 = [];
+                foreach ($sessoes2 as $sessao) {
+                    try {
+                        $contato = $sessao->contact;
+                        if (!$contato) continue;
+
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
                             "Olá novamente! Ainda está aí? 👋\n\nEntendo que você ainda pode estar ocupado.\n\nVocê deseja continuar o seu atendimento?",
@@ -1795,27 +1812,46 @@ class CronController extends Controller
                             ]
                         );
 
-                        $sessao->update([
+                        $ids2[] = $sessao->id;
+                        $totalAlertas++;
+                        Log::info("✓ Alerta 2 enviado para sessão {$sessao->id}");
+
+                    } catch (\Exception $e) {
+                        $erros[] = "Erro ao enviar alerta 2 para sessão {$sessao->id}: " . $e->getMessage();
+                        Log::error($erros[count($erros) - 1]);
+                    }
+                }
+
+                // Atualiza todas de uma vez
+                if (!empty($ids2)) {
+                    DB::table('whatsapp_sessions')
+                        ->whereIn('id', $ids2)
+                        ->update([
                             'qtde_alerta' => 2,
-                            'updated_at' => now()
+                            'updated_at' => $agora
                         ]);
+                    $totalProcessadas += count($ids2);
+                }
+            }
 
-                        $alertasEnviados++;
-                        Log::info("✓ Segundo alerta enviado para sessão {$sessao->id}");
+            // ===== ALERTA 3: Busca 10 sessões com 180+ minutos inativo e qtde_alerta = 2 =====
+            $sessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
+                ->where('qtde_alerta', 2)
+                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 180")
+                ->limit(10)
+                ->get();
 
-                    } elseif ($qtdeAlerta == 2 && $minutosInativo >= 180) {
-                        // TERCEIRO ALERTA (180 minutos / 3 horas) - Finaliza
+            if ($sessoes3->isNotEmpty()) {
+                Log::info("Processando " . $sessoes3->count() . " sessões para ALERTA 3");
+                
+                $ids3 = [];
+                foreach ($sessoes3 as $sessao) {
+                    try {
+                        $contato = $sessao->contact;
+                        if (!$contato) continue;
+
                         $nomeContato = $contato->name ?? 'Cliente';
                         $primeiroNome = explode(' ', trim($nomeContato))[0];
-
-                        // Mensagem intermediária antes de finalizar
-                        $this->enviarMensagemTexto(
-                            $contato->wa_id,
-                            "Percebi que você não pode me responder agora. 😔\n\nSeu atendimento será finalizado. Quando desejar retomar o atendimento, basta mandar um \"Oi\"."
-                        );
-
-                        // Aguarda um pouco antes de enviar a mensagem final
-                        sleep(2);
 
                         // Mensagem final de encerramento
                         $mensagemFinal = "Muito obrigado {$primeiroNome}!\n\n";
@@ -1825,24 +1861,35 @@ class CronController extends Controller
 
                         $this->enviarMensagemTexto($contato->wa_id, $mensagemFinal);
 
-                        $sessao->update([
+                        $ids3[] = $sessao->id;
+                        $totalAlertas++;
+                        Log::info("✓ Alerta 3 e encerramento enviados para sessão {$sessao->id}");
+
+                    } catch (\Exception $e) {
+                        $erros[] = "Erro ao enviar alerta 3 para sessão {$sessao->id}: " . $e->getMessage();
+                        Log::error($erros[count($erros) - 1]);
+                    }
+                }
+
+                // Atualiza todas de uma vez
+                if (!empty($ids3)) {
+                    DB::table('whatsapp_sessions')
+                        ->whereIn('id', $ids3)
+                        ->update([
                             'qtde_alerta' => 3,
                             'current_step' => 'encerrada',
-                            'updated_at' => now()
+                            'updated_at' => $agora
                         ]);
-
-                        $alertasEnviados++;
-                        Log::info("✓ Terceiro alerta e finalização enviados para sessão {$sessao->id}");
-                    }
+                    $totalProcessadas += count($ids3);
                 }
             }
 
-            Log::info("Verificação de inatividade concluída: {$processadas} sessões processadas, {$alertasEnviados} alertas enviados");
+            Log::info("Verificação de inatividade concluída: {$totalProcessadas} sessões processadas, {$totalAlertas} alertas enviados");
 
             return response()->json([
                 'mensagem' => 'Verificação de inatividade concluída',
-                'sessoes_processadas' => $processadas,
-                'alertas_enviados' => $alertasEnviados,
+                'sessoes_processadas' => $totalProcessadas,
+                'alertas_enviados' => $totalAlertas,
                 'erros' => $erros
             ]);
 
