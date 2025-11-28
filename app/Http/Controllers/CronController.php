@@ -1744,7 +1744,7 @@ class CronController extends Controller
             $sessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 0)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 60")
-                ->limit(10)
+                ->limit(30)
                 ->get();
 
             if ($sessoes1->isNotEmpty()) {
@@ -1791,7 +1791,7 @@ class CronController extends Controller
             $sessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 1)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 120")
-                ->limit(10)
+                ->limit(30)
                 ->get();
 
             if ($sessoes2->isNotEmpty()) {
@@ -1838,7 +1838,7 @@ class CronController extends Controller
             $sessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 2)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 180")
-                ->limit(10)
+                ->limit(30)
                 ->get();
 
             if ($sessoes3->isNotEmpty()) {
