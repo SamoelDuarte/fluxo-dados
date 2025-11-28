@@ -1744,11 +1744,26 @@ class CronController extends Controller
             $sessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 0)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 60")
-                ->limit(30)
+                ->limit(100)
                 ->get();
 
-            if ($sessoes1->isNotEmpty()) {
-                Log::info("Processando " . $sessoes1->count() . " sessões para ALERTA 1");
+            $count1 = $sessoes1->count();
+            Log::info("ALERTA 1: Encontradas {$count1} sessões");
+
+            if ($count1 > 10) {
+                Log::warning("ALERTA 1 possui {$count1} sessões (> 10). Interrompendo execução dos alertas 2 e 3.");
+                return response()->json([
+                    'mensagem' => 'Verificação interrompida',
+                    'motivo' => 'ALERTA 1 possui mais de 10 sessões',
+                    'sessoes_alerta_1' => $count1,
+                    'sessoes_processadas' => 0,
+                    'alertas_enviados' => 0,
+                    'erros' => $erros
+                ]);
+            }
+
+            if ($count1 > 0) {
+                Log::info("Processando {$count1} sessões para ALERTA 1");
                 
                 $ids1 = [];
                 foreach ($sessoes1 as $sessao) {
@@ -1791,11 +1806,27 @@ class CronController extends Controller
             $sessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 1)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 120")
-                ->limit(30)
+                ->limit(100)
                 ->get();
 
-            if ($sessoes2->isNotEmpty()) {
-                Log::info("Processando " . $sessoes2->count() . " sessões para ALERTA 2");
+            $count2 = $sessoes2->count();
+            Log::info("ALERTA 2: Encontradas {$count2} sessões");
+
+            if ($count2 > 10) {
+                Log::warning("ALERTA 2 possui {$count2} sessões (> 10). Interrompendo execução do alerta 3.");
+                return response()->json([
+                    'mensagem' => 'Verificação interrompida',
+                    'motivo' => 'ALERTA 2 possui mais de 10 sessões',
+                    'sessoes_alerta_1' => $count1,
+                    'sessoes_alerta_2' => $count2,
+                    'sessoes_processadas' => $totalProcessadas,
+                    'alertas_enviados' => $totalAlertas,
+                    'erros' => $erros
+                ]);
+            }
+
+            if ($count2 > 0) {
+                Log::info("Processando {$count2} sessões para ALERTA 2");
                 
                 $ids2 = [];
                 foreach ($sessoes2 as $sessao) {
@@ -1838,11 +1869,28 @@ class CronController extends Controller
             $sessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 2)
                 ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 180")
-                ->limit(30)
+                ->limit(100)
                 ->get();
 
-            if ($sessoes3->isNotEmpty()) {
-                Log::info("Processando " . $sessoes3->count() . " sessões para ALERTA 3");
+            $count3 = $sessoes3->count();
+            Log::info("ALERTA 3: Encontradas {$count3} sessões");
+
+            if ($count3 > 10) {
+                Log::warning("ALERTA 3 possui {$count3} sessões (> 10). Encerrando execução.");
+                return response()->json([
+                    'mensagem' => 'Verificação concluída',
+                    'motivo' => 'ALERTA 3 possui mais de 10 sessões',
+                    'sessoes_alerta_1' => $count1,
+                    'sessoes_alerta_2' => $count2,
+                    'sessoes_alerta_3' => $count3,
+                    'sessoes_processadas' => $totalProcessadas,
+                    'alertas_enviados' => $totalAlertas,
+                    'erros' => $erros
+                ]);
+            }
+
+            if ($count3 > 0) {
+                Log::info("Processando {$count3} sessões para ALERTA 3");
                 
                 $ids3 = [];
                 foreach ($sessoes3 as $sessao) {
@@ -1888,6 +1936,9 @@ class CronController extends Controller
 
             return response()->json([
                 'mensagem' => 'Verificação de inatividade concluída',
+                'sessoes_alerta_1' => $count1,
+                'sessoes_alerta_2' => $count2,
+                'sessoes_alerta_3' => $count3,
                 'sessoes_processadas' => $totalProcessadas,
                 'alertas_enviados' => $totalAlertas,
                 'erros' => $erros
