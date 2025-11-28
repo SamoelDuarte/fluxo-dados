@@ -1630,7 +1630,7 @@ class CronController extends Controller
                         //     ]
                         // ];
 
-                           $data = [
+                        $data = [
                             'messaging_product' => 'whatsapp',
                             'to' => $numeroContato,
                             'type' => 'template',
@@ -1750,26 +1750,17 @@ class CronController extends Controller
             $count1 = $sessoes1->count();
             Log::info("ALERTA 1: Encontradas {$count1} sessões");
 
-            if ($count1 > 10) {
-                Log::warning("ALERTA 1 possui {$count1} sessões (> 10). Interrompendo execução dos alertas 2 e 3.");
-                return response()->json([
-                    'mensagem' => 'Verificação interrompida',
-                    'motivo' => 'ALERTA 1 possui mais de 10 sessões',
-                    'sessoes_alerta_1' => $count1,
-                    'sessoes_processadas' => 0,
-                    'alertas_enviados' => 0,
-                    'erros' => $erros
-                ]);
-            }
+
 
             if ($count1 > 0) {
                 Log::info("Processando {$count1} sessões para ALERTA 1");
-                
+
                 $ids1 = [];
                 foreach ($sessoes1 as $sessao) {
                     try {
                         $contato = $sessao->contact;
-                        if (!$contato) continue;
+                        if (!$contato)
+                            continue;
 
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
@@ -1802,6 +1793,18 @@ class CronController extends Controller
                 }
             }
 
+            if ($count1 > 10) {
+                Log::warning("ALERTA 1 possui {$count1} sessões (> 10). Interrompendo execução dos alertas 2 e 3.");
+                return response()->json([
+                    'mensagem' => 'Verificação interrompida',
+                    'motivo' => 'ALERTA 1 possui mais de 10 sessões',
+                    'sessoes_alerta_1' => $count1,
+                    'sessoes_processadas' => 0,
+                    'alertas_enviados' => 0,
+                    'erros' => $erros
+                ]);
+            }
+
             // ===== ALERTA 2: Busca 10 sessões com 120+ minutos inativo e qtde_alerta = 1 =====
             $sessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 1)
@@ -1812,27 +1815,17 @@ class CronController extends Controller
             $count2 = $sessoes2->count();
             Log::info("ALERTA 2: Encontradas {$count2} sessões");
 
-            if ($count2 > 10) {
-                Log::warning("ALERTA 2 possui {$count2} sessões (> 10). Interrompendo execução do alerta 3.");
-                return response()->json([
-                    'mensagem' => 'Verificação interrompida',
-                    'motivo' => 'ALERTA 2 possui mais de 10 sessões',
-                    'sessoes_alerta_1' => $count1,
-                    'sessoes_alerta_2' => $count2,
-                    'sessoes_processadas' => $totalProcessadas,
-                    'alertas_enviados' => $totalAlertas,
-                    'erros' => $erros
-                ]);
-            }
+            
 
             if ($count2 > 0) {
                 Log::info("Processando {$count2} sessões para ALERTA 2");
-                
+
                 $ids2 = [];
                 foreach ($sessoes2 as $sessao) {
                     try {
                         $contato = $sessao->contact;
-                        if (!$contato) continue;
+                        if (!$contato)
+                            continue;
 
                         $this->enviarMensagemAlerta(
                             $contato->wa_id,
@@ -1865,6 +1858,19 @@ class CronController extends Controller
                 }
             }
 
+            if ($count2 > 10) {
+                Log::warning("ALERTA 2 possui {$count2} sessões (> 10). Interrompendo execução do alerta 3.");
+                return response()->json([
+                    'mensagem' => 'Verificação interrompida',
+                    'motivo' => 'ALERTA 2 possui mais de 10 sessões',
+                    'sessoes_alerta_1' => $count1,
+                    'sessoes_alerta_2' => $count2,
+                    'sessoes_processadas' => $totalProcessadas,
+                    'alertas_enviados' => $totalAlertas,
+                    'erros' => $erros
+                ]);
+            }
+
             // ===== ALERTA 3: Busca 10 sessões com 180+ minutos inativo e qtde_alerta = 2 =====
             $sessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 2)
@@ -1875,28 +1881,17 @@ class CronController extends Controller
             $count3 = $sessoes3->count();
             Log::info("ALERTA 3: Encontradas {$count3} sessões");
 
-            if ($count3 > 10) {
-                Log::warning("ALERTA 3 possui {$count3} sessões (> 10). Encerrando execução.");
-                return response()->json([
-                    'mensagem' => 'Verificação concluída',
-                    'motivo' => 'ALERTA 3 possui mais de 10 sessões',
-                    'sessoes_alerta_1' => $count1,
-                    'sessoes_alerta_2' => $count2,
-                    'sessoes_alerta_3' => $count3,
-                    'sessoes_processadas' => $totalProcessadas,
-                    'alertas_enviados' => $totalAlertas,
-                    'erros' => $erros
-                ]);
-            }
+            
 
             if ($count3 > 0) {
                 Log::info("Processando {$count3} sessões para ALERTA 3");
-                
+
                 $ids3 = [];
                 foreach ($sessoes3 as $sessao) {
                     try {
                         $contato = $sessao->contact;
-                        if (!$contato) continue;
+                        if (!$contato)
+                            continue;
 
                         $nomeContato = $contato->name ?? 'Cliente';
                         $primeiroNome = explode(' ', trim($nomeContato))[0];
@@ -2246,7 +2241,7 @@ class CronController extends Controller
         // return '28/11/2025';
 
         // Código original comentado para recuperar depois:
-        
+
         $data = now();
         $diasAdicionados = 0;
         $diasUteis = 0;
@@ -2270,7 +2265,7 @@ class CronController extends Controller
         }
 
         return $data->format('d/m/Y');
-        
+
     }
 
     /**
