@@ -34,7 +34,14 @@ class WhatsappController extends Controller
         $messageText = $messageData['text']['body'] ?? null;
         $messageType = $messageData['type'] ?? 'text';
         $messageTimestamp = isset($messageData['timestamp']) ? date('Y-m-d H:i:s', $messageData['timestamp']) : now();
-        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->latest('created_at')->first();
+        
+        // Retorna false se contatoDados não for encontrado
+        if (!$contatoDados) {
+            \Log::warning('ContatoDados não encontrado para wa_id: ' . $wa_id);
+            return false;
+        }
+
         // Variável fixa para simular dia útil
         $isDiaUtil = true;
 
@@ -445,7 +452,7 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->latest('created_at')->first();
 
         if (!$contatoDados || empty($contatoDados->document)) {
             \Log::warning('ContatoDados não encontrado para wa_id: ' . $wa_id);
@@ -604,7 +611,7 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->latest('created_at')->first();
 
         if (!$contatoDados || empty($contatoDados->document)) {
             return response()->json([
@@ -652,7 +659,7 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contrato = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contrato = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->latest('created_at')->first();
 
        
 
@@ -911,7 +918,7 @@ class WhatsappController extends Controller
         }
 
         // Busca o contato em contatoDados onde telefone == wa_id
-        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->first();
+        $contatoDados = ContatoDados::where('telefone', preg_replace('/\D/', '', $wa_id))->latest('created_at')->first();
 
         if (!$contatoDados || empty($contatoDados->document)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
