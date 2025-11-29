@@ -1736,6 +1736,18 @@ class CronController extends Controller
     {
         try {
             $agora = now();
+            $horaAtual = $agora->hour;
+
+            // Verifica se está entre 8h da manhã e 8h da noite (20h)
+            if ($horaAtual < 8 || $horaAtual >= 20) {
+                Log::info("Verificação de inatividade bloqueada: Fora do horário de funcionamento (08:00 - 20:00). Hora atual: {$horaAtual}:00");
+                return response()->json([
+                    'mensagem' => 'Verificação de inatividade bloqueada',
+                    'motivo' => 'Fora do horário de funcionamento (08:00 - 20:00)',
+                    'hora_atual' => $horaAtual . ':00'
+                ]);
+            }
+
             $totalProcessadas = 0;
             $totalAlertas = 0;
             $erros = [];
