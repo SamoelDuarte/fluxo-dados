@@ -1741,11 +1741,15 @@ class CronController extends Controller
             $erros = [];
 
             // ===== ALERTA 1: Busca 10 sessões com 60+ minutos inativo e qtde_alerta = 0 =====
-            $sessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
+            $todasSessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 0)
-                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 60")
-                ->limit(110)
                 ->get();
+
+            // Filtra em PHP as que têm 60+ minutos de inatividade
+            $sessoes1 = $todasSessoes1->filter(function($sessao) {
+                $minutosInativo = $sessao->updated_at->diffInMinutes(now());
+                return $minutosInativo >= 60;
+            })->values();
 
             $count1 = $sessoes1->count();
             Log::info("ALERTA 1: Encontradas {$count1} sessões");
@@ -1806,11 +1810,15 @@ class CronController extends Controller
             }
 
             // ===== ALERTA 2: Busca 10 sessões com 120+ minutos inativo e qtde_alerta = 1 =====
-            $sessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
+            $todasSessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 1)
-                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 120")
-                ->limit(110)
                 ->get();
+
+            // Filtra em PHP as que têm 120+ minutos de inatividade
+            $sessoes2 = $todasSessoes2->filter(function($sessao) {
+                $minutosInativo = $sessao->updated_at->diffInMinutes(now());
+                return $minutosInativo >= 120;
+            })->values();
 
             $count2 = $sessoes2->count();
             Log::info("ALERTA 2: Encontradas {$count2} sessões");
@@ -1872,11 +1880,15 @@ class CronController extends Controller
             }
 
             // ===== ALERTA 3: Busca 10 sessões com 180+ minutos inativo e qtde_alerta = 2 =====
-            $sessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
+            $todasSessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 2)
-                ->whereRaw("TIMESTAMPDIFF(MINUTE, updated_at, NOW()) >= 180")
-                ->limit(110)
                 ->get();
+
+            // Filtra em PHP as que têm 180+ minutos de inatividade
+            $sessoes3 = $todasSessoes3->filter(function($sessao) {
+                $minutosInativo = $sessao->updated_at->diffInMinutes(now());
+                return $minutosInativo >= 180;
+            })->values();
 
             $count3 = $sessoes3->count();
             Log::info("ALERTA 3: Encontradas {$count3} sessões");
