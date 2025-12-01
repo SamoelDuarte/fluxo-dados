@@ -16,6 +16,7 @@
                     <th>Imagem</th>
                     <th>Nome</th>
                     <th>Status</th>
+                    <th>Data de Criação</th>
                     <th>Pendentes</th>
                     <th>Enviados</th>
                     <th>Acordos</th>
@@ -35,6 +36,7 @@
                         </td>
                         <td>{{ $campanha->name }}</td>
                         <td>{{ $campanha->status === 'paused' ? 'Pausado' : 'Rodando' }}</td>
+                        <td>{{ $campanha->created_at->format('d/m/Y H:i') }}</td>
                         <td>
                             <span class="badge badge-info">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 0)->count() }}</span>
                         </td>
