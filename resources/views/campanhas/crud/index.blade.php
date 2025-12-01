@@ -17,8 +17,8 @@
                     <th>Nome</th>
                     <th>Status</th>
                     <th>Pendentes</th>
-                    <th>Na Fila</th>
                     <th>Enviados</th>
+                    <th>Acordos</th>
                     <th>Ações</th>
                 </tr>
                 </thead>
@@ -39,10 +39,10 @@
                             <span class="badge badge-info">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 0)->count() }}</span>
                         </td>
                         <td>
-                            <span class="badge badge-warning">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 2)->count() }}</span>
+                            <span class="badge badge-success">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 1)->count() }}</span>
                         </td>
                         <td>
-                            <span class="badge badge-success">{{ $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->where('contato_dados.send', 1)->count() }}</span>
+                            <span class="badge badge-secondary">{{ \App\Models\Acordo::whereIn('contato_dado_id', $campanha->contatos()->join('contato_dados', 'contatos.id', '=', 'contato_dados.contato_id')->pluck('contato_dados.id'))->count() }}</span>
                         </td>
                         <td>
                             <a href="{{ route('campanhas.crud.edit', $campanha) }}" class="btn btn-sm btn-secondary">Editar</a>
