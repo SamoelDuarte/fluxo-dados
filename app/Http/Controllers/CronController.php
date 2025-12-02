@@ -1635,7 +1635,7 @@ class CronController extends Controller
                             'to' => $numeroContato,
                             'type' => 'template',
                             'template' => [
-                                'name' => 'inicio240', // Usar o nome do template da campanha
+                                'name' => $campanha->template_name, // Usar o nome do template da campanha
                                 'language' => [
                                     'code' => 'pt_BR',
                                 ],
