@@ -19,13 +19,35 @@ use Carbon\Carbon;
 class WhatsappController extends Controller
 {
 
+    /**
+     * Normaliza wa_id para sempre ter 13 caracteres (com 9 do celular)
+     * Exemplo: 551186123660 (12 chars) → 5511986123660 (13 chars)
+     * Exemplo: 5511986123660 (13 chars) → 5511986123660 (já normalizado)
+     */
+    private function normalizarWaId($wa_id)
+    {
+        if (empty($wa_id)) {
+            return null;
+        }
+
+        // Remove qualquer caractere que não seja número
+        $wa_id = preg_replace('/\D/', '', $wa_id);
+
+        // Se tiver 12 caracteres, insere o 9 após o DD (2 primeiros dígitos)
+        if (strlen($wa_id) === 12) {
+            $wa_id = substr($wa_id, 0, 2) . '9' . substr($wa_id, 2);
+        }
+
+        return $wa_id;
+    }
+
     public function verificaChat(Request $request)
     {
         $data = $request->all();
 
         // Extrai os dados recebidos em variáveis
         $name = $data['nome'] ?? null;
-        $wa_id = $data['numero'] ?? null;
+        $wa_id = $this->normalizarWaId($data['numero'] ?? null);
         $phoneNumberId = $data['phone_number_id'] ?? null;
         $messageData = $data['messageData'] ?? null;
 
@@ -193,7 +215,7 @@ class WhatsappController extends Controller
      */
     public function atualizarContextoEStepSessao(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
         $contextData = $request->input('contextData', []);
         $currentStep = $request->input('currentStep');
         $phone_number_id = $request->input('phone_number_id');
@@ -245,7 +267,7 @@ class WhatsappController extends Controller
      */
     public function obterContagemErros(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
         if (empty($wa_id)) {
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
@@ -278,7 +300,7 @@ class WhatsappController extends Controller
      */
     public function adicionarErroSessao(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
         $mensagemErro = $request->input('mensagemErro');
         $step = $request->input('step');
 
@@ -355,7 +377,7 @@ class WhatsappController extends Controller
      */
     public function atualizaStepWebhook(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
         $stepName = $request->input('step');
         $contact = WhatsappContact::where('wa_id', $wa_id)->first();
         if (!$contact) {
@@ -443,7 +465,7 @@ class WhatsappController extends Controller
 
     public function verificaDividaOuAcordo(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
         $idGrupo = "1582";
 
         if (empty($wa_id)) {
@@ -604,7 +626,7 @@ class WhatsappController extends Controller
      */
     public function verificaContratos(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
         if (empty($wa_id)) {
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
@@ -652,7 +674,7 @@ class WhatsappController extends Controller
 
     public function obterDocumentosAbertos(Request $request)
     {
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
         if (empty($wa_id)) {
             return response()->json(['error' => 'wa_id é obrigatório', 'success' => false], 400);
@@ -911,7 +933,7 @@ class WhatsappController extends Controller
     public function verificaCliente(Request $request)
     {
         $cpfCnpjDigitado = $request->input('cpfCnpj');
-        $wa_id = $request->input('wa_id');
+        $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
         if (empty($wa_id)) {
             return response()->make('false', 200, ['Content-Type' => 'text/plain']);
@@ -1276,7 +1298,7 @@ class WhatsappController extends Controller
     public function storeAcordo(Request $request)
     {
         try {
-            $wa_id = $request->input('wa_id');
+            $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
             // Valida wa_id obrigatório
             if (empty($wa_id)) {
@@ -1415,7 +1437,7 @@ class WhatsappController extends Controller
     public function storeAcordoParcelado(Request $request)
     {
         try {
-            $wa_id = $request->input('wa_id');
+            $wa_id = $this->normalizarWaId($request->input('wa_id'));
 
             // Valida wa_id obrigatório
             if (empty($wa_id)) {
