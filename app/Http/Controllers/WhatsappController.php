@@ -21,7 +21,8 @@ class WhatsappController extends Controller
 
     /**
      * Normaliza wa_id para sempre ter 13 caracteres (com 9 do celular)
-     * Exemplo: 551186123660 (12 chars) → 5511986123660 (13 chars)
+     * Formato: 55 (país) + DD (2 dígitos) + 9 (celular) + número (8 dígitos)
+     * Exemplo: 551186123660 (12 chars) → 5511986123660 (55+11+9+8626660)
      * Exemplo: 5511986123660 (13 chars) → 5511986123660 (já normalizado)
      */
     private function normalizarWaId($wa_id)
@@ -33,9 +34,9 @@ class WhatsappController extends Controller
         // Remove qualquer caractere que não seja número
         $wa_id = preg_replace('/\D/', '', $wa_id);
 
-        // Se tiver 12 caracteres, insere o 9 após o DD (2 primeiros dígitos)
+        // Se tiver 12 caracteres, insere o 9 após o DD (4 primeiros dígitos: 55+DD)
         if (strlen($wa_id) === 12) {
-            $wa_id = substr($wa_id, 0, 2) . '9' . substr($wa_id, 2);
+            $wa_id = substr($wa_id, 0, 4) . '9' . substr($wa_id, 4);
         }
 
         return $wa_id;
