@@ -1755,7 +1755,7 @@ class CronController extends Controller
             // ===== ALERTA 1: Busca 10 sessões com 60+ minutos inativo e qtde_alerta = 0 =====
             $todasSessoes1 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 0)
-                ->limit(20)
+                ->limit(50)
                 ->get();
 
             // Filtra em PHP as que têm 60+ minutos de inatividade
@@ -1825,7 +1825,7 @@ class CronController extends Controller
             // ===== ALERTA 2: Busca 10 sessões com 120+ minutos inativo e qtde_alerta = 1 =====
             $todasSessoes2 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 1)
-                ->limit(20)
+                ->limit(50)
                 ->get();
 
             // Filtra em PHP as que têm 120+ minutos de inatividade
@@ -1896,7 +1896,7 @@ class CronController extends Controller
             // ===== ALERTA 3: Busca 10 sessões com 180+ minutos inativo e qtde_alerta = 2 =====
             $todasSessoes3 = WhatsappSession::where('current_step', '!=', 'encerrada')
                 ->where('qtde_alerta', 2)
-                ->limit(20)
+                ->limit(50)
                 ->get();
 
             // Filtra em PHP as que têm 180+ minutos de inatividade
