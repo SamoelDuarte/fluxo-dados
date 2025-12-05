@@ -1320,7 +1320,7 @@ class WhatsappController extends Controller
             }
 
             // Busca os dados do contato em contato_dados pelo telefone ou nome
-            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->first();
+            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->latest('created_at')->first();
 
             if (!$contatoDados) {
                 Log::warning('Dados do contato não encontrados para wa_id: ' . $wa_id);
@@ -1459,7 +1459,7 @@ class WhatsappController extends Controller
             }
 
             // Busca os dados do contato em contato_dados pelo telefone ou nome
-            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->first();
+            $contatoDados = ContatoDados::where('telefone', 'LIKE', '%' . $whatsappContact->wa_id)->latest('created_at')->first();
 
             if (!$contatoDados) {
                 Log::warning('Dados do contato não encontrados para wa_id: ' . $wa_id);
