@@ -805,7 +805,7 @@ class WhatsappController extends Controller
     private function calcularDataVencimentoComDiasUteis()
     {
         // Data fixa para hoje: 28/11/2025
-        // return '28/11/2025';
+        return '30/12/2025';
         
         // Código original comentado para recuperar depois:
         
